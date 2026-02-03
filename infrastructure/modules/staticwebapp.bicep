@@ -39,8 +39,8 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   location: location
   tags: tags
   sku: {
-    name: 'Free'
-    tier: 'Free'
+    name: 'Standard'
+    tier: 'Standard'
   }
   identity: {
     type: 'SystemAssigned'

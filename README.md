@@ -56,7 +56,17 @@ qr-chain-attendance/
 npm run install:all
 ```
 
-### 2. Start Local Development
+### 2. Deploy to Azure
+
+**📚 See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for complete deployment instructions.**
+
+Quick summary:
+1. Create Azure AD app registration
+2. Create GitHub repository and token
+3. Deploy infrastructure with Bicep
+4. Deploy application code
+
+### 3. Local Development
 
 **Terminal 1 - Start Azurite (Azure Storage Emulator):**
 ```bash
@@ -73,7 +83,7 @@ npm run dev:backend
 npm run dev:frontend
 ```
 
-### 3. Access the Application
+### 4. Access the Application
 
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:7071/api

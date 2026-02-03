@@ -52,8 +52,8 @@ resource openAI 'Microsoft.CognitiveServices/accounts@2023-05-01' existing = if 
 // ROLE ASSIGNMENTS - STORAGE TABLE DATA CONTRIBUTOR
 // ============================================================================
 
-// Requirement 19.4: Assign Storage Table Data Contributor to Static Web App
-resource staticWebAppStorageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+// Requirement 19.4: Assign Storage Table Data Contributor to Static Web App (if deployed)
+resource staticWebAppStorageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (staticWebAppPrincipalId != '') {
   name: guid(storageAccount.id, staticWebAppPrincipalId, storageTableDataContributorRoleId)
   scope: storageAccount
   properties: {
@@ -108,8 +108,8 @@ resource functionAppOpenAIRoleAssignment 'Microsoft.Authorization/roleAssignment
 // OUTPUTS
 // ============================================================================
 
-@description('Storage role assignment for Static Web App')
-output staticWebAppStorageRoleAssignmentId string = staticWebAppStorageRoleAssignment.id
+@description('Storage role assignment for Static Web App (if deployed)')
+output staticWebAppStorageRoleAssignmentId string = staticWebAppPrincipalId != '' ? staticWebAppStorageRoleAssignment.id : ''
 
 @description('Storage role assignment for Function App')
 output functionAppStorageRoleAssignmentId string = functionAppStorageRoleAssignment.id

@@ -12,7 +12,8 @@ param repositoryBranch = 'main'
 param repositoryToken = ''
 
 // Deploy Static Web App (set to false to skip frontend deployment)
-param deployStaticWebApp = true
+// Already deployed via direct module deployment - see swa-qrattendance-dev2
+param deployStaticWebApp = false
 
 // Azure AD configuration
 // These should be provided at deployment time or via environment variables

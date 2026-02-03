@@ -65,4 +65,12 @@ azure-ad-summary.md
 assign-roles.sh
 github-token.txt
 DEPLOYMENT_VALUES.md
+deploy-now.sh
+test-swa-deploy.sh
+.deployment-config
+*.secret
+deployment.log
+COMPLETE_DEPLOYMENT_SUMMARY.md
+DEPLOYMENT_SUCCESS.md
+QUICK_DEPLOY_GUIDE.md
 github-token.txt
