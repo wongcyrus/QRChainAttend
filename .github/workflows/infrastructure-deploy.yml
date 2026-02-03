@@ -1,20 +1,11 @@
 name: Infrastructure - Deploy
 
 # Deploy Azure infrastructure using Bicep templates
-# Triggers on push to infrastructure files and manual dispatch
+# OPTIONAL: Only runs on manual dispatch
+# Required secrets must be configured first (see docs/CICD_SETUP.md)
+# If infrastructure is already deployed manually, this workflow is not needed
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'infrastructure/**'
-      - '.github/workflows/infrastructure-deploy.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'infrastructure/**'
   workflow_dispatch:
     inputs:
       environment:

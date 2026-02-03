@@ -74,3 +74,4 @@ COMPLETE_DEPLOYMENT_SUMMARY.md
 DEPLOYMENT_SUCCESS.md
 QUICK_DEPLOY_GUIDE.md
 github-token.txt
+azure-cicd-credentials.json
