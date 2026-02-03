@@ -11,8 +11,8 @@
  * - Offline fallback page
  */
 
-const CACHE_NAME = 'qr-attendance-v2';
-const RUNTIME_CACHE = 'qr-attendance-runtime-v2';
+const CACHE_NAME = 'qr-attendance-v3';
+const RUNTIME_CACHE = 'qr-attendance-runtime-v3';
 
 // Core assets to cache on install
 const STATIC_ASSETS = [

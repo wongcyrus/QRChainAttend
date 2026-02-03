@@ -11,13 +11,29 @@ interface UserInfo {
   userRoles: string[];
 }
 
+// Assign roles based on email domain
+function getRolesFromEmail(email: string): string[] {
+  const roles: string[] = ['authenticated'];
+  
+  if (!email) return roles;
+  
+  const emailLower = email.toLowerCase();
+  
+  if (emailLower.endsWith('@stu.vtc.edu.hk')) {
+    roles.push('student');
+  } else if (emailLower.endsWith('@vtc.edu.hk')) {
+    roles.push('teacher');
+  }
+  
+  return roles;
+}
+
 export default function Home() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is authenticated
-    // Add cache-busting and no-cache headers to prevent stale auth state
     fetch('/.auth/me', {
       cache: 'no-store',
       headers: {
@@ -28,10 +44,13 @@ export default function Home() {
       .then(res => res.json())
       .then(data => {
         if (data.clientPrincipal) {
+          const email = data.clientPrincipal.userDetails || '';
+          const roles = getRolesFromEmail(email);
+          
           setUser({
             userId: data.clientPrincipal.userId,
-            userDetails: data.clientPrincipal.userDetails,
-            userRoles: data.clientPrincipal.userRoles || []
+            userDetails: email,
+            userRoles: roles
           });
         }
         setLoading(false);
@@ -54,10 +73,13 @@ export default function Home() {
           .then(res => res.json())
           .then(data => {
             if (data.clientPrincipal) {
+              const email = data.clientPrincipal.userDetails || '';
+              const roles = getRolesFromEmail(email);
+              
               setUser({
                 userId: data.clientPrincipal.userId,
-                userDetails: data.clientPrincipal.userDetails,
-                userRoles: data.clientPrincipal.userRoles || []
+                userDetails: email,
+                userRoles: roles
               });
             } else {
               setUser(null);
