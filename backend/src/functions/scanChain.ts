@@ -255,8 +255,8 @@ async function scanChain(
       });
 
       // Send SignalR update if available
-      if (scanResult.signalRMessage) {
-        sendSignalRMessage(context, scanResult.signalRMessage);
+      if (scanResult.signalRMessages && scanResult.signalRMessages.length > 0) {
+        scanResult.signalRMessages.forEach(msg => sendSignalRMessage(context, msg));
       }
 
       // Get new token for the scanner (if baton transferred)

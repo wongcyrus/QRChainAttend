@@ -228,8 +228,8 @@ async function scanExitChain(
       });
 
       // Send SignalR update if available
-      if (scanResult.signalRMessage) {
-        sendSignalRMessage(context, scanResult.signalRMessage);
+      if (scanResult.signalRMessages && scanResult.signalRMessages.length > 0) {
+        scanResult.signalRMessages.forEach(msg => sendSignalRMessage(context, msg));
       }
 
       const response: ExitChainScanResponse = {

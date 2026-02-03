@@ -4,7 +4,7 @@
  * Requirements: 19.1, 19.4
  */
 
-import { TableClient, TableServiceClient, AzureNamedKeyCredential } from "@azure/data-tables";
+import { TableClient, TableServiceClient, AzureNamedKeyCredential, TableEntity } from "@azure/data-tables";
 import { DefaultAzureCredential } from "@azure/identity";
 import { getConfig } from "../config";
 import { RetryableTableClient, createRetryableTableClient } from "./retryableTableClient";

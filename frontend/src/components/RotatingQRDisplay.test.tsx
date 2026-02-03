@@ -27,11 +27,12 @@ global.fetch = jest.fn();
 describe('RotatingQRDisplay Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
+    // Don't use fake timers by default as they interfere with waitFor
+    // jest.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    // jest.useRealTimers();
   });
 
   const mockLateEntryToken: RotatingQRData = {
@@ -268,7 +269,10 @@ describe('RotatingQRDisplay Component', () => {
       );
 
       const startButton = screen.getByText('Start Early-Leave Window');
-      fireEvent.click(startButton);
+      
+      await act(async () => {
+        fireEvent.click(startButton);
+      });
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
@@ -306,11 +310,16 @@ describe('RotatingQRDisplay Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Stop Early-Leave Window')).toBeInTheDocument();
+        const button = screen.getByText('Stop Early-Leave Window');
+        expect(button).toBeInTheDocument();
+        expect(button).not.toBeDisabled();
       });
 
       const stopButton = screen.getByText('Stop Early-Leave Window');
-      fireEvent.click(stopButton);
+      
+      await act(async () => {
+        fireEvent.click(stopButton);
+      });
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
@@ -349,7 +358,10 @@ describe('RotatingQRDisplay Component', () => {
       );
 
       const startButton = screen.getByText('Start Early-Leave Window');
-      fireEvent.click(startButton);
+      
+      act(() => {
+        fireEvent.click(startButton);
+      });
 
       expect(screen.getByText('Starting...')).toBeInTheDocument();
       expect(startButton).toBeDisabled();
@@ -389,7 +401,10 @@ describe('RotatingQRDisplay Component', () => {
       });
 
       const stopButton = screen.getByText('Stop Early-Leave Window');
-      fireEvent.click(stopButton);
+      
+      act(() => {
+        fireEvent.click(stopButton);
+      });
 
       expect(screen.getByText('Stopping...')).toBeInTheDocument();
       expect(stopButton).toBeDisabled();
@@ -415,7 +430,10 @@ describe('RotatingQRDisplay Component', () => {
       );
 
       const startButton = screen.getByText('Start Early-Leave Window');
-      fireEvent.click(startButton);
+      
+      await act(async () => {
+        fireEvent.click(startButton);
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/Not authorized/)).toBeInTheDocument();
@@ -449,11 +467,16 @@ describe('RotatingQRDisplay Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Stop Early-Leave Window')).toBeInTheDocument();
+        const button = screen.getByText('Stop Early-Leave Window');
+        expect(button).toBeInTheDocument();
+        expect(button).not.toBeDisabled();
       });
 
       const stopButton = screen.getByText('Stop Early-Leave Window');
-      fireEvent.click(stopButton);
+      
+      await act(async () => {
+        fireEvent.click(stopButton);
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/Server error/)).toBeInTheDocument();
@@ -465,6 +488,8 @@ describe('RotatingQRDisplay Component', () => {
 
   describe('Auto-Refresh', () => {
     it('should auto-refresh token every 55 seconds when active', async () => {
+      jest.useFakeTimers();
+      
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({ token: mockLateEntryToken, active: true }),
@@ -502,6 +527,8 @@ describe('RotatingQRDisplay Component', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledTimes(3);
       });
+      
+      jest.useRealTimers();
     });
 
     it('should not auto-refresh when window is inactive', async () => {
@@ -642,7 +669,10 @@ describe('RotatingQRDisplay Component', () => {
       });
 
       const retryButton = screen.getByText('Retry');
-      fireEvent.click(retryButton);
+      
+      await act(async () => {
+        fireEvent.click(retryButton);
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId('qr-display')).toBeInTheDocument();

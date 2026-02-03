@@ -11,7 +11,6 @@
 import {
   TableClient,
   TableEntity,
-  CreateTableEntityOptions,
   UpdateTableEntityOptions,
   GetTableEntityOptions,
   DeleteTableEntityOptions,
@@ -77,8 +76,8 @@ export class RetryableTableClient<T extends TableEntity = TableEntity> {
    */
   async createEntity(
     entity: T,
-    options?: CreateTableEntityOptions
-  ): Promise<TableEntityResult<T>> {
+    options?: any
+  ): Promise<any> {
     return withRetry(
       () => this.client.createEntity(entity, options),
       this.retryOptions
@@ -93,7 +92,7 @@ export class RetryableTableClient<T extends TableEntity = TableEntity> {
     entity: T,
     mode?: "Merge" | "Replace",
     options?: UpdateTableEntityOptions
-  ): Promise<TableEntityResult<T>> {
+  ): Promise<any> {
     return withRetry(
       () => this.client.updateEntity(entity, mode, options),
       this.retryOptions
@@ -108,7 +107,7 @@ export class RetryableTableClient<T extends TableEntity = TableEntity> {
     entity: T,
     mode?: "Merge" | "Replace",
     options?: UpdateTableEntityOptions
-  ): Promise<TableEntityResult<T>> {
+  ): Promise<any> {
     return withRetry(
       () => this.client.upsertEntity(entity, mode, options),
       this.retryOptions
@@ -138,7 +137,7 @@ export class RetryableTableClient<T extends TableEntity = TableEntity> {
     partitionKey: string,
     rowKey: string,
     options?: DeleteTableEntityOptions
-  ): Promise<void> {
+  ): Promise<any> {
     return withRetry(
       () => this.client.deleteEntity(partitionKey, rowKey, options),
       this.retryOptions
