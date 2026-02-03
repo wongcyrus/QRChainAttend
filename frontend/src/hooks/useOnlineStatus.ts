@@ -33,10 +33,8 @@ export interface OnlineStatus {
  * ```
  */
 export function useOnlineStatus(): OnlineStatus {
-  // Initialize with current navigator.onLine status
-  const [isOnline, setIsOnline] = useState<boolean>(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
+  // Initialize with true to match SSR, then sync with actual status
+  const [isOnline, setIsOnline] = useState<boolean>(true);
   
   // Track if user was offline (to show reconnection messages)
   const [wasOffline, setWasOffline] = useState<boolean>(false);
@@ -46,6 +44,9 @@ export function useOnlineStatus(): OnlineStatus {
     if (typeof window === 'undefined') {
       return;
     }
+
+    // Sync with actual online status after mount
+    setIsOnline(navigator.onLine);
 
     /**
      * Handle online event
