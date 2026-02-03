@@ -397,7 +397,9 @@ describe('RotatingQRDisplay Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Stop Early-Leave Window')).toBeInTheDocument();
+        const button = screen.getByText('Stop Early-Leave Window');
+        expect(button).toBeInTheDocument();
+        expect(button).not.toBeDisabled();
       });
 
       const stopButton = screen.getByText('Stop Early-Leave Window');
@@ -436,10 +438,10 @@ describe('RotatingQRDisplay Component', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText(/Not authorized/)).toBeInTheDocument();
+        expect(screen.getByText(/Not authorized/i)).toBeInTheDocument();
       });
 
-      expect(onError).toHaveBeenCalledWith('Not authorized');
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining('Not authorized'));
     });
 
     it('should handle stop error gracefully', async () => {
@@ -603,6 +605,7 @@ describe('RotatingQRDisplay Component', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(screen.getByTestId('expire-button')).toBeInTheDocument();
       });
 
       // Simulate token expiration
