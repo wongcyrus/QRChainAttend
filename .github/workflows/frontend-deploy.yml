@@ -59,6 +59,9 @@ jobs:
           npm ci
           npm ci --workspace=shared --workspace=frontend --workspace=backend
 
+      - name: Build shared package
+        run: npm run build --workspace=shared
+
       - name: Run linter
         run: npm run lint --workspace=frontend
 

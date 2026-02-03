@@ -56,7 +56,7 @@ export function getTableClient(tableName: TableName): TableClient {
  * This is the recommended way to get a table client as it automatically
  * retries transient failures (network errors, storage throttling, etc.)
  */
-export function getRetryableTableClient<T extends Record<string, any> = Record<string, any>>(
+export function getRetryableTableClient<T extends TableEntity = TableEntity>(
   tableName: TableName
 ): RetryableTableClient<T> {
   const client = getTableClient(tableName);
