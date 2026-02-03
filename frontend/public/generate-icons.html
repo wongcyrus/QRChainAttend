@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate PWA Icons</title>
+</head>
+<body>
+    <h1>PWA Icon Generator</h1>
+    <p>Click the links below to download the generated icons:</p>
+    <canvas id="canvas192" width="192" height="192" style="border:1px solid #ccc; margin:10px;"></canvas>
+    <canvas id="canvas512" width="512" height="512" style="border:1px solid #ccc; margin:10px; max-width:300px;"></canvas>
+    <div style="margin:20px;">
+        <a id="download192" download="icon-192.png" style="display:block; margin:10px 0; padding:10px; background:#0078d4; color:white; text-decoration:none; border-radius:4px; width:200px; text-align:center;">Download icon-192.png</a>
+        <a id="download512" download="icon-512.png" style="display:block; margin:10px 0; padding:10px; background:#0078d4; color:white; text-decoration:none; border-radius:4px; width:200px; text-align:center;">Download icon-512.png</a>
+    </div>
+    <script>
+        function drawIcon(canvas) {
+            const ctx = canvas.getContext('2d');
+            const size = canvas.width;
+            const scale = size / 512;
+            
+            ctx.fillStyle = '#0078d4';
+            ctx.fillRect(0, 0, size, size);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(80*scale, 80*scale, 140*scale, 140*scale);
+            ctx.fillStyle = '#0078d4';
+            ctx.fillRect(100*scale, 100*scale, 100*scale, 100*scale);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(292*scale, 80*scale, 140*scale, 140*scale);
+            ctx.fillStyle = '#0078d4';
+            ctx.fillRect(312*scale, 100*scale, 100*scale, 100*scale);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(80*scale, 292*scale, 140*scale, 140*scale);
+            ctx.fillStyle = '#0078d4';
+            ctx.fillRect(100*scale, 312*scale, 100*scale, 100*scale);
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(356*scale, 356*scale, 50*scale, 0, 2*Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#0078d4';
+            ctx.beginPath();
+            ctx.arc(356*scale, 356*scale, 30*scale, 0, 2*Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(260*scale, 260*scale, 20*scale, 20*scale);
+            ctx.fillRect(260*scale, 290*scale, 20*scale, 20*scale);
+            ctx.fillRect(290*scale, 260*scale, 20*scale, 20*scale);
+        }
+        
+        drawIcon(document.getElementById('canvas192'));
+        drawIcon(document.getElementById('canvas512'));
+        
+        document.getElementById('download192').href = document.getElementById('canvas192').toDataURL('image/png');
+        document.getElementById('download512').href = document.getElementById('canvas512').toDataURL('image/png');
+    </script>
+</body>
+</html>

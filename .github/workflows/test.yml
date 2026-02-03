@@ -1,0 +1,195 @@
+name: Test Suite
+
+# Run all tests on pull requests and pushes
+# Includes unit tests, property tests, and integration tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22.x'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint Code
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --workspace=shared
+          npm ci --workspace=frontend
+          npm ci --workspace=backend
+
+      - name: Run linter (Frontend)
+        run: npm run lint --workspace=frontend
+
+      - name: Run linter (Backend)
+        run: npm run lint --workspace=backend
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: Unit Tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --workspace=shared
+          npm ci --workspace=frontend
+          npm ci --workspace=backend
+
+      - name: Run unit tests (Frontend)
+        run: npm run test:unit --workspace=frontend
+
+      - name: Run unit tests (Backend)
+        run: npm run test:unit --workspace=backend
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-${{ github.sha }}
+          path: |
+            frontend/coverage
+            backend/coverage
+          retention-days: 7
+
+  property-tests:
+    runs-on: ubuntu-latest
+    name: Property-Based Tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --workspace=shared
+          npm ci --workspace=frontend
+          npm ci --workspace=backend
+
+      - name: Run property tests (Frontend)
+        run: npm run test:property --workspace=frontend
+
+      - name: Run property tests (Backend)
+        run: npm run test:property --workspace=backend
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: property-test-results-${{ github.sha }}
+          path: |
+            frontend/coverage
+            backend/coverage
+          retention-days: 7
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: Integration Tests
+    services:
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+        options: >-
+          --health-cmd "nc -z localhost 10000"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --workspace=shared
+          npm ci --workspace=frontend
+          npm ci --workspace=backend
+
+      - name: Setup test environment
+        run: |
+          echo "STORAGE_ACCOUNT_NAME=devstoreaccount1" >> $GITHUB_ENV
+          echo "STORAGE_ACCOUNT_URI=http://127.0.0.1:10002/devstoreaccount1" >> $GITHUB_ENV
+          echo "AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;" >> $GITHUB_ENV
+
+      - name: Run integration tests
+        run: npm run test --workspace=backend
+        env:
+          NODE_ENV: test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results-${{ github.sha }}
+          path: |
+            backend/coverage
+          retention-days: 7
+
+  test-summary:
+    runs-on: ubuntu-latest
+    name: Test Summary
+    needs: [lint, unit-tests, property-tests, integration-tests]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "❌ Linting failed"
+            exit 1
+          fi
+          if [ "${{ needs.unit-tests.result }}" != "success" ]; then
+            echo "❌ Unit tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.property-tests.result }}" != "success" ]; then
+            echo "❌ Property tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.integration-tests.result }}" != "success" ]; then
+            echo "❌ Integration tests failed"
+            exit 1
+          fi
+          echo "✅ All tests passed!"

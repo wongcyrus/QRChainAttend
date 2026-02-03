@@ -1,0 +1,152 @@
+name: Infrastructure - Deploy
+
+# Deploy Azure infrastructure using Bicep templates
+# Triggers on push to infrastructure files and manual dispatch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/infrastructure-deploy.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+      what_if:
+        description: 'Run in what-if mode (preview changes without deploying)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Validate Bicep Templates
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_STAGING }}
+
+      - name: Validate Bicep templates
+        run: |
+          chmod +x infrastructure/validate.sh
+          ./infrastructure/validate.sh
+
+      - name: Azure Logout
+        if: always()
+        run: az logout
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    needs: validate
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging' && github.event.inputs.what_if == 'false')
+    environment:
+      name: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_STAGING }}
+
+      - name: Deploy infrastructure
+        run: |
+          chmod +x infrastructure/deploy.sh
+          ./infrastructure/deploy.sh \
+            --environment staging \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_STAGING }} \
+            --location ${{ secrets.AZURE_LOCATION || 'eastus' }} \
+            --repository-url "${{ github.server_url }}/${{ github.repository }}" \
+            --branch main \
+            --token "${{ secrets.GH_PAT }}" \
+            --client-id "${{ secrets.AAD_CLIENT_ID_STAGING }}" \
+            --client-secret "${{ secrets.AAD_CLIENT_SECRET_STAGING }}" \
+            --deploy-openai true
+
+      - name: Azure Logout
+        if: always()
+        run: az logout
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production' && github.event.inputs.what_if == 'false'
+    environment:
+      name: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PRODUCTION }}
+
+      - name: Deploy infrastructure
+        run: |
+          chmod +x infrastructure/deploy.sh
+          ./infrastructure/deploy.sh \
+            --environment prod \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PRODUCTION }} \
+            --location ${{ secrets.AZURE_LOCATION || 'eastus' }} \
+            --repository-url "${{ github.server_url }}/${{ github.repository }}" \
+            --branch main \
+            --token "${{ secrets.GH_PAT }}" \
+            --client-id "${{ secrets.AAD_CLIENT_ID_PRODUCTION }}" \
+            --client-secret "${{ secrets.AAD_CLIENT_SECRET_PRODUCTION }}" \
+            --deploy-openai true
+
+      - name: Azure Logout
+        if: always()
+        run: az logout
+
+  what-if:
+    runs-on: ubuntu-latest
+    name: Preview Changes (What-If)
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.what_if == 'true')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_STAGING }}
+
+      - name: Run what-if analysis
+        run: |
+          chmod +x infrastructure/deploy.sh
+          ./infrastructure/deploy.sh \
+            --environment ${{ github.event.inputs.environment || 'staging' }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_STAGING }} \
+            --what-if
+
+      - name: Azure Logout
+        if: always()
+        run: az logout

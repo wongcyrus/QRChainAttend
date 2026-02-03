@@ -1,0 +1,31 @@
+{
+  "name": "qr-chain-attendance",
+  "version": "1.0.0",
+  "description": "QR Chain Attendance System - Anti-cheat classroom attendance with peer-to-peer verification",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm install --workspace=frontend && npm install --workspace=backend && npm install --workspace=shared",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:backend": "npm run start --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "test": "npm run test --workspaces",
+    "test:unit": "npm run test:unit --workspaces",
+    "test:property": "npm run test:property --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "keywords": [
+    "attendance",
+    "qr-code",
+    "azure",
+    "anti-cheat",
+    "education"
+  ],
+  "author": "",
+  "license": "MIT"
+}

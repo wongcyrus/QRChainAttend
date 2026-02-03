@@ -1,0 +1,140 @@
+name: Backend - Build and Deploy
+
+# Deploy backend Azure Functions
+# Triggers on push to main, PRs, and manual dispatch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'shared/**'
+      - '.github/workflows/backend-deploy.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'shared/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '22.x'
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'backend'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --workspace=shared
+          npm ci --workspace=backend
+
+      - name: Run linter
+        run: npm run lint --workspace=backend
+
+      - name: Run unit tests
+        run: npm run test:unit --workspace=backend
+
+      - name: Run property tests
+        run: npm run test:property --workspace=backend
+
+      - name: Build backend
+        run: npm run build --workspace=backend
+
+      - name: Upload artifact for deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ github.sha }}
+          path: |
+            ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/dist
+            ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/node_modules
+            ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/package.json
+            ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/host.json
+          retention-days: 7
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    needs: build
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.webapp-url }}
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-${{ github.sha }}
+          path: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_STAGING }}
+
+      - name: Deploy to Azure Functions (Staging)
+        id: deploy
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME_STAGING }}
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          respect-funcignore: true
+
+      - name: Azure Logout
+        if: always()
+        run: az logout
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.webapp-url }}
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-${{ github.sha }}
+          path: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PRODUCTION }}
+
+      - name: Deploy to Azure Functions (Production)
+        id: deploy
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME_PRODUCTION }}
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          respect-funcignore: true
+
+      - name: Azure Logout
+        if: always()
+        run: az logout
