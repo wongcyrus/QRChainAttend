@@ -123,14 +123,16 @@ jobs:
           - 10000:10000
           - 10001:10001
           - 10002:10002
-        options: >-
-          --health-cmd "nc -z localhost 10000"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Wait for Azurite to be ready
+        run: |
+          echo "Waiting for Azurite to start..."
+          timeout 30 bash -c 'until curl -f http://localhost:10000 2>/dev/null; do sleep 2; done' || true
+          sleep 5
+          echo "Azurite should be ready"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
