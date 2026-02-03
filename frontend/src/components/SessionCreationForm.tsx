@@ -12,7 +12,6 @@
  */
 
 import React, { useState } from 'react';
-import { QRDisplay } from './QRDisplay';
 
 interface SessionConstraints {
   geofence?: {
@@ -246,11 +245,15 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
         <div className="session-qr-display">
           <h3>Session QR Code</h3>
           <p>Students can scan this QR code to join the session:</p>
-          <QRDisplay
-            qrData={createdSession.sessionQR}
-            size={300}
-            label="Session Join QR"
-          />
+          <div className="qr-code-container">
+            <img 
+              src={createdSession.sessionQR} 
+              alt="Session QR Code"
+              width={300}
+              height={300}
+            />
+            <p className="qr-label">Session Join QR</p>
+          </div>
         </div>
         
         <button 

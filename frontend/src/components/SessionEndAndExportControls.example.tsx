@@ -5,17 +5,18 @@
 
 import React, { useState } from 'react';
 import { SessionEndAndExportControls } from './SessionEndAndExportControls';
+import { SessionStatus } from '@qr-attendance/shared';
 
 /**
  * Example 1: Basic usage with active session
  */
 export function BasicExample() {
-  const [sessionStatus, setSessionStatus] = useState<'ACTIVE' | 'ENDED'>('ACTIVE');
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>(SessionStatus.ACTIVE);
   const [error, setError] = useState<string | null>(null);
 
   const handleSessionEnded = (finalAttendance: any[]) => {
     console.log('Session ended with final attendance:', finalAttendance);
-    setSessionStatus('ENDED');
+    setSessionStatus(SessionStatus.ENDED);
   };
 
   const handleError = (errorMessage: string) => {
@@ -61,7 +62,7 @@ export function EndedSessionExample() {
 
       <SessionEndAndExportControls
         sessionId="ended-session-456"
-        sessionStatus="ENDED"
+        sessionStatus={SessionStatus.ENDED}
         onError={(error) => console.error('Error:', error)}
       />
     </div>
@@ -120,7 +121,7 @@ export function CustomErrorHandlingExample() {
 
       <SessionEndAndExportControls
         sessionId="error-handling-session-789"
-        sessionStatus="ACTIVE"
+        sessionStatus={SessionStatus.ACTIVE}
         onError={handleError}
       />
     </div>
@@ -131,13 +132,13 @@ export function CustomErrorHandlingExample() {
  * Example 4: Integration with teacher dashboard
  */
 export function DashboardIntegrationExample() {
-  const [sessionStatus, setSessionStatus] = useState<'ACTIVE' | 'ENDED'>('ACTIVE');
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>(SessionStatus.ACTIVE);
   const [attendanceCount, setAttendanceCount] = useState<number>(0);
   const [showControls, setShowControls] = useState(true);
 
   const handleSessionEnded = (finalAttendance: any[]) => {
     console.log('Session ended successfully');
-    setSessionStatus('ENDED');
+    setSessionStatus(SessionStatus.ENDED);
     setAttendanceCount(finalAttendance.length);
     
     // Show notification
@@ -220,7 +221,7 @@ export function MinimalExample() {
     <div style={{ padding: '2rem' }}>
       <SessionEndAndExportControls
         sessionId="minimal-session"
-        sessionStatus="ACTIVE"
+        sessionStatus={SessionStatus.ACTIVE}
       />
     </div>
   );

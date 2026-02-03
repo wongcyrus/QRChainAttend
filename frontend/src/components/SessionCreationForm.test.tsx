@@ -399,9 +399,9 @@ describe('SessionCreationForm', () => {
 
       // Verify QR display
       await waitFor(() => {
-        const qrDisplay = screen.getByTestId('qr-display');
-        expect(qrDisplay).toBeInTheDocument();
-        expect(qrDisplay).toHaveAttribute('data-qr', 'base64-qr-data');
+        const qrImage = screen.getByAltText('Session QR Code');
+        expect(qrImage).toBeInTheDocument();
+        expect(qrImage).toHaveAttribute('src', 'base64-qr-data');
       });
     });
 
