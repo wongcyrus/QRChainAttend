@@ -11,8 +11,8 @@
  * - Offline fallback page
  */
 
-const CACHE_NAME = 'qr-attendance-v1';
-const RUNTIME_CACHE = 'qr-attendance-runtime-v1';
+const CACHE_NAME = 'qr-attendance-v2';
+const RUNTIME_CACHE = 'qr-attendance-runtime-v2';
 
 // Core assets to cache on install
 const STATIC_ASSETS = [
@@ -76,6 +76,12 @@ self.addEventListener('fetch', (event) => {
 
   // Skip Chrome extensions and other non-http(s) requests
   if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // Never cache authentication endpoints - always fetch fresh
+  if (url.pathname.startsWith('/.auth/')) {
+    event.respondWith(fetch(request));
     return;
   }
 

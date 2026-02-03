@@ -17,7 +17,14 @@ export default function Home() {
 
   useEffect(() => {
     // Check if user is authenticated
-    fetch('/.auth/me')
+    // Add cache-busting and no-cache headers to prevent stale auth state
+    fetch('/.auth/me', {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.clientPrincipal) {
@@ -30,6 +37,39 @@ export default function Home() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, []);
+
+  // Re-check auth state when page becomes visible (handles back navigation)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setLoading(true);
+        fetch('/.auth/me', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.clientPrincipal) {
+              setUser({
+                userId: data.clientPrincipal.userId,
+                userDetails: data.clientPrincipal.userDetails,
+                userRoles: data.clientPrincipal.userRoles || []
+              });
+            } else {
+              setUser(null);
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const handleLogin = () => {
