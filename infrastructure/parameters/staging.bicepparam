@@ -3,7 +3,7 @@ using '../main.bicep'
 
 param environment = 'staging'
 param baseName = 'qrattendance'
-param location = 'eastus'
+param location = 'eastus2'  // Changed from eastus - Static Web Apps not available in eastus
 
 // GitHub repository configuration
 // These should be provided at deployment time or via environment variables

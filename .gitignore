@@ -58,3 +58,11 @@ __azurite_db*__.json
 bin/
 obj/
 appsettings.json
+ad-apps.json
+credential.json
+roles.json
+azure-ad-summary.md
+assign-roles.sh
+github-token.txt
+DEPLOYMENT_VALUES.md
+github-token.txt

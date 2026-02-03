@@ -47,6 +47,9 @@ param aadClientSecret string = ''
 @description('Deploy Azure OpenAI resource (optional)')
 param deployAzureOpenAI bool = false
 
+@description('Deploy Azure Static Web App (optional, requires GitHub repo)')
+param deployStaticWebApp bool = true
+
 @description('Azure OpenAI model deployment name')
 param openAIModelDeployment string = 'gpt-4'
 
@@ -126,8 +129,8 @@ module functions 'modules/functions.bicep' = {
   }
 }
 
-// Azure Static Web App (Frontend)
-module staticWebApp 'modules/staticwebapp.bicep' = {
+// Azure Static Web App (Frontend) - Optional
+module staticWebApp 'modules/staticwebapp.bicep' = if (deployStaticWebApp && repositoryUrl != '') {
   name: 'staticwebapp-deployment'
   params: {
     staticWebAppName: staticWebAppName
@@ -161,7 +164,7 @@ module rbac 'modules/rbac.bicep' = {
   params: {
     storageAccountName: storage.outputs.storageAccountName
     signalRName: signalr.outputs.signalRName
-    staticWebAppPrincipalId: staticWebApp.outputs.principalId
+    staticWebAppPrincipalId: deployStaticWebApp && repositoryUrl != '' ? staticWebApp.outputs.principalId : ''
     functionAppPrincipalId: functions.outputs.principalId
     deployAzureOpenAI: deployAzureOpenAI
     openAIName: deployAzureOpenAI ? openai.outputs.openAIName : ''
@@ -169,9 +172,7 @@ module rbac 'modules/rbac.bicep' = {
   dependsOn: [
     storage
     signalr
-    staticWebApp
     functions
-    openai
   ]
 }
 
@@ -191,11 +192,11 @@ output signalRName string = signalr.outputs.signalRName
 @description('SignalR Service endpoint')
 output signalREndpoint string = signalr.outputs.endpoint
 
-@description('Static Web App name')
-output staticWebAppName string = staticWebApp.outputs.staticWebAppName
+@description('Static Web App name (if deployed)')
+output staticWebAppName string = deployStaticWebApp && repositoryUrl != '' ? staticWebApp.outputs.staticWebAppName : ''
 
-@description('Static Web App default hostname')
-output staticWebAppUrl string = staticWebApp.outputs.defaultHostname
+@description('Static Web App default hostname (if deployed)')
+output staticWebAppUrl string = deployStaticWebApp && repositoryUrl != '' ? staticWebApp.outputs.defaultHostname : ''
 
 @description('Function App name')
 output functionAppName string = functions.outputs.functionAppName
@@ -221,7 +222,7 @@ output deploymentSummary object = {
   location: location
   storageAccount: storage.outputs.storageAccountName
   signalR: signalr.outputs.signalRName
-  staticWebApp: staticWebApp.outputs.staticWebAppName
+  staticWebApp: deployStaticWebApp && repositoryUrl != '' ? staticWebApp.outputs.staticWebAppName : 'Not deployed'
   functionApp: functions.outputs.functionAppName
   appInsights: appInsights.outputs.appInsightsName
   openAI: deployAzureOpenAI ? openai.outputs.openAIName : 'Not deployed'

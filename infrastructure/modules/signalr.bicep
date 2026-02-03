@@ -54,7 +54,8 @@ resource signalR 'Microsoft.SignalRService/signalR@2023-02-01' = {
         '*' // Will be restricted to specific domains in production
       ]
     }
-    networkACLs: {
+    // Network ACLs only supported in Standard tier, not Free tier
+    networkACLs: environment == 'dev' ? null : {
       defaultAction: 'Allow'
       publicNetwork: {
         allow: [

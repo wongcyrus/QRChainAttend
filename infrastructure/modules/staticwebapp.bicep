@@ -51,7 +51,7 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
     branch: repositoryBranch
     buildProperties: {
       appLocation: '/frontend'
-      apiLocation: '/backend'
+      apiLocation: ''  // Empty - API is separate Azure Functions app
       outputLocation: 'out'
     }
     stagingEnvironmentPolicy: 'Enabled'
