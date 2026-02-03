@@ -32,10 +32,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --workspace=shared
-          npm ci --workspace=frontend
+        run: npm ci --workspaces
           npm ci --workspace=backend
 
       - name: Run linter (Frontend)
@@ -58,10 +55,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --workspace=shared
-          npm ci --workspace=frontend
+        run: npm ci --workspaces
           npm ci --workspace=backend
 
       - name: Run unit tests (Frontend)
@@ -94,10 +88,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --workspace=shared
-          npm ci --workspace=frontend
+        run: npm ci --workspaces
           npm ci --workspace=backend
 
       - name: Run property tests (Frontend)
@@ -142,10 +133,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --workspace=shared
-          npm ci --workspace=frontend
+        run: npm ci --workspaces
           npm ci --workspace=backend
 
       - name: Setup test environment
