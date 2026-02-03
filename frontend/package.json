@@ -10,7 +10,7 @@
     "lint": "next lint",
     "test": "jest",
     "test:unit": "jest --testPathPattern=\\.test\\.tsx?$",
-    "test:property": "jest --testPathPattern=\\.property\\.test\\.tsx?$"
+    "test:property": "jest --testPathPattern=\\.property\\.test\\.tsx?$ --passWithNoTests"
   },
   "dependencies": {
     "@azure/msal-browser": "^3.7.1",
