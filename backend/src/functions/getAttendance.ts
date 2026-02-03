@@ -124,6 +124,7 @@ export async function getAttendance(
       ? attendance  // Include finalStatus for ended sessions
       : attendance.map(record => {
           // Exclude finalStatus for active sessions
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { finalStatus, ...recordWithoutFinalStatus } = record;
           return recordWithoutFinalStatus as AttendanceRecord;
         });

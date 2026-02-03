@@ -9,7 +9,7 @@
 
 import * as fc from "fast-check";
 import { AuthService } from "./AuthService";
-import { Role, ForbiddenError, UnauthorizedError } from "@qr-attendance/shared";
+import { Role, ForbiddenError } from "@qr-attendance/shared";
 
 describe("AuthService - Property-Based Tests", () => {
   let authService: AuthService;

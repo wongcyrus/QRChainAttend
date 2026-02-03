@@ -7,7 +7,7 @@
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import { negotiate } from './negotiate';
 import { SessionService } from '../services/SessionService';
-import { Session, SessionStatus, Role } from '../types';
+import { Session, SessionStatus } from '../types';
 
 // Mock dependencies
 jest.mock('../services/SessionService');

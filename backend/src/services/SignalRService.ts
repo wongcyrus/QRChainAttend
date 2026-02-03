@@ -9,9 +9,7 @@
 import { getConfig } from "../config";
 import {
   EntryStatus,
-  ChainUpdate,
-  ChainPhase,
-  ChainState
+  ChainUpdate
 } from "../types";
 
 /**

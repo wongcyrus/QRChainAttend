@@ -13,11 +13,8 @@ import {
   makeRetryable,
   withRetryBatch,
   withRetryStats,
-  RetryOptions,
 } from "./retry";
 import {
-  AppError,
-  ErrorCode,
   TokenAlreadyUsedError,
   RateLimitedError,
   StorageError,

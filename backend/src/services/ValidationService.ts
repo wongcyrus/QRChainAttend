@@ -16,9 +16,7 @@ import {
   ScanLogParams,
   ScanLogEntity,
   SessionConstraints,
-  GpsCoordinates,
-  ScanFlow,
-  ScanResult
+  GpsCoordinates
 } from "../types";
 
 /**

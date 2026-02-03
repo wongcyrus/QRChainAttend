@@ -6,7 +6,7 @@
 
 import { AttendanceService } from "./AttendanceService";
 import { EntryStatus, FinalStatus } from "../types";
-import { getTableClient, TableName } from "../storage";
+import { getTableClient } from "../storage";
 
 // Mock the storage module
 jest.mock("../storage", () => ({

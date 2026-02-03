@@ -7,7 +7,7 @@
  */
 
 import { TokenService } from './TokenService';
-import { getTableClient, TableName } from '../storage';
+import { getTableClient } from '../storage';
 import { TokenType, TokenStatus } from '../types';
 
 // Mock the storage module
@@ -304,7 +304,7 @@ describe('TokenService Caching', () => {
         etag: 'etag-2'
       };
 
-      mockTokensTable.getEntity.mockImplementation((pk: string, rk: string) => {
+      mockTokensTable.getEntity.mockImplementation((pk: string, _rk: string) => {
         if (pk === session1Id) return Promise.resolve(mockEntity1);
         if (pk === session2Id) return Promise.resolve(mockEntity2);
         return Promise.reject({ statusCode: 404 });

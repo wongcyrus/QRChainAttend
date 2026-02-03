@@ -96,6 +96,7 @@ async function joinSessionHandler(
     
     try {
       // Check if student is already enrolled
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const existing = await attendanceTableClient.getEntity<AttendanceEntity>(
         sessionId,
         studentId

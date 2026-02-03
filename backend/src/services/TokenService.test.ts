@@ -6,7 +6,7 @@
 
 import { TokenService } from "./TokenService";
 import { TokenType, TokenStatus } from "../types";
-import { getTableClient, TableName } from "../storage";
+import { getTableClient } from "../storage";
 import { RestError } from "@azure/data-tables";
 
 // Mock the storage module

@@ -17,7 +17,6 @@ import {
   DeleteTableEntityOptions,
   ListTableEntitiesOptions,
   TableEntityResult,
-  TableEntityQueryOptions,
 } from "@azure/data-tables";
 import { withRetry, RetryOptions } from "../utils/retry";
 

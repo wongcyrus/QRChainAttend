@@ -179,6 +179,7 @@ export class ChainService {
     const newSeq = currentSeq + 1;
     const now = Math.floor(Date.now() / 1000);
     
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const newToken = await tokenService.createToken({
       sessionId: params.sessionId,
       type: token.type,

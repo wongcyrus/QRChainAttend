@@ -469,7 +469,7 @@ export function logError(
  * @param handler - The function handler to wrap
  * @returns Wrapped handler with error handling
  */
-export function withErrorHandling<T extends any[], R>(
+export function withErrorHandling<T extends unknown[]>(
   handler: (...args: T) => Promise<HttpResponseInit>
 ): (...args: T) => Promise<HttpResponseInit> {
   return async (...args: T): Promise<HttpResponseInit> => {

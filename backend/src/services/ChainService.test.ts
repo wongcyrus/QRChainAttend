@@ -7,7 +7,7 @@
 import { ChainService } from "./ChainService";
 import { tokenService } from "./TokenService";
 import { attendanceService } from "./AttendanceService";
-import { getTableClient, TableName } from "../storage";
+import { getTableClient } from "../storage";
 import {
   ChainPhase,
   ChainState,

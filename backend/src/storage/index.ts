@@ -76,7 +76,7 @@ export function getTableServiceClient(): TableServiceClient {
       "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
     );
     return new TableServiceClient(
-      config.storageAccountUri.replace(/\/[^\/]+$/, ""),
+      config.storageAccountUri.replace(/[^/]+$/, ""),
       credential
     );
   }
@@ -84,7 +84,7 @@ export function getTableServiceClient(): TableServiceClient {
   // For production: use Managed Identity
   const credential = new DefaultAzureCredential();
   return new TableServiceClient(
-    config.storageAccountUri.replace(/\/[^\/]+$/, ""),
+    config.storageAccountUri.replace(/[^/]+$/, ""),
     credential
   );
 }

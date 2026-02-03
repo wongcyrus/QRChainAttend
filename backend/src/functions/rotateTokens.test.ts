@@ -14,8 +14,7 @@ import {
   TokenEntity, 
   TokenType, 
   TokenStatus, 
-  SessionStatus,
-  CreateTokenParams
+  SessionStatus
 } from "../types";
 import { getConfig } from "../config";
 
