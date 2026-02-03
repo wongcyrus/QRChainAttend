@@ -1,0 +1,18 @@
+[
+  {
+    "allowedMemberTypes": ["User"],
+    "description": "Students can join sessions and scan QR codes",
+    "displayName": "Student",
+    "id": "e9f73927-0344-4059-92bf-53d855ffb85f",
+    "isEnabled": true,
+    "value": "student"
+  },
+  {
+    "allowedMemberTypes": ["User"],
+    "description": "Teachers can create sessions and view attendance",
+    "displayName": "Teacher",
+    "id": "61945743-8797-4e30-9803-f56618f67c16",
+    "isEnabled": true,
+    "value": "teacher"
+  }
+]

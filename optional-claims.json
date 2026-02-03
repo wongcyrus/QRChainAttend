@@ -1,0 +1,19 @@
+{
+  "idToken": [
+    {
+      "name": "groups",
+      "source": null,
+      "essential": false,
+      "additionalProperties": ["emit_as_roles"]
+    }
+  ],
+  "accessToken": [
+    {
+      "name": "groups",
+      "source": null,
+      "essential": false,
+      "additionalProperties": ["emit_as_roles"]
+    }
+  ],
+  "saml2Token": []
+}
