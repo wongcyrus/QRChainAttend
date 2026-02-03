@@ -48,7 +48,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm ci --workspaces
+          npm ci
+          npm ci --workspace=shared --workspace=frontend --workspace=backend
 
       - name: Run linter
         run: npm run lint --workspace=backend
