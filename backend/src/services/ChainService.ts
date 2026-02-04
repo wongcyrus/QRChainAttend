@@ -507,19 +507,5 @@ export class ChainService {
   }
 }
 
-// Lazy-initialized singleton instance
-let _chainService: ChainService | null = null;
-
-export function getChainService(): ChainService {
-  if (!_chainService) {
-    _chainService = new ChainService();
-  }
-  return _chainService;
-}
-
-// For backward compatibility
-export const chainService = new Proxy({} as ChainService, {
-  get(target, prop) {
-    return getChainService()[prop as keyof ChainService];
-  }
-});
+// Export singleton instance
+export const chainService = new ChainService();

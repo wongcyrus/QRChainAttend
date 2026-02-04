@@ -141,19 +141,5 @@ export interface SignalRConnectionInfoRequest {
   groupName: string;        // Group to add user to
 }
 
-// Lazy-initialized singleton instance
-let _signalRService: SignalRService | null = null;
-
-export function getSignalRService(): SignalRService {
-  if (!_signalRService) {
-    _signalRService = new SignalRService();
-  }
-  return _signalRService;
-}
-
-// For backward compatibility
-export const signalRService = new Proxy({} as SignalRService, {
-  get(target, prop) {
-    return getSignalRService()[prop as keyof SignalRService];
-  }
-});
+// Export singleton instance
+export const signalRService = new SignalRService();

@@ -289,21 +289,6 @@ export class ValidationService {
   }
 }
 
-// Lazy-initialized singleton instance
+// Export singleton instance
 import { getTableClient, TableName } from "../storage";
-
-let _validationService: ValidationService | null = null;
-
-export function getValidationService(): ValidationService {
-  if (!_validationService) {
-    _validationService = new ValidationService(getTableClient(TableName.SCAN_LOGS));
-  }
-  return _validationService;
-}
-
-// For backward compatibility
-export const validationService = new Proxy({} as ValidationService, {
-  get(target, prop) {
-    return getValidationService()[prop as keyof ValidationService];
-  }
-});
+export const validationService = new ValidationService(getTableClient(TableName.SCAN_LOGS));

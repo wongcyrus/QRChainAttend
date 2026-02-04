@@ -341,19 +341,5 @@ export class TokenService {
   }
 }
 
-// Lazy-initialized singleton instance
-let _tokenService: TokenService | null = null;
-
-export function getTokenService(): TokenService {
-  if (!_tokenService) {
-    _tokenService = new TokenService();
-  }
-  return _tokenService;
-}
-
-// For backward compatibility
-export const tokenService = new Proxy({} as TokenService, {
-  get(target, prop) {
-    return getTokenService()[prop as keyof TokenService];
-  }
-});
+// Export singleton instance
+export const tokenService = new TokenService();
