@@ -218,3 +218,10 @@ export async function getLateQR(
   }
 }
 
+
+app.http('getLateQR', {
+  methods: ['GET'],
+  route: 'sessions/{sessionId}/late-qr',
+  authLevel: 'anonymous',
+  handler: getLateQR
+});

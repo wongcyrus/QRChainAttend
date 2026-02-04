@@ -188,3 +188,8 @@ async function rotateSessionToken(
 
 // Register timer trigger
 // Runs every 60 seconds (0 seconds, every minute)
+
+app.timer('rotateTokens', {
+  schedule: '0 * * * * *',
+  handler: rotateTokens
+});

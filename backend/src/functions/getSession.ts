@@ -211,3 +211,24 @@ export async function getSession(
   }
 }
 
+
+app.http('getSession', {
+  methods: ['GET'],
+  route: 'sessions/{sessionId}',
+  authLevel: 'anonymous',
+  handler: getSession
+});
+
+app.http('getSession', {
+  methods: ['GET'],
+  route: 'sessions/{sessionId}',
+  authLevel: 'anonymous',
+  handler: getSession
+});
+
+app.http('getSession', {
+  methods: ['GET'],
+  route: 'sessions/{sessionId}',
+  authLevel: 'anonymous',
+  handler: getSession
+});

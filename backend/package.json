@@ -2,7 +2,7 @@
   "name": "@qr-attendance/backend",
   "version": "1.0.0",
   "description": "Azure Functions backend for QR Chain Attendance System",
-  "main": "dist/index.js",
+  "main": "dist/functions/*.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -11,11 +11,12 @@
     "test:unit": "jest --testPathPattern=\\.test\\.ts$",
     "test:property": "jest --testPathPattern=\\.property\\.test\\.ts$",
     "lint": "eslint src --ext .ts",
-    "prestart": "npm run build"
+    "prestart": "npm run build",
+    "predeploy": "npm run build"
   },
   "dependencies": {
     "@azure/data-tables": "^13.2.2",
-    "@azure/functions": "^4.3.0",
+    "@azure/functions": "^4.11.1",
     "@azure/identity": "^4.0.1",
     "@azure/web-pubsub": "^1.1.2",
     "@qr-attendance/shared": "^1.0.0"

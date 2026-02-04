@@ -142,8 +142,8 @@ Define teacher and student roles for the application.
 ### Using Azure CLI
 
 ```bash
-# Create a roles manifest file
-cat > roles.json << 'EOF'
+# Create a roles manifest file (note: no quotes around EOF to allow variable expansion)
+cat > roles.json << EOF
 {
   "appRoles": [
     {
@@ -158,6 +158,7 @@ cat > roles.json << 'EOF'
       "allowedMemberTypes": ["User"],
       "description": "Students can join sessions and scan QR codes",
       "displayName": "Student",
+      "id": "$(uuidgen)",
       "isEnabled": true,
       "value": "Student"
     }
@@ -201,18 +202,64 @@ az ad app update --id <app-id> --app-roles @roles.json
 
 ### Using Azure CLI
 
+First, you need to create the service principal (enterprise application):
+
+```bash
+# Create service principal from the app registration
+az ad sp create --id <app-id>
+```
+
+Then find the user's object ID:
+
+```bash
+# List all users to find the object ID
+az ad user list --query "[].{DisplayName:displayName, UserPrincipalName:userPrincipalName, ObjectId:id}" -o table
+
+# Or search for a specific user
+az ad user show --id "user@domain.com" --query "id" -o tsv
+```
+
+Now assign the user to a role:
+
 ```bash
 # Get the service principal ID
 SP_ID=$(az ad sp list --display-name "QR Chain Attendance System" --query "[0].id" -o tsv)
 
-# Get the app role ID for Teacher
+# Get role IDs
 TEACHER_ROLE_ID=$(az ad sp show --id $SP_ID --query "appRoles[?value=='Teacher'].id" -o tsv)
+STUDENT_ROLE_ID=$(az ad sp show --id $SP_ID --query "appRoles[?value=='Student'].id" -o tsv)
 
-# Assign a user to the Teacher role
-az ad app role assignment create \
-  --assignee <user-object-id> \
-  --role $TEACHER_ROLE_ID \
-  --resource-access-id $SP_ID
+# Get user object ID
+USER_ID=$(az ad user show --id "user@domain.com" --query "id" -o tsv)
+
+# Assign user to Teacher role
+az rest --method POST \
+  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$SP_ID/appRoleAssignedTo" \
+  --headers "Content-Type=application/json" \
+  --body "{
+    \"principalId\": \"$USER_ID\",
+    \"resourceId\": \"$SP_ID\",
+    \"appRoleId\": \"$TEACHER_ROLE_ID\"
+  }"
+
+# Or assign to Student role
+az rest --method POST \
+  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$SP_ID/appRoleAssignedTo" \
+  --headers "Content-Type=application/json" \
+  --body "{
+    \"principalId\": \"$USER_ID\",
+    \"resourceId\": \"$SP_ID\",
+    \"appRoleId\": \"$STUDENT_ROLE_ID\"
+  }"
+```
+
+Verify the assignment:
+
+```bash
+# List all role assignments
+az rest --method GET \
+  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$SP_ID/appRoleAssignedTo" \
+  --query "value[].{User:principalDisplayName, RoleId:appRoleId}" -o table
 ```
 
 ## Step 9: Update Redirect URIs After Deployment

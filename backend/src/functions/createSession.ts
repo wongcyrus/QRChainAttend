@@ -108,3 +108,9 @@ export async function createSession(
   }
 }
 
+app.http('createSession', {
+  methods: ['POST'],
+  route: 'sessions',
+  authLevel: 'anonymous',
+  handler: createSession
+});

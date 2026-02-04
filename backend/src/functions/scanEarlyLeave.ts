@@ -322,3 +322,10 @@ export async function scanEarlyLeave(
 }
 
 // Register the function with SignalR output binding
+
+app.http('scanEarlyLeave', {
+  methods: ['POST'],
+  route: 'scan/early-leave',
+  authLevel: 'anonymous',
+  handler: scanEarlyLeave
+});

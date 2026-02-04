@@ -156,3 +156,24 @@ export async function getAttendance(
   }
 }
 
+
+app.http('getAttendance', {
+  methods: ['GET'],
+  route: 'sessions/{sessionId}/attendance',
+  authLevel: 'anonymous',
+  handler: getAttendance
+});
+
+app.http('getAttendance', {
+  methods: ['GET'],
+  route: 'sessions/{sessionId}/attendance',
+  authLevel: 'anonymous',
+  handler: getAttendance
+});
+
+app.http('getAttendance', {
+  methods: ['GET'],
+  route: 'sessions/{sessionId}/attendance',
+  authLevel: 'anonymous',
+  handler: getAttendance
+});

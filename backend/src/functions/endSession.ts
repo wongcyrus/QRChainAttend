@@ -148,3 +148,9 @@ export async function endSession(
   }
 }
 
+app.http('endSession', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/end',
+  authLevel: 'anonymous',
+  handler: endSession
+});

@@ -207,7 +207,7 @@ The implementation follows a bottom-up approach: core services first, then API e
 - [x] 10. Checkpoint - Ensure API tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 11. Implement Rotating QR Management
+- [ ] 11. Implement Rotating QR Management
   - [x] 11.1 Create Timer Function for token rotation
     - Run every 60 seconds
     - Query sessions with active late entry or early leave windows
@@ -243,7 +243,7 @@ The implementation follows a bottom-up approach: core services first, then API e
     - **Property 24: Early leave window control**
     - **Validates: Requirements 4.2, 5.1, 5.2**
 
-- [~] 12. Implement Exit Chain Management
+- [ ] 12. Implement Exit Chain Management
   - [x] 12.1 Create POST /api/sessions/{sessionId}/start-exit-chain endpoint
     - Call ChainService.seedChains with EXIT phase and specified count
     - Return created chain count and initial holders
@@ -256,7 +256,7 @@ The implementation follows a bottom-up approach: core services first, then API e
     - Require Teacher role and session ownership
     - _Requirements: 11.3, 11.5_
 
-- [~] 13. Implement Real-Time Notification Service
+- [ ] 13. Implement Real-Time Notification Service
   - [x] 13.1 Create SignalRService with Azure SignalR output binding
     - Implement broadcastAttendanceUpdate
     - Implement broadcastChainUpdate
@@ -276,7 +276,7 @@ The implementation follows a bottom-up approach: core services first, then API e
     - **Property 49: Stall alert notification**
     - **Validates: Requirements 12.1, 12.2, 12.3**
 
-- [~] 14. Implement Dashboard API
+- [ ] 14. Implement Dashboard API
   - [x] 14.1 Create GET /api/sessions/{sessionId} endpoint
     - Return session details, attendance records, chains, and stats
     - Compute real-time stats (counts by status)
@@ -307,7 +307,7 @@ The implementation follows a bottom-up approach: core services first, then API e
 - [x] 15. Checkpoint - Ensure backend integration tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 16. Implement Student Frontend Components
+- [ ] 16. Implement Student Frontend Components
   - [x] 16.1 Create QR Scanner Component
     - Implement camera access and QR code scanning
     - Parse QR data (type discrimination)
@@ -338,7 +338,7 @@ The implementation follows a bottom-up approach: core services first, then API e
     - **Property 52: Session enrollment via QR**
     - **Validates: Requirements 13.1**
 
-- [~] 17. Implement Teacher Frontend Components
+- [ ] 17. Implement Teacher Frontend Components
   - [x] 17.1 Create Session Creation Form
     - Input fields for classId, startAt, endAt, lateCutoffMinutes
     - Optional fields for constraints (geofence, Wi-Fi allowlist)
@@ -373,8 +373,8 @@ The implementation follows a bottom-up approach: core services first, then API e
     - Export attendance as JSON
     - _Requirements: 2.3, 14.1, 14.2, 14.3_
 
-- [~] 18. Implement Optional AI Insights Feature
-  - [~] 18.1 Create AI Insights API endpoints (teacher-only)
+- [ ] 18. Implement Optional AI Insights Feature
+  - [ ] 18.1 Create AI Insights API endpoints (teacher-only)
     - POST /api/ai/session-summary: Generate session summary
     - POST /api/ai/stall-advice: Suggest reseed timing
     - Integrate with Azure OpenAI using Managed Identity
@@ -382,7 +382,7 @@ The implementation follows a bottom-up approach: core services first, then API e
     - Return feature-not-available if OpenAI not configured
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5_
   
-  - [~] 18.2 Create AI Insights Dashboard Panel
+  - [ ] 18.2 Create AI Insights Dashboard Panel
     - Display session summary statistics
     - Display stall pattern insights
     - Show reseed timing suggestions
@@ -395,7 +395,7 @@ The implementation follows a bottom-up approach: core services first, then API e
     - **Property 61: Session statistics accuracy**
     - **Validates: Requirements 17.1, 17.3, 17.5**
 
-- [~] 19. Implement Progressive Web App Features
+- [ ] 19. Implement Progressive Web App Features
   - [x] 19.1 Create PWA manifest and service worker
     - Create manifest.json with app metadata
     - Implement service worker for offline capability
@@ -409,7 +409,7 @@ The implementation follows a bottom-up approach: core services first, then API e
     - Queue operations for retry when connection restored (where applicable)
     - _Requirements: 20.5_
 
-- [~] 20. Implement Error Handling and User Feedback
+- [ ] 20. Implement Error Handling and User Feedback
   - [x] 20.1 Create error handling middleware for API
     - Catch and format all error types
     - Return consistent ErrorResponse structure
@@ -429,10 +429,10 @@ The implementation follows a bottom-up approach: core services first, then API e
     - Do not retry ETag conflicts or rate limits
     - _Requirements: Storage error handling_
 
-- [~] 21. Checkpoint - Ensure end-to-end tests pass
+- [ ] 21. Checkpoint - Ensure end-to-end tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 22. Integration and Final Wiring
+- [ ] 22. Integration and Final Wiring
   - [x] 22.1 Configure Azure Static Web App routing
     - Set up staticwebapp.config.json with role-based routes
     - Configure API proxy to Azure Functions
@@ -467,8 +467,8 @@ The implementation follows a bottom-up approach: core services first, then API e
     - Test session end and final status computation
     - _Requirements: All requirements_
 
-- [~] 23. Performance Optimization and Load Testing
-  - [~] 23.1 Optimize Azure Table Storage queries
+- [ ] 23. Performance Optimization and Load Testing
+  - [ ] 23.1 Optimize Azure Table Storage queries
     - Verify PartitionKey=sessionId used for all hot paths
     - Add indexes where needed
     - Batch operations where possible
@@ -487,7 +487,7 @@ The implementation follows a bottom-up approach: core services first, then API e
     - Test concurrent token consumption
     - _Requirements: 16.1, 16.2, 16.5_
 
-- [~] 24. Final Checkpoint - Complete system validation
+- [ ] 24. Final Checkpoint - Complete system validation
   - Run all unit tests, property tests, integration tests
   - Verify all 61 correctness properties pass
   - Test complete user journeys (student and teacher)
@@ -495,7 +495,7 @@ The implementation follows a bottom-up approach: core services first, then API e
   - Test anti-cheat mechanisms (rate limiting, location validation, single-use tokens)
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 25. Deployment Configuration and Infrastructure
+- [ ] 25. Deployment Configuration and Infrastructure
   - [x] 25.1 Create Azure resource deployment scripts
     - Create Bicep/ARM templates for Azure Static Web Apps
     - Create Bicep/ARM templates for Azure Functions
@@ -530,14 +530,14 @@ The implementation follows a bottom-up approach: core services first, then API e
     - Configure log retention policies
     - _Requirements: 15.6, 16.1_
   
-  - [~] 25.5 Deploy to staging environment
+  - [ ] 25.5 Deploy to staging environment
     - Provision Azure resources in staging
     - Deploy frontend and backend code
     - Run smoke tests on staging
     - Verify all integrations work (Storage, SignalR, OpenAI)
     - _Requirements: All requirements_
   
-  - [~] 25.6 Deploy to production environment
+  - [ ] 25.6 Deploy to production environment
     - Provision Azure resources in production
     - Deploy frontend and backend code
     - Run smoke tests on production

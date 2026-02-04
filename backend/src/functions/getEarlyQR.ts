@@ -218,3 +218,10 @@ export async function getEarlyQR(
   }
 }
 
+
+app.http('getEarlyQR', {
+  methods: ['GET'],
+  route: 'sessions/{sessionId}/early-qr',
+  authLevel: 'anonymous',
+  handler: getEarlyQR
+});

@@ -175,3 +175,10 @@ export async function stopEarlyLeave(
   }
 }
 
+
+app.http('stopEarlyLeave', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/stop-early-leave',
+  authLevel: 'anonymous',
+  handler: stopEarlyLeave
+});

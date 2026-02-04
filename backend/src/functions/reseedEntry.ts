@@ -183,3 +183,10 @@ export async function reseedEntry(
   }
 }
 
+
+app.http('reseedEntry', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/reseed-entry',
+  authLevel: 'anonymous',
+  handler: reseedEntry
+});

@@ -179,3 +179,10 @@ export async function seedEntry(
   }
 }
 
+
+app.http('seedEntry', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/seed-entry',
+  authLevel: 'anonymous',
+  handler: seedEntry
+});

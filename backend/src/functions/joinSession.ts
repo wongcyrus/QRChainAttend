@@ -180,3 +180,10 @@ export async function joinSessionHandler(
 // Register the function
 
 export default joinSessionHandler;
+
+app.http('joinSession', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/join',
+  authLevel: 'anonymous',
+  handler: joinSessionHandler
+});

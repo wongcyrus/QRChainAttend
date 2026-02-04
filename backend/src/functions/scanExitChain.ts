@@ -292,3 +292,10 @@ export async function scanExitChain(
 }
 
 // Register the function with SignalR output binding
+
+app.http('scanExitChain', {
+  methods: ['POST'],
+  route: 'scan/exit-chain',
+  authLevel: 'anonymous',
+  handler: scanExitChain
+});

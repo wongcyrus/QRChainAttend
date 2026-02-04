@@ -182,3 +182,10 @@ export async function startExitChain(
   }
 }
 
+
+app.http('startExitChain', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/start-exit-chain',
+  authLevel: 'anonymous',
+  handler: startExitChain
+});

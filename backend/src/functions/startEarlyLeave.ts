@@ -203,3 +203,10 @@ export async function startEarlyLeave(
   }
 }
 
+
+app.http('startEarlyLeave', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/start-early-leave',
+  authLevel: 'anonymous',
+  handler: startEarlyLeave
+});

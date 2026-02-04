@@ -155,3 +155,10 @@ export async function negotiate(
   }
 }
 
+
+app.http('negotiate', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/dashboard/negotiate',
+  authLevel: 'anonymous',
+  handler: negotiate
+});

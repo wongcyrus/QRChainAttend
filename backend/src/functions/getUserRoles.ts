@@ -94,3 +94,10 @@ export async function getUserRoles(
   }
 }
 
+
+app.http('getUserRoles', {
+  methods: ['GET'],
+  route: 'auth/me',
+  authLevel: 'anonymous',
+  handler: getUserRoles
+});

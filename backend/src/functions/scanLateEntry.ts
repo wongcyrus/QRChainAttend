@@ -327,3 +327,10 @@ export async function scanLateEntry(
 }
 
 // Register the function with SignalR output binding
+
+app.http('scanLateEntry', {
+  methods: ['POST'],
+  route: 'scan/late-entry',
+  authLevel: 'anonymous',
+  handler: scanLateEntry
+});

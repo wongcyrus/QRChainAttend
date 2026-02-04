@@ -324,3 +324,10 @@ export async function scanChain(
 }
 
 // Register the function with SignalR output binding
+
+app.http('scanChain', {
+  methods: ['POST'],
+  route: 'scan/chain',
+  authLevel: 'anonymous',
+  handler: scanChain
+});
