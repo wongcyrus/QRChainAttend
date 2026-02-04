@@ -218,10 +218,3 @@ export async function getEarlyQR(
   }
 }
 
-// Register the HTTP trigger
-app.http('getEarlyQR', {
-  methods: ['GET'],
-  route: 'sessions/{sessionId}/early-qr',
-  authLevel: 'anonymous',
-  handler: getEarlyQR
-});

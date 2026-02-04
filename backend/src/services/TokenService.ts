@@ -31,7 +31,14 @@ import { Cache, createCache } from "../utils/cache";
  * Provides CRUD operations for tokens with cryptographic randomness and ETag concurrency
  */
 export class TokenService {
-  private tableClient = getTableClient(TableName.TOKENS);
+  private _tableClient: ReturnType<typeof getTableClient> | null = null;
+
+  private get tableClient() {
+    if (!this._tableClient) {
+      this._tableClient = getTableClient(TableName.TOKENS);
+    }
+    return this._tableClient;
+  }
   
   // Cache for rotating tokens (55 second TTL - slightly less than token rotation period)
   // This ensures we fetch fresh tokens before they rotate

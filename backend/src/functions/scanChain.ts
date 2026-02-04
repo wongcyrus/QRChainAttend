@@ -48,7 +48,7 @@ interface ChainScanResponse {
 /**
  * POST /api/scan/chain handler
  */
-async function scanChain(
+export async function scanChain(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
@@ -324,10 +324,3 @@ async function scanChain(
 }
 
 // Register the function with SignalR output binding
-app.http("scanChain", {
-  methods: ["POST"],
-  authLevel: "anonymous",
-  route: "scan/chain",
-  extraOutputs: [signalROutput],
-  handler: scanChain
-});

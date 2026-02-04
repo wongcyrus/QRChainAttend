@@ -26,8 +26,22 @@ import { Cache, createCache } from '../utils/cache';
  * - Improves p95 latency for frequently accessed sessions (Requirement 16.1)
  */
 export class SessionService {
-  private sessionsTable = getTableClient(TableName.SESSIONS);
-  private attendanceTable = getTableClient(TableName.ATTENDANCE);
+  private _sessionsTable: ReturnType<typeof getTableClient> | null = null;
+  private _attendanceTable: ReturnType<typeof getTableClient> | null = null;
+
+  private get sessionsTable() {
+    if (!this._sessionsTable) {
+      this._sessionsTable = getTableClient(TableName.SESSIONS);
+    }
+    return this._sessionsTable;
+  }
+
+  private get attendanceTable() {
+    if (!this._attendanceTable) {
+      this._attendanceTable = getTableClient(TableName.ATTENDANCE);
+    }
+    return this._attendanceTable;
+  }
   
   // Cache for session configuration (60 second TTL)
   private sessionCache: Cache<Session> = createCache<Session>({ defaultTTL: 60000 });

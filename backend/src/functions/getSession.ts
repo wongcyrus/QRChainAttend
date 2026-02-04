@@ -211,10 +211,3 @@ export async function getSession(
   }
 }
 
-// Register the HTTP trigger
-app.http('getSession', {
-  methods: ['GET'],
-  route: 'sessions/{sessionId}',
-  authLevel: 'anonymous',
-  handler: getSession
-});

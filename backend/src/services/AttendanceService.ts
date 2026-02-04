@@ -28,7 +28,14 @@ export interface AttendanceOperationResult {
  * Provides operations for marking attendance status and computing final status
  */
 export class AttendanceService {
-  private tableClient = getTableClient(TableName.ATTENDANCE);
+  private _tableClient: ReturnType<typeof getTableClient> | null = null;
+
+  private get tableClient() {
+    if (!this._tableClient) {
+      this._tableClient = getTableClient(TableName.ATTENDANCE);
+    }
+    return this._tableClient;
+  }
 
   /**
    * Mark student with entry status

@@ -94,9 +94,3 @@ export async function getUserRoles(
   }
 }
 
-app.http('getUserRoles', {
-  methods: ['GET'],
-  authLevel: 'anonymous', // Auth is handled by Static Web Apps
-  route: 'auth/me',
-  handler: getUserRoles
-});

@@ -218,10 +218,3 @@ export async function getLateQR(
   }
 }
 
-// Register the HTTP trigger
-app.http('getLateQR', {
-  methods: ['GET'],
-  route: 'sessions/{sessionId}/late-qr',
-  authLevel: 'anonymous',
-  handler: getLateQR
-});

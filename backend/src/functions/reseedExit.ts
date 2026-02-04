@@ -183,10 +183,3 @@ export async function reseedExit(
   }
 }
 
-// Register the HTTP trigger
-app.http('reseedExit', {
-  methods: ['POST'],
-  route: 'sessions/{sessionId}/reseed-exit',
-  authLevel: 'anonymous',
-  handler: reseedExit
-});

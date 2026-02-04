@@ -47,7 +47,7 @@ interface LateEntryScanResponse {
 /**
  * POST /api/scan/late-entry handler
  */
-async function scanLateEntry(
+export async function scanLateEntry(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
@@ -327,10 +327,3 @@ async function scanLateEntry(
 }
 
 // Register the function with SignalR output binding
-app.http("scanLateEntry", {
-  methods: ["POST"],
-  authLevel: "anonymous",
-  route: "scan/late-entry",
-  extraOutputs: [signalROutput],
-  handler: scanLateEntry
-});

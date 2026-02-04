@@ -203,10 +203,3 @@ export async function startEarlyLeave(
   }
 }
 
-// Register the HTTP trigger
-app.http('startEarlyLeave', {
-  methods: ['POST'],
-  route: 'sessions/{sessionId}/start-early-leave',
-  authLevel: 'anonymous',
-  handler: startEarlyLeave
-});

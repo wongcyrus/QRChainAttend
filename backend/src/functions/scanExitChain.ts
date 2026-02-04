@@ -47,7 +47,7 @@ interface ExitChainScanResponse {
 /**
  * POST /api/scan/exit-chain handler
  */
-async function scanExitChain(
+export async function scanExitChain(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
@@ -292,10 +292,3 @@ async function scanExitChain(
 }
 
 // Register the function with SignalR output binding
-app.http("scanExitChain", {
-  methods: ["POST"],
-  authLevel: "anonymous",
-  route: "scan/exit-chain",
-  extraOutputs: [signalROutput],
-  handler: scanExitChain
-});

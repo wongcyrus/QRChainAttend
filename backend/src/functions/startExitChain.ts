@@ -182,10 +182,3 @@ export async function startExitChain(
   }
 }
 
-// Register the HTTP trigger
-app.http('startExitChain', {
-  methods: ['POST'],
-  route: 'sessions/{sessionId}/start-exit-chain',
-  authLevel: 'anonymous',
-  handler: startExitChain
-});

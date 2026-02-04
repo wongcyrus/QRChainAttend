@@ -47,7 +47,7 @@ interface EarlyLeaveScanResponse {
 /**
  * POST /api/scan/early-leave handler
  */
-async function scanEarlyLeave(
+export async function scanEarlyLeave(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
@@ -322,10 +322,3 @@ async function scanEarlyLeave(
 }
 
 // Register the function with SignalR output binding
-app.http("scanEarlyLeave", {
-  methods: ["POST"],
-  authLevel: "anonymous",
-  route: "scan/early-leave",
-  extraOutputs: [signalROutput],
-  handler: scanEarlyLeave
-});

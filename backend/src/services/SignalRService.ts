@@ -31,7 +31,14 @@ export interface AttendanceUpdate {
  * The actual SignalR output binding is configured in Azure Functions.
  */
 export class SignalRService {
-  private config = getConfig();
+  private _config: ReturnType<typeof getConfig> | null = null;
+
+  private get config() {
+    if (!this._config) {
+      this._config = getConfig();
+    }
+    return this._config;
+  }
 
   /**
    * Broadcast attendance update to session dashboard

@@ -42,7 +42,7 @@ export interface JoinSessionResponse {
  * @param context - Invocation context
  * @returns HTTP response
  */
-async function joinSessionHandler(
+export async function joinSessionHandler(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
@@ -178,11 +178,5 @@ async function joinSessionHandler(
 }
 
 // Register the function
-app.http("joinSession", {
-  methods: ["POST"],
-  route: "sessions/{sessionId}/join",
-  authLevel: "anonymous",
-  handler: joinSessionHandler
-});
 
 export default joinSessionHandler;

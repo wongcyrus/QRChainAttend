@@ -183,10 +183,3 @@ export async function reseedEntry(
   }
 }
 
-// Register the HTTP trigger
-app.http('reseedEntry', {
-  methods: ['POST'],
-  route: 'sessions/{sessionId}/reseed-entry',
-  authLevel: 'anonymous',
-  handler: reseedEntry
-});

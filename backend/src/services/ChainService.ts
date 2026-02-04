@@ -27,7 +27,14 @@ import {
  * Provides operations for chain lifecycle management
  */
 export class ChainService {
-  private tableClient = getTableClient(TableName.CHAINS);
+  private _tableClient: ReturnType<typeof getTableClient> | null = null;
+
+  private get tableClient() {
+    if (!this._tableClient) {
+      this._tableClient = getTableClient(TableName.CHAINS);
+    }
+    return this._tableClient;
+  }
 
   /**
    * Seed initial chains by selecting random students

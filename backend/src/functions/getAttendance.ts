@@ -156,10 +156,3 @@ export async function getAttendance(
   }
 }
 
-// Register the HTTP trigger
-app.http('getAttendance', {
-  methods: ['GET'],
-  route: 'sessions/{sessionId}/attendance',
-  authLevel: 'anonymous',
-  handler: getAttendance
-});

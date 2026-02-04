@@ -155,11 +155,3 @@ export async function negotiate(
   }
 }
 
-// Register the HTTP trigger
-app.http('negotiate', {
-  methods: ['POST'],
-  route: 'sessions/{sessionId}/dashboard/negotiate',
-  authLevel: 'anonymous',
-  extraInputs: [signalRConnectionInfo],
-  handler: negotiate
-});
