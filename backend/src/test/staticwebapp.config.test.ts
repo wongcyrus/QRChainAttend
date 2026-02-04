@@ -55,7 +55,7 @@ describe('staticwebapp.config.json', () => {
 
     test('should have platform configuration', () => {
       expect(config.platform).toBeDefined();
-      expect(config.platform.apiRuntime).toBe('node:22');
+      expect(config.platform.apiRuntime).toBe('node:20');
     });
   });
 

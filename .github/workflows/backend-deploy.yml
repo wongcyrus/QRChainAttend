@@ -29,7 +29,7 @@ on:
           - production
 
 env:
-  NODE_VERSION: '22.x'
+  NODE_VERSION: '20.x'
   AZURE_FUNCTIONAPP_PACKAGE_PATH: 'backend'
 
 jobs:
