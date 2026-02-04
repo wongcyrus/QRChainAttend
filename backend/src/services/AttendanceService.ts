@@ -375,5 +375,19 @@ export class AttendanceService {
   }
 }
 
-// Export singleton instance
-export const attendanceService = new AttendanceService();
+// Lazy-initialized singleton instance
+let _attendanceService: AttendanceService | null = null;
+
+export function getAttendanceService(): AttendanceService {
+  if (!_attendanceService) {
+    _attendanceService = new AttendanceService();
+  }
+  return _attendanceService;
+}
+
+// For backward compatibility
+export const attendanceService = new Proxy({} as AttendanceService, {
+  get(target, prop) {
+    return getAttendanceService()[prop as keyof AttendanceService];
+  }
+});

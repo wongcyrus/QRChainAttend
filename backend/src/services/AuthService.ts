@@ -139,5 +139,19 @@ export class AuthService {
   }
 }
 
-// Export singleton instance
-export const authService = new AuthService();
+// Lazy-initialized singleton instance
+let _authService: AuthService | null = null;
+
+export function getAuthService(): AuthService {
+  if (!_authService) {
+    _authService = new AuthService();
+  }
+  return _authService;
+}
+
+// For backward compatibility
+export const authService = new Proxy({} as AuthService, {
+  get(target, prop) {
+    return getAuthService()[prop as keyof AuthService];
+  }
+});

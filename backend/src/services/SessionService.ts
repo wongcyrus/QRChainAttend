@@ -315,5 +315,19 @@ export class SessionService {
   }
 }
 
-// Export singleton instance
-export const sessionService = new SessionService();
+// Lazy-initialized singleton instance
+let _sessionService: SessionService | null = null;
+
+export function getSessionService(): SessionService {
+  if (!_sessionService) {
+    _sessionService = new SessionService();
+  }
+  return _sessionService;
+}
+
+// For backward compatibility
+export const sessionService = new Proxy({} as SessionService, {
+  get(target, prop) {
+    return getSessionService()[prop as keyof SessionService];
+  }
+});
