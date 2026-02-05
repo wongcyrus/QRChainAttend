@@ -114,40 +114,6 @@ export function useErrorHandling(options: UseErrorHandlingOptions = {}): UseErro
   }, []);
 
   /**
-   * Set error
-   */
-  const setError = useCallback((err: Error | string, code?: ErrorCode) => {
-    const formatted = formatErrorForDisplay(err, code);
-    setErrorState(formatted);
-    setErrorCode(code || null);
-
-    // Call error callback
-    onError?.(formatted);
-
-    // Auto-clear if specified
-    if (autoClearMs) {
-      autoClearTimerRef.current = setTimeout(() => {
-        setErrorState(null);
-        setErrorCode(null);
-      }, autoClearMs);
-    }
-
-    // Start cooldown if rate limited
-    if (code && isRateLimitError(code)) {
-      startCooldown(RATE_LIMIT_COOLDOWN);
-    }
-  }, [onError, autoClearMs]);
-
-  /**
-   * Clear error
-   */
-  const clearError = useCallback(() => {
-    setErrorState(null);
-    setErrorCode(null);
-    clearTimers();
-  }, [clearTimers]);
-
-  /**
    * Start cooldown
    */
   const startCooldown = useCallback((durationSeconds: number = RATE_LIMIT_COOLDOWN) => {
@@ -179,6 +145,40 @@ export function useErrorHandling(options: UseErrorHandlingOptions = {}): UseErro
       onCooldownEnd?.();
     }, durationSeconds * 1000);
   }, [onCooldownEnd]);
+
+  /**
+   * Set error
+   */
+  const setError = useCallback((err: Error | string, code?: ErrorCode) => {
+    const formatted = formatErrorForDisplay(err, code);
+    setErrorState(formatted);
+    setErrorCode(code || null);
+
+    // Call error callback
+    onError?.(formatted);
+
+    // Auto-clear if specified
+    if (autoClearMs) {
+      autoClearTimerRef.current = setTimeout(() => {
+        setErrorState(null);
+        setErrorCode(null);
+      }, autoClearMs);
+    }
+
+    // Start cooldown if rate limited
+    if (code && isRateLimitError(code)) {
+      startCooldown(RATE_LIMIT_COOLDOWN);
+    }
+  }, [onError, autoClearMs, startCooldown]);
+
+  /**
+   * Clear error
+   */
+  const clearError = useCallback(() => {
+    setErrorState(null);
+    setErrorCode(null);
+    clearTimers();
+  }, [clearTimers]);
 
   /**
    * Cleanup on unmount

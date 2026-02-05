@@ -12,6 +12,7 @@
  */
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 interface SessionConstraints {
   geofence?: {
@@ -246,7 +247,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
           <h3>Session QR Code</h3>
           <p>Students can scan this QR code to join the session:</p>
           <div className="qr-code-container">
-            <img 
+            <Image 
               src={createdSession.sessionQR} 
               alt="Session QR Code"
               width={300}

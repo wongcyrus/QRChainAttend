@@ -398,7 +398,7 @@ export function QRScanner({
         setIsScanning(false);
       }
     },
-    [lastScannedData, scanCooldown, cameraError, onSessionScanned, onScanSuccess, onScanError]
+    [scanCooldown, cameraError, onSessionScanned, onScanSuccess, onScanError]
   );
 
   if (!isActive) {

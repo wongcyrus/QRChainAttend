@@ -487,7 +487,7 @@ export function WithWebSocket() {
 }
 
 // Export all examples
-export default {
+const examples = {
   BasicExample,
   WithLeaveCallback,
   WithCustomStyling,
@@ -501,3 +501,5 @@ export default {
   MobileAppIntegration,
   WithWebSocket,
 };
+
+export default examples;

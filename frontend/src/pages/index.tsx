@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 interface UserInfo {
   userId: string;
@@ -189,7 +190,7 @@ export default function Home() {
           <h2>Quick Actions</h2>
           {user.userRoles.includes('teacher') && (
             <div style={{ marginBottom: '1rem' }}>
-              <a 
+              <Link 
                 href="/teacher" 
                 style={{
                   display: 'inline-block',
@@ -202,12 +203,12 @@ export default function Home() {
                 }}
               >
                 Teacher Dashboard
-              </a>
+              </Link>
             </div>
           )}
           {user.userRoles.includes('student') && (
             <div style={{ marginBottom: '1rem' }}>
-              <a 
+              <Link 
                 href="/student" 
                 style={{
                   display: 'inline-block',
@@ -219,7 +220,7 @@ export default function Home() {
                 }}
               >
                 Student View
-              </a>
+              </Link>
             </div>
           )}
           {user.userRoles.length === 0 && (

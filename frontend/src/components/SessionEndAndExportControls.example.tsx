@@ -228,10 +228,12 @@ export function MinimalExample() {
 }
 
 // Export all examples
-export default {
+const examples = {
   BasicExample,
   EndedSessionExample,
   CustomErrorHandlingExample,
   DashboardIntegrationExample,
   MinimalExample,
 };
+
+export default examples;

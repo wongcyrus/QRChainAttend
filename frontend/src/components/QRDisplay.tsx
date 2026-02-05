@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
+import Image from 'next/image';
 import type { ChainQRData, RotatingQRData } from '@qr-attendance/shared';
 
 export interface QRDisplayProps {
@@ -202,7 +203,7 @@ export function QRDisplay({
         {/* QR Code */}
         {qrCodeDataURL && (
           <div className="qr-code-wrapper">
-            <img src={qrCodeDataURL} alt="QR Code" className="qr-code-image" />
+            <Image src={qrCodeDataURL} alt="QR Code" className="qr-code-image" width={size} height={size} />
           </div>
         )}
 

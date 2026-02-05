@@ -655,7 +655,7 @@ export function CompleteDashboardExample() {
 /**
  * Export all examples
  */
-export default {
+const examples = {
   BasicLateEntryExample,
   EarlyLeaveWithControlsExample,
   SideBySideExample,
@@ -663,3 +663,5 @@ export default {
   CustomErrorHandlingExample,
   CompleteDashboardExample,
 };
+
+export default examples;
