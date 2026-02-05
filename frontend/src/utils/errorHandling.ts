@@ -127,14 +127,14 @@ export function parseErrorResponse(response: ErrorResponse): {
   message: string;
   details?: any;
   timestamp: number;
-  requestId: string;
+  requestId?: string;
 } {
   return {
     code: response.error.code,
     message: response.error.message,
     details: response.error.details,
     timestamp: response.error.timestamp,
-    requestId: response.error.requestId,
+    requestId: undefined, // Not provided by backend
   };
 }
 

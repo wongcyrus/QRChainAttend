@@ -19,6 +19,9 @@ import {
   RATE_LIMIT_COOLDOWN,
 } from '../utils/errorHandling';
 
+// ErrorCode is just a string type
+type ErrorCode = string;
+
 export interface UseErrorHandlingOptions {
   /**
    * Callback when error occurs
