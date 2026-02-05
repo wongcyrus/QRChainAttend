@@ -21,7 +21,8 @@ function hasRole(principal: any, role: string): boolean {
 }
 
 function getUserId(principal: any): string {
-  return principal.userId || principal.userDetails;
+  // Use email (userDetails) as the ID for better readability
+  return principal.userDetails || principal.userId;
 }
 
 export async function negotiateStudent(

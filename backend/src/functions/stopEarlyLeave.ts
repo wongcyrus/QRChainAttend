@@ -14,7 +14,7 @@ function hasRole(principal: any, role: string): boolean {
 }
 
 function getTableClient(tableName: string): TableClient {
-  return TableClient.fromConnectionString(process.env.AzureWebJobsStorage!, tableName);
+  return TableClient.fromConnectionString(process.env.AzureWebJobsStorage!, tableName, { allowInsecureConnection: true });
 }
 
 export async function stopEarlyLeave(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {

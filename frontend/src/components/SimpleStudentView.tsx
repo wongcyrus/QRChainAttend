@@ -137,6 +137,8 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
     
+    let connection: signalR.HubConnection | null = null;
+    
     // Get negotiate endpoint
     const getNegotiateUrl = async () => {
       const headers: HeadersInit = {
@@ -163,9 +165,6 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       }
       return null;
     };
-
-    let connection: signalR.HubConnection | null = null;
-    let pollInterval: NodeJS.Timeout | null = null;
 
     const setupSignalR = async () => {
       const negotiateData = await getNegotiateUrl();
@@ -205,10 +204,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
 
         connection.onclose(() => {
           setConnectionStatus('disconnected');
-          // Fall back to polling if connection closes
-          if (!pollInterval) {
-            pollInterval = setInterval(fetchData, 10000);
-          }
+          // Don't fall back to polling - SignalR should reconnect automatically
         });
 
         try {
@@ -216,15 +212,14 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
           setConnectionStatus('connected');
           console.log('SignalR connected');
         } catch (err) {
-          console.log('SignalR connection failed, using polling fallback');
+          console.log('SignalR connection failed');
           setConnectionStatus('disconnected');
-          pollInterval = setInterval(fetchData, 10000);
+          // Don't use polling - rely on SignalR automatic reconnection
         }
       } else {
-        // SignalR not available - use polling
-        console.log('SignalR not available, using polling');
+        // SignalR not available in local dev - this is expected
+        console.log('SignalR not configured (local development mode)');
         setConnectionStatus('disconnected');
-        pollInterval = setInterval(fetchData, 10000);
       }
     };
 
@@ -233,9 +228,6 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     return () => {
       if (connection) {
         connection.stop();
-      }
-      if (pollInterval) {
-        clearInterval(pollInterval);
       }
     };
   }, [sessionId, studentId]);

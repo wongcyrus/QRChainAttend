@@ -104,15 +104,45 @@ start_servers() {
     
     sleep 2
     
+    # Kill any existing Next.js processes before starting
+    echo "Checking for existing Next.js processes..."
+    if pgrep -f "next dev" > /dev/null 2>&1 || pgrep -f "next-server" > /dev/null 2>&1; then
+        echo -e "${YELLOW}⚠️  Found existing Next.js processes - killing them${NC}"
+        pkill -9 -f "next dev" 2>/dev/null || true
+        pkill -9 -f "next-server" 2>/dev/null || true
+        sleep 2
+    fi
+    
+    # Double-check ports are free
+    for port in 3000 3001 3002 3003 3004 3005 3006 3007 3008; do
+        if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "Freeing port $port..."
+            lsof -ti:$port | xargs kill -9 2>/dev/null || true
+        fi
+    done
+    
     if lsof -Pi :3002 -sTCP:LISTEN -t >/dev/null 2>&1 || \
        lsof -Pi :3001 -sTCP:LISTEN -t >/dev/null 2>&1 || \
        lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️  Frontend already running${NC}"
-    else
-        echo "Starting Frontend (Next.js)..."
-        (cd "$SCRIPT_DIR/frontend" && npm run dev > "$SCRIPT_DIR/frontend.log" 2>&1 &)
-        FRONTEND_PID=$!
-        echo -e "${GREEN}✅ Frontend starting (PID: $FRONTEND_PID)${NC}"
+        echo -e "${YELLOW}⚠️  Frontend already running - killing old processes${NC}"
+        pkill -f "next dev" 2>/dev/null || true
+        pkill -f "next-server" 2>/dev/null || true
+        sleep 2
+    fi
+    
+    echo "Starting Frontend (Next.js) on port 3000..."
+    (cd "$SCRIPT_DIR/frontend" && PORT=3000 npm run dev > "$SCRIPT_DIR/frontend.log" 2>&1 &)
+    FRONTEND_PID=$!
+    echo -e "${GREEN}✅ Frontend starting (PID: $FRONTEND_PID)${NC}"
+    
+    # Wait and verify only one Next.js is running
+    sleep 3
+    NEXT_COUNT=$(pgrep -f "next-server" | wc -l)
+    if [ "$NEXT_COUNT" -gt 1 ]; then
+        echo -e "${RED}⚠️  Warning: Multiple Next.js processes detected ($NEXT_COUNT)${NC}"
+        echo "   Killing duplicates..."
+        # Keep only the most recent process
+        pgrep -f "next-server" | head -n -1 | xargs kill -9 2>/dev/null || true
     fi
     
     echo ""
@@ -122,13 +152,8 @@ start_servers() {
     # Wait a bit for servers to start
     sleep 3
     
-    # Detect frontend port
+    # Always use port 3000
     FRONTEND_PORT=3000
-    if lsof -Pi :3002 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        FRONTEND_PORT=3002
-    elif lsof -Pi :3001 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        FRONTEND_PORT=3001
-    fi
     
     echo "📍 URLs:"
     echo "   Frontend: http://localhost:$FRONTEND_PORT"
@@ -195,15 +220,19 @@ stop_servers() {
         echo "ℹ️  Backend not running"
     fi
     
-    # Stop frontend
-    for port in 3002 3001 3000; do
+    # Kill ALL Next.js processes (not just by port)
+    echo "Stopping all Next.js processes..."
+    pkill -f "next dev" 2>/dev/null || true
+    pkill -f "next-server" 2>/dev/null || true
+    
+    # Also kill by port just to be sure
+    for port in 3000 3001 3002 3003 3004 3005 3006 3007 3008; do
         if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "Stopping Frontend (port $port)..."
             lsof -ti:$port | xargs kill -9 2>/dev/null || true
-            echo -e "${GREEN}✅ Frontend stopped${NC}"
-            break
         fi
     done
+    
+    echo -e "${GREEN}✅ Frontend stopped${NC}"
     
     echo ""
     echo -e "${GREEN}✅ All servers stopped${NC}"
@@ -217,12 +246,30 @@ reset_database() {
     echo "============================"
     echo ""
     
+    # Azurite stores data in /workspace
     AZURITE_DATA_DIR="/workspace"
+    
+    # Check if we can access the directory
+    if [ ! -d "$AZURITE_DATA_DIR" ]; then
+        echo -e "${YELLOW}⚠️  Cannot access $AZURITE_DATA_DIR${NC}"
+        echo "   Azurite data directory not found."
+        echo ""
+        echo "   Alternative: Use Azure Storage Explorer to clear tables:"
+        echo "   1. Connect to: http://127.0.0.1:10002"
+        echo "   2. Delete tables: Sessions, Attendance, Chains, Tokens, UserSessions"
+        echo ""
+        return
+    fi
     
     # Check if Azurite is running
     if pgrep -f azurite > /dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️  Azurite is running - data will be cleared but Azurite will continue${NC}"
-        echo ""
+        echo -e "${YELLOW}⚠️  Azurite is running${NC}"
+        echo "   Stopping Azurite to clear data..."
+        sudo pkill -f azurite 2>/dev/null || pkill -f azurite 2>/dev/null
+        sleep 2
+        RESTART_AZURITE=true
+    else
+        RESTART_AZURITE=false
     fi
     
     # Remove Azurite data files
@@ -230,32 +277,42 @@ reset_database() {
     
     CLEARED=0
     
-    if [ -f "$AZURITE_DATA_DIR/__azurite_db_table__.json" ]; then
-        rm -f "$AZURITE_DATA_DIR/__azurite_db_table__.json"
+    # Try with sudo first, then without
+    if sudo rm -f "$AZURITE_DATA_DIR/__azurite_db_table__.json" 2>/dev/null || \
+       rm -f "$AZURITE_DATA_DIR/__azurite_db_table__.json" 2>/dev/null; then
         echo -e "${GREEN}   ✓ Removed table storage data${NC}"
         CLEARED=1
     fi
     
-    if [ -d "$AZURITE_DATA_DIR/__blobstorage__" ]; then
-        rm -rf "$AZURITE_DATA_DIR/__blobstorage__"
+    if sudo rm -rf "$AZURITE_DATA_DIR/__blobstorage__" 2>/dev/null || \
+       rm -rf "$AZURITE_DATA_DIR/__blobstorage__" 2>/dev/null; then
         echo -e "${GREEN}   ✓ Removed blob storage data${NC}"
         CLEARED=1
     fi
     
-    if [ -d "$AZURITE_DATA_DIR/__queuestorage__" ]; then
-        rm -rf "$AZURITE_DATA_DIR/__queuestorage__"
+    if sudo rm -rf "$AZURITE_DATA_DIR/__queuestorage__" 2>/dev/null || \
+       rm -rf "$AZURITE_DATA_DIR/__queuestorage__" 2>/dev/null; then
         echo -e "${GREEN}   ✓ Removed queue storage data${NC}"
         CLEARED=1
     fi
     
-    if [ -d "$AZURITE_DATA_DIR/__tablestorage__" ]; then
-        rm -rf "$AZURITE_DATA_DIR/__tablestorage__"
+    if sudo rm -rf "$AZURITE_DATA_DIR/__tablestorage__" 2>/dev/null || \
+       rm -rf "$AZURITE_DATA_DIR/__tablestorage__" 2>/dev/null; then
         echo -e "${GREEN}   ✓ Removed table storage directory${NC}"
         CLEARED=1
     fi
     
     if [ $CLEARED -eq 0 ]; then
         echo -e "${YELLOW}   ℹ️  No data found to clear${NC}"
+    fi
+    
+    # Restart Azurite if it was running
+    if [ "$RESTART_AZURITE" = true ]; then
+        echo ""
+        echo "Restarting Azurite..."
+        sudo azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /workspace --debug /workspace/debug.log > /dev/null 2>&1 &
+        sleep 2
+        echo -e "${GREEN}✅ Azurite restarted${NC}"
     fi
     
     echo ""
@@ -307,6 +364,11 @@ case "${1:-help}" in
         stop_servers
         ;;
     restart)
+        echo ""
+        echo -e "${BLUE}🔄 Cleaning frontend build cache...${NC}"
+        SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+        rm -rf "$SCRIPT_DIR/frontend/.next" "$SCRIPT_DIR/frontend/tsconfig.tsbuildinfo" 2>/dev/null
+        echo -e "${GREEN}✅ Cache cleaned${NC}"
         stop_servers
         sleep 2
         start_servers "$2" "$3"

@@ -11,6 +11,7 @@ export default function DevConfig() {
   const [email, setEmail] = useState('teacher@vtc.edu.hk');
   const [role, setRole] = useState<'teacher' | 'student'>('teacher');
   const [isLocal, setIsLocal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const local = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
@@ -22,6 +23,8 @@ export default function DevConfig() {
   }, [router]);
 
   const handleSetUser = async () => {
+    setError(null);
+    
     const mockUser = {
       clientPrincipal: {
         userId: `local-dev-${role}-${Date.now()}`,
@@ -42,6 +45,9 @@ export default function DevConfig() {
 
     if (response.ok) {
       router.push('/');
+    } else {
+      const data = await response.json();
+      setError(data.message || 'Login failed');
     }
   };
 
@@ -53,6 +59,19 @@ export default function DevConfig() {
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
       <h1>🛠️ Local Development Configuration</h1>
       <p style={{ color: '#666' }}>Configure your mock user for local testing</p>
+
+      {error && (
+        <div style={{
+          marginTop: '1rem',
+          padding: '1rem',
+          backgroundColor: '#fef0f0',
+          border: '1px solid #d13438',
+          borderRadius: '4px',
+          color: '#d13438'
+        }}>
+          <strong>⚠️ Login Failed:</strong> {error}
+        </div>
+      )}
 
       <div style={{ marginTop: '2rem' }}>
         <div style={{ marginBottom: '1.5rem' }}>
