@@ -12,18 +12,40 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { QrReader } from 'react-qr-reader';
 import type {
-  QRData,
   SessionQRData,
   ChainQRData,
   RotatingQRData,
-  ChainScanRequest,
   ChainScanResponse,
-  LateEntryScanRequest,
-  EarlyLeaveScanRequest,
-  ExitChainScanRequest,
   ScanMetadata,
   ErrorResponse,
-} from '@qr-attendance/shared';
+} from '../types/shared';
+
+// Additional types needed for QRScanner
+type QRData = SessionQRData | ChainQRData | RotatingQRData;
+
+interface ChainScanRequest {
+  chainId: string;
+  tokenId: string;
+  etag: string;
+  metadata?: ScanMetadata;
+}
+
+interface LateEntryScanRequest {
+  tokenId: string;
+  metadata?: ScanMetadata;
+}
+
+interface EarlyLeaveScanRequest {
+  tokenId: string;
+  metadata?: ScanMetadata;
+}
+
+interface ExitChainScanRequest {
+  chainId: string;
+  tokenId: string;
+  etag: string;
+  metadata?: ScanMetadata;
+}
 
 export interface QRScannerProps {
   /**
@@ -190,18 +212,20 @@ async function callScanAPI(
   let body: ChainScanRequest | LateEntryScanRequest | EarlyLeaveScanRequest | ExitChainScanRequest;
 
   switch (qrData.type) {
-    case 'CHAIN':
+    case 'CHAIN_ENTRY':
       endpoint = '/api/scan/chain';
       body = {
+        chainId: qrData.chainId,
         tokenId: qrData.tokenId,
         etag: qrData.etag,
         metadata,
       };
       break;
 
-    case 'EXIT_CHAIN':
+    case 'CHAIN_EXIT':
       endpoint = '/api/scan/exit-chain';
       body = {
+        chainId: qrData.chainId,
         tokenId: qrData.tokenId,
         etag: qrData.etag,
         metadata,
@@ -212,7 +236,6 @@ async function callScanAPI(
       endpoint = '/api/scan/late-entry';
       body = {
         tokenId: qrData.tokenId,
-        etag: qrData.etag,
         metadata,
       };
       break;
@@ -221,7 +244,6 @@ async function callScanAPI(
       endpoint = '/api/scan/early-leave';
       body = {
         tokenId: qrData.tokenId,
-        etag: qrData.etag,
         metadata,
       };
       break;
@@ -373,8 +395,8 @@ export function QRScanner({
         }
 
         // Check if token is expired
-        const now = Math.floor(Date.now() / 1000);
-        if ('exp' in qrData && qrData.exp < now) {
+        const now = Date.now();
+        if ('expiresAt' in qrData && typeof qrData.expiresAt === 'number' && qrData.expiresAt < now) {
           onScanError?.('This QR code has expired');
           return;
         }
@@ -388,11 +410,11 @@ export function QRScanner({
         if (response.success) {
           onScanSuccess?.(response);
         } else {
-          onScanError?.(getErrorMessage(response.error || 'Scan failed', response.error));
+          onScanError?.(response.message || 'Scan failed');
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        onScanError?.(getErrorMessage(errorMessage, errorMessage));
+        onScanError?.(errorMessage);
       } finally {
         isScanningRef.current = false;
         setIsScanning(false);

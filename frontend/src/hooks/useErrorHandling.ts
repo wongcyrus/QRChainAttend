@@ -8,7 +8,6 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { ErrorCode } from '@qr-attendance/shared';
 import {
   getUserFriendlyMessage,
   shouldRetry,

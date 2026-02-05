@@ -83,10 +83,29 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
     setSuccessMessage(null);
 
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add mock authentication header for local development
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        const mockPrincipal = {
+          userId: 'local-dev-teacher',
+          userDetails: 'teacher@vtc.edu.hk',
+          userRoles: ['authenticated', 'teacher'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+      
       const response = await fetch(
-        `/api/sessions/${sessionId}/seed-entry?count=${entryChainCount}`,
+        `${apiUrl}/sessions/${sessionId}/seed-entry?count=${entryChainCount}`,
         {
           method: 'POST',
+          headers
         }
       );
 
@@ -126,10 +145,29 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
     setSuccessMessage(null);
 
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add mock authentication header for local development
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        const mockPrincipal = {
+          userId: 'local-dev-teacher',
+          userDetails: 'teacher@vtc.edu.hk',
+          userRoles: ['authenticated', 'teacher'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+      
       const response = await fetch(
-        `/api/sessions/${sessionId}/start-exit-chain?count=${exitChainCount}`,
+        `${apiUrl}/sessions/${sessionId}/start-exit-chain?count=${exitChainCount}`,
         {
           method: 'POST',
+          headers
         }
       );
 

@@ -19,7 +19,7 @@ import type {
   RotatingQRData,
   ChainScanResponse,
   SessionQRData,
-} from '@qr-attendance/shared';
+} from '../types/shared';
 
 export interface StudentSessionViewProps {
   /**

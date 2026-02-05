@@ -12,7 +12,9 @@
  * - Location violation guidance
  */
 
-import type { ErrorResponse, ErrorCode } from '@qr-attendance/shared';
+import type { ErrorResponse } from '../types/shared';
+
+type ErrorCode = string;
 
 /**
  * Error handling configuration

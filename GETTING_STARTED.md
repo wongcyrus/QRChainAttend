@@ -1,308 +1,180 @@
-# Getting Started with QR Chain Attendance System
+# Getting Started with QR Chain Attendance
 
-Welcome! This guide will help you understand the project and get started quickly.
+Quick guide to get the system running locally.
 
-## 📚 Documentation Map
+## Prerequisites
 
-### 🚀 For Deployment
-1. **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Complete step-by-step deployment
-   - Azure AD app registration
-   - Infrastructure deployment with Bicep
-   - Post-deployment configuration
-   - User role assignment
+- Node.js 18+ installed
+- npm or yarn
+- Git
 
-2. **[docs/CICD_SETUP.md](docs/CICD_SETUP.md)** - Optional CI/CD automation
-   - GitHub Actions workflows
-   - Azure credentials setup
-   - Automated deployments
+## Quick Start (3 Steps)
 
-### 🔐 For Security
-- **[SECURITY.md](SECURITY.md)** - **READ THIS FIRST!**
-  - What NOT to commit to Git
-  - Secrets management
-  - Security best practices
-  - Incident response
+### 1. Clone and Install
+```bash
+git clone <repository-url>
+cd QRChainAttend
+npm install
+```
 
-### 💻 For Development
-- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Local development setup
-- **[docs/BACKEND_ARCHITECTURE.md](docs/BACKEND_ARCHITECTURE.md)** - Backend design
-- **[docs/FRONTEND_ARCHITECTURE.md](docs/FRONTEND_ARCHITECTURE.md)** - Frontend design
-- **[docs/README.md](docs/README.md)** - Complete documentation index
+### 2. Start Development Servers
+```bash
+./dev-tools.sh start
+```
 
-### 📊 For Operations
-- **[docs/MONITORING.md](docs/MONITORING.md)** - Monitoring and alerts
-- **[docs/ALERT_RESPONSE.md](docs/ALERT_RESPONSE.md)** - Alert response playbook
+This starts:
+- Backend on http://localhost:7071/api
+- Frontend on http://localhost:3002
 
----
+### 3. Open Browser
+Go to: http://localhost:3002/dev-config
 
-## ⚡ Quick Start Paths
+## First Time Usage
 
-### Path 1: Deploy to Azure (First Time)
+### Login as Teacher
+1. Go to http://localhost:3002/dev-config
+2. Enter email: `teacher@vtc.edu.hk`
+3. Click "Login"
+4. Click "Teacher Dashboard"
+
+### Create a Session
+1. Fill in the form:
+   - Class ID: `CS101`
+   - Start time: (current time)
+   - End time: (1 hour later)
+   - Late cutoff: `15` minutes
+2. Click "Create Session"
+3. Note the session ID or QR code
+
+### Login as Students
+1. Open new browser tabs (2-3 tabs)
+2. Go to http://localhost:3002/dev-config in each
+3. Enter emails:
+   - `student1@stu.vtc.edu.hk`
+   - `student2@stu.vtc.edu.hk`
+   - `student3@stu.vtc.edu.hk`
+4. Click "Student View" in each
+
+### Join Session
+In each student tab:
+1. Enter the session ID from teacher
+2. Click "Join Session"
+3. You should see session information
+
+### Start Attendance
+Back in teacher dashboard:
+1. Scroll to "Chain Management"
+2. Set "Number of chains" to 2 or 3
+3. Click "Seed Entry Chains"
+4. Success message shows which students are holders
+
+### See QR Codes
+In student tabs:
+- Wait 5 seconds for automatic refresh
+- Holders will see yellow box with QR code
+- Message: "🎯 You are the Chain Holder!"
+- Non-holders see instructions
+
+## Development Tools
+
+All commands use `./dev-tools.sh`:
 
 ```bash
-# 1. Read the guides
-cat DEPLOYMENT_GUIDE.md
-cat SECURITY.md
-
-# 2. Create Azure AD app registration (see DEPLOYMENT_GUIDE.md Step 1)
-az ad app create --display-name "QR Chain Attendance System" ...
-
-# 3. Deploy infrastructure (see DEPLOYMENT_GUIDE.md Step 4)
-cd infrastructure
-./deploy.sh --environment dev ...
-
-# 4. Deploy application code (see DEPLOYMENT_GUIDE.md Step 6)
-cd backend && func azure functionapp publish <app-name>
-git push origin main  # Frontend auto-deploys via GitHub Actions
+./dev-tools.sh start      # Start servers
+./dev-tools.sh stop       # Stop servers
+./dev-tools.sh restart    # Restart servers
+./dev-tools.sh reset-db   # Clear database
+./dev-tools.sh status     # Check status
+./dev-tools.sh logs       # View logs
 ```
 
-**Full instructions**: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+See [DEV_TOOLS.md](DEV_TOOLS.md) for details.
 
-### Path 2: Local Development
+## Common Issues
 
+### Servers won't start
 ```bash
-# Quick start (already configured!)
-./dev.sh
-
-# Or manual start (2 terminals)
-# Terminal 1: cd backend && func start
-# Terminal 2: cd frontend && npm run dev
-
-# Access application
-open http://localhost:3001
+./dev-tools.sh stop
+./dev-tools.sh start
 ```
 
-**Full instructions**: [LOCAL_DEVELOPMENT_SETUP.md](LOCAL_DEVELOPMENT_SETUP.md)
-
-### Path 3: Set Up CI/CD (Optional)
-
+### Port already in use
 ```bash
-# 1. Create Azure service principal
-./scripts/setup-cicd-credentials.sh \
-  <subscription-id> \
-  <resource-group> \
-  <github-repo>
+# Check what's using the ports
+lsof -i :7071  # Backend
+lsof -i :3002  # Frontend
 
-# 2. Verify GitHub secrets are set
-# 3. Push to trigger workflows
+# Kill processes
+./dev-tools.sh stop
 ```
 
-**Full instructions**: [docs/CICD_SETUP.md](docs/CICD_SETUP.md)
-
----
-
-## 🏗️ Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Azure Resources                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────────┐         ┌──────────────────┐        │
-│  │ Static Web App   │◄────────┤ Function App     │        │
-│  │ (Next.js PWA)    │         │ (Node.js API)    │        │
-│  └────────┬─────────┘         └────────┬─────────┘        │
-│           │                            │                   │
-│           │                            ▼                   │
-│           │                   ┌──────────────────┐        │
-│           │                   │ Table Storage    │        │
-│           │                   │ (Data)           │        │
-│           │                   └──────────────────┘        │
-│           │                            │                   │
-│           ▼                            ▼                   │
-│  ┌──────────────────────────────────────────────┐         │
-│  │      SignalR Service (Real-time Updates)     │         │
-│  └──────────────────────────────────────────────┘         │
-│                         ▼                                  │
-│                ┌──────────────────┐                        │
-│                │ App Insights     │                        │
-│                │ (Monitoring)     │                        │
-│                └──────────────────┘                        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Key Components:**
-- **Frontend**: React/Next.js PWA with offline support
-- **Backend**: Serverless Azure Functions (TypeScript)
-- **Storage**: Azure Table Storage for sessions and attendance
-- **Real-time**: SignalR for live dashboard updates
-- **Auth**: Microsoft Entra ID (Azure AD) with role-based access
-
----
-
-## 🔒 Security First
-
-**⚠️ CRITICAL**: Read [SECURITY.md](SECURITY.md) before committing!
-
-### Never Commit These Files
-
-```
-.deployment-config       # Deployment credentials
-credential.json          # Azure credentials
-github-token.txt         # GitHub token
-*.secret                 # Any secret files
-local.settings.json      # Local settings
-.env*                    # Environment variables
-```
-
-### Verify Before Committing
-
+### Database has old data
 ```bash
-# Run verification script
-./verify-no-secrets.sh
-
-# Check .gitignore
-git check-ignore .deployment-config credential.json github-token.txt
-
-# Review staged changes
-git diff --cached
+./dev-tools.sh reset-db
+./dev-tools.sh restart
 ```
 
----
-
-## 📋 Deployment Checklist
-
-### Pre-Deployment
-- [ ] Read [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
-- [ ] Read [SECURITY.md](SECURITY.md)
-- [ ] Azure CLI installed (`az --version`)
-- [ ] Node.js 18+ installed (`node --version`)
-- [ ] Logged in to Azure (`az login`)
-
-### Azure AD Setup (Step 1)
-- [ ] App registration created
-- [ ] Client ID saved securely
-- [ ] Client Secret created and saved
-- [ ] Tenant ID noted
-- [ ] API permissions granted
-- [ ] App roles created (Teacher, Student)
-
-### Infrastructure Deployment (Steps 2-4)
-- [ ] GitHub repository created
-- [ ] GitHub token created
-- [ ] `.deployment-config` file created (chmod 600)
-- [ ] Backend infrastructure deployed
-- [ ] Static Web App deployed
-- [ ] All resources verified in Azure Portal
-
-### Post-Deployment (Steps 5-7)
-- [ ] Redirect URI updated in Azure AD
-- [ ] Users assigned to roles
-- [ ] Backend code deployed
-- [ ] Frontend code deployed (auto via GitHub Actions)
-- [ ] Application tested end-to-end
-
-### Verification
-- [ ] Backend API health check passes
-- [ ] Frontend loads successfully
-- [ ] Authentication works
-- [ ] Role-based access works
-- [ ] Monitoring enabled
-- [ ] No secrets in Git repository
-
----
-
-## 💰 Cost Estimate
-
-### Development (~$17-26/month)
-- Static Web App (Standard): $9
-- Function App (Consumption): $5-10
-- Storage Account: $1-2
-- SignalR (Free tier): $0
-- Application Insights: $2-5
-
-### Production (~$94-139/month)
-- Static Web App (Standard): $9
-- Function App (Consumption): $20-50
-- Storage Account: $5-10
-- SignalR (Standard): $50
-- Application Insights: $10-20
-
-**Tip**: Use Azure Cost Management to set budget alerts.
-
----
-
-## 🧪 Testing
-
+### Student view keeps reloading
+This was fixed. Make sure you have the latest code:
 ```bash
-# Run all tests
-npm test
-
-# Run specific workspace tests
-npm run test:unit --workspace=backend
-npm run test:unit --workspace=frontend
-
-# Generate coverage report
-npm test -- --coverage
+git pull
+npm install
+./dev-tools.sh restart
 ```
 
-**Current Status:**
-- ✅ Backend: 28 suites, 563 tests passing
-- ✅ Frontend: 14 suites, 321 tests passing
-- ✅ CI/CD: All workflows passing
+## Next Steps
 
----
+- [QR Chain Flow](QR_CHAIN_FLOW.md) - Understand how attendance works
+- [Login Guide](LOGIN_GUIDE.md) - Authentication details
+- [Development Tools](DEV_TOOLS.md) - All dev-tools commands
+- [Local Development](LOCAL_DEVELOPMENT_SETUP.md) - Full setup guide
 
-## 🆘 Common Issues
+## Project Structure
 
-### "RepositoryUrl is invalid" during deployment
-**Solution**: Deploy Static Web App module directly  
-**See**: DEPLOYMENT_GUIDE.md Step 4.3
+```
+├── backend/              # Azure Functions API
+│   ├── src/functions/    # API endpoints
+│   └── local.settings.json
+├── frontend/             # Next.js web app
+│   ├── src/pages/        # Routes
+│   ├── src/components/   # React components
+│   └── .env.local
+├── dev-tools.sh          # Main development tool
+└── README.md
+```
 
-### "Principal not found" error
-**Solution**: Wait 30-60 seconds for managed identity propagation  
-**Then**: Retry the operation
+## URLs
 
-### Authentication not working
-**Solutions**:
-- Verify redirect URI matches exactly
-- Check users are assigned to roles in Azure AD
-- Verify Client ID and Tenant ID are correct
+- Frontend: http://localhost:3002
+- Backend API: http://localhost:7071/api
+- Dev Login: http://localhost:3002/dev-config
+- Teacher Dashboard: http://localhost:3002/teacher
+- Student View: http://localhost:3002/student
 
-### Frontend build fails
-**Solutions**:
-- Clear `.next` directory: `rm -rf frontend/.next`
-- Reinstall dependencies: `npm ci`
-- Check for TypeScript errors: `npm run type-check --workspace=frontend`
+## Environment Files
 
----
+### Backend: `backend/local.settings.json`
+Already configured for local development with Azurite.
 
-## 📞 Quick Links
+### Frontend: `frontend/.env.local`
+```env
+NEXT_PUBLIC_ENVIRONMENT=local
+NEXT_PUBLIC_API_URL=http://localhost:7071/api
+```
 
-### Azure Portal
-- [Resource Groups](https://portal.azure.com/#blade/HubsExtension/BrowseResourceGroups)
-- [Azure AD](https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/Overview)
-- [Cost Management](https://portal.azure.com/#blade/Microsoft_Azure_CostManagement/Menu/overview)
+These files are already set up for local development.
 
-### Documentation
-- [Azure Functions Docs](https://docs.microsoft.com/azure/azure-functions/)
-- [Azure Static Web Apps Docs](https://docs.microsoft.com/azure/static-web-apps/)
-- [Microsoft Entra ID Docs](https://learn.microsoft.com/entra/identity/)
+## Testing the Complete Flow
 
----
+1. **Start**: `./dev-tools.sh start`
+2. **Teacher**: Login → Create session → Seed chains
+3. **Students**: Login → Join session → Wait for QR codes
+4. **Verify**: Holders see QR codes, teacher sees attendance
+5. **Reset**: `./dev-tools.sh reset-db` when done
 
-## 🎯 Success Criteria
+## Help
 
-Your deployment is successful when:
-
-✅ All Azure resources deployed  
-✅ Static Web App accessible  
-✅ Function App responding  
-✅ Authentication working  
-✅ Users assigned to roles  
-✅ Real-time updates working  
-✅ Monitoring enabled  
-✅ No secrets in Git  
-
----
-
-## 🚀 Next Steps
-
-1. **New to the project?** → Read [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
-2. **Ready to develop?** → Read [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
-3. **Need to monitor?** → Read [docs/MONITORING.md](docs/MONITORING.md)
-4. **Want CI/CD?** → Read [docs/CICD_SETUP.md](docs/CICD_SETUP.md)
-
----
-
-**Questions?** Check the [docs/](docs/) folder for detailed documentation.
+- Check status: `./dev-tools.sh status`
+- View logs: `./dev-tools.sh logs`
+- Live logs: `tail -f backend.log` or `tail -f frontend.log`
+- Documentation: [DOCS_INDEX.md](DOCS_INDEX.md)

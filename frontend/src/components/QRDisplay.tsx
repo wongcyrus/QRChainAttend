@@ -13,7 +13,7 @@
 import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import Image from 'next/image';
-import type { ChainQRData, RotatingQRData } from '@qr-attendance/shared';
+import type { ChainQRData, RotatingQRData } from '../types/shared';
 
 export interface QRDisplayProps {
   /**
@@ -56,9 +56,9 @@ function formatTime(seconds: number): string {
  */
 function getTokenTypeLabel(type: string): string {
   switch (type) {
-    case 'CHAIN':
+    case 'CHAIN_ENTRY':
       return 'Entry Chain Token';
-    case 'EXIT_CHAIN':
+    case 'CHAIN_EXIT':
       return 'Exit Chain Token';
     case 'LATE_ENTRY':
       return 'Late Entry Token';
@@ -95,8 +95,9 @@ export function QRDisplay({
     }
 
     // Check if already expired
-    const now = Math.floor(Date.now() / 1000);
-    if (qrData.exp <= now) {
+    const now = Date.now();
+    const expiresAt = 'expiresAt' in qrData ? qrData.expiresAt : undefined;
+    if (expiresAt && expiresAt <= now) {
       setIsExpired(true);
       setQrCodeDataURL(null);
       if (!hasCalledOnExpire.current) {
@@ -137,8 +138,15 @@ export function QRDisplay({
 
     // Calculate initial time remaining
     const updateTimeRemaining = () => {
-      const now = Math.floor(Date.now() / 1000);
-      const remaining = qrData.exp - now;
+      const now = Date.now();
+      const expiresAt = 'expiresAt' in qrData ? qrData.expiresAt : undefined;
+      
+      if (!expiresAt) {
+        setTimeRemaining(0);
+        return;
+      }
+      
+      const remaining = Math.floor((expiresAt - now) / 1000);
 
       if (remaining <= 0) {
         setTimeRemaining(0);
@@ -177,7 +185,7 @@ export function QRDisplay({
   }
 
   // Calculate progress percentage for visual indicator
-  const totalTTL = qrData.type === 'CHAIN' || qrData.type === 'EXIT_CHAIN' ? 20 : 60;
+  const totalTTL = qrData.type === 'CHAIN_ENTRY' || qrData.type === 'CHAIN_EXIT' ? 20 : 60;
   const progressPercentage = (timeRemaining / totalTTL) * 100;
 
   // Determine urgency level for styling

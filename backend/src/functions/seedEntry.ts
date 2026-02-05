@@ -1,28 +1,196 @@
 /**
- * seedEntry - STUB (Not Yet Implemented)
- * This function deploys successfully but returns a placeholder response
+ * Seed Entry API Endpoint - REFACTORED (Self-contained)
+ * Creates initial entry chain holders
  */
-import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
-export async function seedEntry(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-  context.log('seedEntry called - not yet implemented');
-  
-  return {
-    status: 501,
-    jsonBody: {
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'This function is not yet implemented',
-        function: 'seedEntry',
-        timestamp: Date.now()
+import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { TableClient } from '@azure/data-tables';
+import { randomUUID } from 'crypto';
+
+// Inline helper functions
+function parseUserPrincipal(header: string): any {
+  try {
+    const decoded = Buffer.from(header, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    throw new Error('Invalid authentication header');
+  }
+}
+
+function hasRole(principal: any, role: string): boolean {
+  const roles = principal.userRoles || [];
+  return roles.includes(role);
+}
+
+function getTableClient(tableName: string): TableClient {
+  const connectionString = process.env.AzureWebJobsStorage;
+  if (!connectionString) {
+    throw new Error('AzureWebJobsStorage not configured');
+  }
+  return TableClient.fromConnectionString(connectionString, tableName);
+}
+
+export async function seedEntry(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  context.log('Processing POST /api/sessions/{sessionId}/seed-entry request');
+
+  try {
+    // Parse authentication
+    const principalHeader = request.headers.get('x-ms-client-principal');
+    if (!principalHeader) {
+      return {
+        status: 401,
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
+      };
+    }
+
+    const principal = parseUserPrincipal(principalHeader);
+    
+    // Require Teacher role
+    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+      };
+    }
+
+    const sessionId = request.params.sessionId;
+    const countParam = request.query.get('count');
+    const count = countParam ? parseInt(countParam) : 3;
+    
+    if (!sessionId) {
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', timestamp: Date.now() } }
+      };
+    }
+
+    if (count <= 0 || count > 50) {
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Count must be between 1 and 50', timestamp: Date.now() } }
+      };
+    }
+
+    // Verify session exists
+    const sessionsTable = getTableClient('Sessions');
+    let session;
+    try {
+      session = await sessionsTable.getEntity('SESSION', sessionId);
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        return {
+          status: 404,
+          jsonBody: { error: { code: 'NOT_FOUND', message: 'Session not found', timestamp: Date.now() } }
+        };
+      }
+      throw error;
+    }
+
+    // Get all students enrolled in the session
+    const attendanceTable = getTableClient('Attendance');
+    const attendanceRecords = attendanceTable.listEntities({
+      queryOptions: { filter: `PartitionKey eq '${sessionId}'` }
+    });
+
+    const students: string[] = [];
+    for await (const record of attendanceRecords) {
+      // Only include students who haven't been marked yet
+      if (!record.entryStatus) {
+        students.push(record.rowKey as string);
       }
     }
-  };
+
+    if (students.length === 0) {
+      return {
+        status: 400,
+        jsonBody: { 
+          error: { 
+            code: 'NO_STUDENTS', 
+            message: 'No unmarked students available to seed chains', 
+            timestamp: Date.now() 
+          } 
+        }
+      };
+    }
+
+    // Limit count to available students
+    const actualCount = Math.min(count, students.length);
+    
+    // Randomly select initial holders
+    const shuffled = students.sort(() => Math.random() - 0.5);
+    const initialHolders = shuffled.slice(0, actualCount);
+
+    // Create chains and tokens
+    const chainsTable = getTableClient('Chains');
+    const tokensTable = getTableClient('Tokens');
+    const now = Date.now();
+    const expiresAt = now + (20 * 1000); // 20 seconds
+
+    for (let i = 0; i < actualCount; i++) {
+      const chainId = randomUUID();
+      const tokenId = randomUUID();
+      const holderId = initialHolders[i];
+
+      // Create chain entity
+      const chainEntity = {
+        partitionKey: sessionId,
+        rowKey: chainId,
+        phase: 'ENTRY',
+        index: i,
+        state: 'ACTIVE',
+        lastHolder: holderId,
+        lastSeq: 0,
+        lastAt: now,
+        createdAt: now
+      };
+      await chainsTable.createEntity(chainEntity);
+
+      // Create token entity
+      const tokenEntity = {
+        partitionKey: sessionId,
+        rowKey: tokenId,
+        chainId,
+        holderId,
+        seq: 0,
+        expiresAt,
+        createdAt: now
+      };
+      await tokensTable.createEntity(tokenEntity);
+
+      context.log(`Created entry chain ${chainId} with holder ${holderId}`);
+    }
+
+    return {
+      status: 201,
+      jsonBody: {
+        chainsCreated: actualCount,
+        initialHolders
+      }
+    };
+
+  } catch (error: any) {
+    context.error('Error seeding entry chains:', error);
+    
+    return {
+      status: 500,
+      jsonBody: {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to seed entry chains',
+          details: error.message,
+          timestamp: Date.now()
+        }
+      }
+    };
+  }
 }
 
 app.http('seedEntry', {
-  methods: ['GET', 'POST'],
-  route: 'seedEntry',
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/seed-entry',
   authLevel: 'anonymous',
   handler: seedEntry
 });

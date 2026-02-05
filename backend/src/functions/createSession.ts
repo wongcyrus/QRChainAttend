@@ -112,13 +112,11 @@ export async function createSession(
 
     await sessionsTable.createEntity(entity);
 
-    // Generate Session QR
-    const qrData = {
-      type: 'SESSION',
-      sessionId,
-      classId: body.classId
-    };
-    const sessionQR = Buffer.from(JSON.stringify(qrData)).toString('base64');
+    // Generate Session QR as URL
+    // In production, this would be your actual domain
+    // For now, we'll use a placeholder that can be configured
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
+    const sessionQR = `${baseUrl}/student?sessionId=${sessionId}`;
 
     const response: CreateSessionResponse = {
       sessionId,

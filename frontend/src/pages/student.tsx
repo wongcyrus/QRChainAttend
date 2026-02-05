@@ -4,8 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import StudentSessionView from '../components/StudentSessionView';
-import { QRScanner } from '../components/QRScanner';
+import { SimpleStudentView } from '../components/SimpleStudentView';
 
 interface UserInfo {
   userId: string;
@@ -31,8 +30,8 @@ export default function StudentPage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showScanner, setShowScanner] = useState(false);
   const [manualSessionId, setManualSessionId] = useState('');
+  const [hasAutoJoined, setHasAutoJoined] = useState(false);
   const { sessionId } = router.query;
 
   useEffect(() => {
@@ -74,6 +73,14 @@ export default function StudentPage() {
       });
   }, [router]);
 
+  // Separate effect for auto-join to avoid infinite loop
+  useEffect(() => {
+    if (user && sessionId && typeof sessionId === 'string' && !hasAutoJoined && !joining) {
+      setHasAutoJoined(true);
+      handleJoinSession(sessionId);
+    }
+  }, [user, sessionId, hasAutoJoined, joining]);
+
   const handleJoinSession = async (sessionIdToJoin: string) => {
     if (!user) return;
     
@@ -114,30 +121,9 @@ export default function StudentPage() {
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to join session');
+      setHasAutoJoined(false); // Allow retry
     } finally {
       setJoining(false);
-    }
-  };
-
-  const handleQRScan = (data: any) => {
-    try {
-      // Decode the QR data
-      const decoded = JSON.parse(Buffer.from(data.sessionId || data, 'base64').toString('utf-8'));
-      
-      if (decoded.type === 'SESSION' && decoded.sessionId) {
-        setShowScanner(false);
-        handleJoinSession(decoded.sessionId);
-      } else {
-        setError('Invalid QR code. Please scan a session QR code.');
-      }
-    } catch (err) {
-      setError('Failed to read QR code. Please try again.');
-    }
-  };
-
-  const handleManualJoin = () => {
-    if (manualSessionId.trim()) {
-      handleJoinSession(manualSessionId.trim());
     }
   };
 
@@ -156,7 +142,7 @@ export default function StudentPage() {
   // If sessionId in query and already joined, show session view
   if (sessionId && typeof sessionId === 'string') {
     return (
-      <StudentSessionView 
+      <SimpleStudentView 
         sessionId={sessionId}
         studentId={user.userId}
         onLeaveSession={() => router.push('/student')}
@@ -164,7 +150,7 @@ export default function StudentPage() {
     );
   }
 
-  // Show join interface
+  // Show join interface - simplified to just manual entry
   return (
     <div style={{ 
       padding: '2rem', 
@@ -198,53 +184,18 @@ export default function StudentPage() {
       }}>
         <h2 style={{ marginTop: 0 }}>Join a Session</h2>
         
-        {/* QR Scanner */}
-        <div style={{ marginBottom: '2rem' }}>
-          <button
-            onClick={() => setShowScanner(!showScanner)}
-            disabled={joining}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: '#0078d4',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: joining ? 'not-allowed' : 'pointer',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              width: '100%',
-              opacity: joining ? 0.6 : 1
-            }}
-          >
-            {showScanner ? '📷 Close Scanner' : '📷 Scan QR Code'}
-          </button>
-          
-          {showScanner && (
-            <div style={{ marginTop: '1rem' }}>
-              <QRScanner
-                onSessionScanned={handleQRScan}
-                onScanError={(err: string) => setError(err)}
-              />
-            </div>
-          )}
-        </div>
-
+        <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+          Scan the teacher's session QR code with your phone camera, or enter the session ID manually below.
+        </p>
+        
         {/* Manual Entry */}
         <div>
-          <p style={{ 
-            textAlign: 'center', 
-            color: '#666',
-            margin: '1rem 0'
-          }}>
-            — OR —
-          </p>
-          
           <label style={{ 
             display: 'block', 
             marginBottom: '0.5rem',
             fontWeight: 'bold'
           }}>
-            Enter Session ID Manually
+            Session ID
           </label>
           <input
             type="text"
@@ -263,7 +214,11 @@ export default function StudentPage() {
             }}
           />
           <button
-            onClick={handleManualJoin}
+            onClick={() => {
+              if (manualSessionId.trim()) {
+                handleJoinSession(manualSessionId.trim());
+              }
+            }}
             disabled={joining || !manualSessionId.trim()}
             style={{
               padding: '0.75rem 1.5rem',

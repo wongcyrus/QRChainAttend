@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from 'react';
 import { QRScanner } from './QRScanner';
-import type { SessionQRData, JoinSessionResponse } from '@qr-attendance/shared';
+import type { SessionQRData, JoinSessionResponse } from '../types/shared';
 
 export interface SessionEnrollmentProps {
   /**

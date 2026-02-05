@@ -17,7 +17,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { QRDisplay } from './QRDisplay';
-import type { RotatingQRData } from '@qr-attendance/shared';
+import type { RotatingQRData } from '../types/shared';
 
 export interface RotatingQRDisplayProps {
   /**

@@ -143,14 +143,11 @@ export default function TeacherPage() {
 
   const handleShowQR = async (session: Session) => {
     try {
-      const qrData = {
-        type: 'SESSION',
-        sessionId: session.sessionId,
-        classId: session.classId
-      };
-      const sessionQR = Buffer.from(JSON.stringify(qrData)).toString('base64');
+      // Generate URL for the session
+      const baseUrl = window.location.origin;
+      const sessionURL = `${baseUrl}/student?sessionId=${session.sessionId}`;
       
-      const qrDataUrl = await QRCode.toDataURL(sessionQR, {
+      const qrDataUrl = await QRCode.toDataURL(sessionURL, {
         width: 300,
         margin: 2,
         color: {
