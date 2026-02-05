@@ -57,12 +57,18 @@ interface StudentStatus {
 /**
  * Format ISO 8601 date to readable time
  */
-function formatTime(isoString: string): string {
-  const date = new Date(isoString);
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function formatTime(isoString: string | undefined): string {
+  if (!isoString) return 'Not set';
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return 'Invalid Date';
+  }
 }
 
 /**
@@ -114,7 +120,28 @@ export function StudentSessionView({
    */
   const fetchSession = useCallback(async () => {
     try {
-      const response = await fetch(`/api/sessions/${sessionId}`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add mock authentication header for local development
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        const mockPrincipal = {
+          userId: studentId,
+          userDetails: 'student@stu.vtc.edu.hk',
+          userRoles: ['authenticated', 'student'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+      
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}`, {
+        headers
+      });
+      
       if (!response.ok) {
         throw new Error('Failed to fetch session');
       }
@@ -123,15 +150,36 @@ export function StudentSessionView({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load session');
     }
-  }, [sessionId]);
+  }, [sessionId, studentId]);
 
   /**
    * Fetch student status (attendance and holder status)
    */
   const fetchStudentStatus = useCallback(async () => {
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add mock authentication header for local development
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        const mockPrincipal = {
+          userId: studentId,
+          userDetails: 'student@stu.vtc.edu.hk',
+          userRoles: ['authenticated', 'student'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+      
       // Fetch attendance status
-      const attendanceResponse = await fetch(`/api/sessions/${sessionId}/attendance`);
+      const attendanceResponse = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, {
+        headers
+      });
+      
       if (attendanceResponse.ok) {
         const attendanceData = await attendanceResponse.json();
         const myAttendance = attendanceData.attendance.find(

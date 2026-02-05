@@ -163,7 +163,27 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
    */
   const fetchSessionData = useCallback(async () => {
     try {
-      const response = await fetch(`/api/sessions/${sessionId}`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add mock authentication header for local development
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        const mockPrincipal = {
+          userId: 'local-dev-teacher-' + Date.now(),
+          userDetails: 'teacher@vtc.edu.hk',
+          userRoles: ['authenticated', 'teacher'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+      
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}`, {
+        headers
+      });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -312,7 +332,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       setConnectionStatus('connecting');
       
       // Negotiate connection with backend
-      const negotiateResponse = await fetch(`/api/sessions/${sessionId}/dashboard/negotiate`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const negotiateResponse = await fetch(`${apiUrl}/sessions/${sessionId}/dashboard/negotiate`, {
         method: 'POST',
       });
       

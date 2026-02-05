@@ -1,13 +1,31 @@
 /**
- * SignalR Negotiate Function
- * Provides SignalR connection information to clients
+ * SignalR Negotiate Function for Teacher Dashboard
+ * Provides SignalR connection information for real-time dashboard updates
  */
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
-export async function negotiate(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-  context.log('SignalR negotiate called');
+export async function negotiateDashboard(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  context.log('SignalR dashboard negotiate called');
   
   try {
+    // Get session ID from route
+    const sessionId = request.params.sessionId;
+    if (!sessionId) {
+      return {
+        status: 400,
+        jsonBody: {
+          error: {
+            code: 'INVALID_REQUEST',
+            message: 'Missing sessionId',
+            timestamp: Date.now()
+          }
+        }
+      };
+    }
+    
     // Get SignalR connection string from environment
     const connectionString = process.env.SIGNALR_CONNECTION_STRING;
     
@@ -47,8 +65,9 @@ export async function negotiate(request: HttpRequest, context: InvocationContext
     const accessKey = keyMatch[1];
     
     // Generate access token for the client
-    const hubName = 'attendance'; // Hub name for attendance updates
-    const userId = request.headers.get('x-ms-client-principal-id') || 'anonymous';
+    // Hub name must be alphanumeric only (no hyphens or special chars)
+    const hubName = `dashboard${sessionId.replace(/-/g, '')}`; // Remove hyphens from session ID
+    const userId = request.headers.get('x-ms-client-principal-id') || 'teacher';
     
     // Create JWT token for SignalR
     const crypto = require('crypto');
@@ -86,7 +105,7 @@ export async function negotiate(request: HttpRequest, context: InvocationContext
     };
     
   } catch (error: any) {
-    context.error('Error in negotiate function:', error);
+    context.error('Error in negotiateDashboard function:', error);
     return {
       status: 500,
       jsonBody: {
@@ -101,9 +120,9 @@ export async function negotiate(request: HttpRequest, context: InvocationContext
   }
 }
 
-app.http('negotiate', {
-  methods: ['GET', 'POST'],
-  route: 'negotiate',
+app.http('negotiateDashboard', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/dashboard/negotiate',
   authLevel: 'anonymous',
-  handler: negotiate
+  handler: negotiateDashboard
 });

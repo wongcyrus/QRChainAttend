@@ -52,7 +52,7 @@ export async function joinSession(
     const principal = parseUserPrincipal(principalHeader);
     
     // Require Student role
-    if (!hasRole(principal, 'Student')) {
+    if (!hasRole(principal, 'Student') && !hasRole(principal, 'student')) {
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }

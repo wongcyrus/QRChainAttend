@@ -12,7 +12,7 @@
  */
 
 import React, { useState } from 'react';
-import Image from 'next/image';
+import QRCode from 'qrcode';
 
 interface SessionConstraints {
   geofence?: {
@@ -39,10 +39,14 @@ interface CreateSessionResponse {
 
 interface SessionCreationFormProps {
   onSessionCreated?: (sessionId: string) => void;
+  teacherId?: string;
+  teacherEmail?: string;
 }
 
 export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   onSessionCreated,
+  teacherId,
+  teacherEmail,
 }) => {
   // Required fields
   const [classId, setClassId] = useState('');
@@ -68,6 +72,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdSession, setCreatedSession] = useState<CreateSessionResponse | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
 
   /**
    * Get current location for geofence
@@ -190,11 +195,28 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
       }
       
       // Call API
-      const response = await fetch('/api/sessions', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Create mock auth header for local development
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add mock authentication header for local development
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        // Use the actual logged-in teacher's info
+        const mockPrincipal = {
+          userId: teacherId || 'local-dev-teacher',
+          userDetails: teacherEmail || 'teacher@vtc.edu.hk',
+          userRoles: ['authenticated', 'teacher'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+      
+      const response = await fetch(`${apiUrl}/sessions`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(request),
       });
       
@@ -208,10 +230,23 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
       const data: CreateSessionResponse = await response.json();
       setCreatedSession(data);
       
-      // Notify parent component
-      if (onSessionCreated) {
-        onSessionCreated(data.sessionId);
+      // Generate QR code image from the session QR data
+      try {
+        const qrDataUrl = await QRCode.toDataURL(data.sessionQR, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+        setQrCodeDataUrl(qrDataUrl);
+      } catch (qrError) {
+        console.error('Failed to generate QR code:', qrError);
       }
+      
+      // Don't call onSessionCreated here - let user see QR code first
+      // They can click "View Dashboard" button to navigate
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
@@ -239,30 +274,107 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   // If session created, show QR code
   if (createdSession) {
     return (
-      <div className="session-creation-success">
-        <h2>Session Created Successfully!</h2>
-        <p>Session ID: <strong>{createdSession.sessionId}</strong></p>
+      <div className="session-creation-success" style={{ padding: '2rem', textAlign: 'center' }}>
+        <h2 style={{ color: '#107c10', marginBottom: '1rem' }}>✓ Session Created Successfully!</h2>
+        <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+          Session ID: <strong>{createdSession.sessionId}</strong>
+        </p>
+        <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '2rem' }}>
+          Copy this ID or show the QR code to students
+        </p>
         
-        <div className="session-qr-display">
-          <h3>Session QR Code</h3>
-          <p>Students can scan this QR code to join the session:</p>
-          <div className="qr-code-container">
-            <Image 
-              src={createdSession.sessionQR} 
-              alt="Session QR Code"
-              width={300}
-              height={300}
-            />
-            <p className="qr-label">Session Join QR</p>
-          </div>
+        <div className="session-qr-display" style={{ 
+          backgroundColor: '#f5f5f5', 
+          padding: '2rem', 
+          borderRadius: '8px',
+          marginBottom: '2rem'
+        }}>
+          <h3 style={{ marginBottom: '1rem' }}>Session QR Code</h3>
+          <p style={{ marginBottom: '1.5rem', color: '#666' }}>
+            Students can scan this QR code to join the session
+          </p>
+          {qrCodeDataUrl ? (
+            <div className="qr-code-container" style={{ 
+              display: 'inline-block',
+              padding: '1rem',
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+              <img 
+                src={qrCodeDataUrl} 
+                alt="Session QR Code"
+                style={{ display: 'block' }}
+              />
+              <p style={{ 
+                marginTop: '1rem', 
+                fontSize: '0.875rem', 
+                color: '#666',
+                fontWeight: 'bold'
+              }}>
+                Session Join QR
+              </p>
+            </div>
+          ) : (
+            <p>Generating QR code...</p>
+          )}
         </div>
         
-        <button 
-          onClick={handleCreateAnother}
-          className="create-another-button"
-        >
-          Create Another Session
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button 
+            onClick={() => {
+              setCreatedSession(null);
+              setQrCodeDataUrl('');
+            }}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#666',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '1rem'
+            }}
+          >
+            ← Back to Sessions
+          </button>
+          
+          <button 
+            onClick={handleCreateAnother}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#0078d4',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: 'bold'
+            }}
+          >
+            Create Another Session
+          </button>
+          
+          <button 
+            onClick={() => {
+              if (onSessionCreated) {
+                onSessionCreated(createdSession.sessionId);
+              }
+            }}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#107c10',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: 'bold'
+            }}
+          >
+            View Dashboard →
+          </button>
+        </div>
       </div>
     );
   }

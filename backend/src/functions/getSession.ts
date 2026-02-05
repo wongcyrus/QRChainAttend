@@ -134,27 +134,61 @@ export async function getSession(
       chains.push(entity as unknown as Chain);
     }
 
+    // Calculate stats
+    const stats = {
+      totalStudents: attendance.length,
+      presentEntry: attendance.filter(a => a.entryStatus === 'PRESENT_ENTRY').length,
+      lateEntry: attendance.filter(a => a.entryStatus === 'LATE_ENTRY').length,
+      earlyLeave: attendance.filter(a => a.exitTime && a.exitTime < (session.endTime || 0)).length,
+      exitVerified: attendance.filter(a => a.exitVerified).length,
+      notYetVerified: attendance.filter(a => !a.exitVerified).length
+    };
+
+    // Helper to safely convert timestamp to ISO string
+    const toISOString = (timestamp: number | undefined): string | undefined => {
+      if (!timestamp || isNaN(timestamp)) return undefined;
+      try {
+        return new Date(timestamp * 1000).toISOString();
+      } catch {
+        return undefined;
+      }
+    };
+
     // Build response
     const response: any = {
       session: {
         sessionId: session.rowKey,
+        classId: session.courseName,
         teacherId: session.teacherId,
-        courseName: session.courseName,
+        startAt: toISOString(session.startTime) || new Date().toISOString(),
+        endAt: toISOString(session.endTime),
+        lateCutoffMinutes: 15, // Default value
+        exitWindowMinutes: 30, // Default value
         status: session.status,
-        startTime: session.startTime,
-        endTime: session.endTime
+        ownerTransfer: false,
+        lateEntryActive: false,
+        earlyLeaveActive: false,
+        createdAt: toISOString(session.startTime) || new Date().toISOString()
       },
       attendance: attendance.map(a => ({
+        sessionId,
         studentId: a.studentId,
         entryStatus: a.entryStatus,
-        entryTime: a.entryTime,
-        exitVerified: a.exitVerified,
-        exitTime: a.exitTime
+        entryAt: a.entryTime,
+        exitVerified: a.exitVerified || false,
+        exitVerifiedAt: a.exitTime
       })),
       chains: chains.map(c => ({
+        sessionId,
         phase: c.phase,
-        currentToken: c.currentToken
-      }))
+        chainId: c.rowKey,
+        index: 0,
+        state: 'ACTIVE',
+        lastHolder: undefined,
+        lastSeq: 0,
+        lastAt: undefined
+      })),
+      stats
     };
 
     return {

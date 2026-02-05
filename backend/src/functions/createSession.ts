@@ -68,7 +68,7 @@ export async function createSession(
     const principal = parseUserPrincipal(principalHeader);
     
     // Require Teacher role
-    if (!hasRole(principal, 'Teacher')) {
+    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
