@@ -1,18 +1,10 @@
 /**
- * Chain Management Controls Component
- * 
+ * Chain Management Controls Component - Enhanced Design
  * Requirements: 3.1, 6.1, 11.3
- * 
- * Provides controls for teachers to manage entry and exit chains:
- * - Seed entry chains with count input
- * - Start exit chains with count input
- * - Reseed stalled chains
- * - Display chain holders and sequence numbers
  */
 
 import React, { useState } from 'react';
 
-// Type definitions
 enum ChainPhase {
   ENTRY = "ENTRY",
   EXIT = "EXIT"
@@ -55,24 +47,17 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
   onChainsUpdated,
   onError,
 }) => {
-  // State for count inputs
   const [entryChainCount, setEntryChainCount] = useState<number>(3);
   const [exitChainCount, setExitChainCount] = useState<number>(3);
   const [reseedCount, setReseedCount] = useState<number>(2);
   
-  // Loading states
   const [seedingEntry, setSeedingEntry] = useState(false);
   const [startingExit, setStartingExit] = useState(false);
   const [reseedingEntry, setReseedingEntry] = useState(false);
   const [reseedingExit, setReseedingExit] = useState(false);
   
-  // Success messages
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  /**
-   * Seed entry chains
-   * Requirements: 3.1
-   */
   const handleSeedEntry = async () => {
     if (entryChainCount <= 0) {
       onError?.('Chain count must be a positive number');
@@ -84,13 +69,8 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
       
-      // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Add mock authentication header for local development
       if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
         const mockPrincipal = {
           userId: 'local-dev-teacher',
@@ -103,38 +83,24 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
       
       const response = await fetch(
         `${apiUrl}/sessions/${sessionId}/seed-entry?count=${entryChainCount}`,
-        {
-          method: 'POST',
-          headers
-        }
+        { method: 'POST', headers }
       );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error?.message || `Failed to seed entry chains: ${response.statusText}`
-        );
+        throw new Error(errorData.error?.message || `Failed to seed entry chains: ${response.statusText}`);
       }
 
       const data: SeedResponse = await response.json();
-      setSuccessMessage(
-        `Successfully seeded ${data.chainsCreated} entry chain(s) with holders: ${data.initialHolders.join(', ')}`
-      );
-      
-      // Notify parent to refresh data
+      setSuccessMessage(`Successfully seeded ${data.chainsCreated} entry chain(s)`);
       onChainsUpdated?.();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to seed entry chains';
-      onError?.(errorMessage);
+      onError?.(err instanceof Error ? err.message : 'Failed to seed entry chains');
     } finally {
       setSeedingEntry(false);
     }
   };
 
-  /**
-   * Start exit chains
-   * Requirements: 6.1
-   */
   const handleStartExit = async () => {
     if (exitChainCount <= 0) {
       onError?.('Chain count must be a positive number');
@@ -146,13 +112,8 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
       
-      // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Add mock authentication header for local development
       if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
         const mockPrincipal = {
           userId: 'local-dev-teacher',
@@ -165,154 +126,122 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
       
       const response = await fetch(
         `${apiUrl}/sessions/${sessionId}/start-exit-chain?count=${exitChainCount}`,
-        {
-          method: 'POST',
-          headers
-        }
+        { method: 'POST', headers }
       );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error?.message || `Failed to start exit chains: ${response.statusText}`
-        );
+        throw new Error(errorData.error?.message || `Failed to start exit chains: ${response.statusText}`);
       }
 
       const data: SeedResponse = await response.json();
-      setSuccessMessage(
-        `Successfully started ${data.chainsCreated} exit chain(s) with holders: ${data.initialHolders.join(', ')}`
-      );
-      
-      // Notify parent to refresh data
+      setSuccessMessage(`Successfully started ${data.chainsCreated} exit chain(s)`);
       onChainsUpdated?.();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to start exit chains';
-      onError?.(errorMessage);
+      onError?.(err instanceof Error ? err.message : 'Failed to start exit chains');
     } finally {
       setStartingExit(false);
     }
   };
 
-  /**
-   * Reseed stalled entry chains
-   * Requirements: 11.3
-   */
-  const handleReseedEntry = async () => {
-    if (reseedCount <= 0) {
-      onError?.('Reseed count must be a positive number');
-      return;
-    }
-
-    setReseedingEntry(true);
-    setSuccessMessage(null);
-
-    try {
-      const response = await fetch(
-        `/api/sessions/${sessionId}/reseed-entry?count=${reseedCount}`,
-        {
-          method: 'POST',
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error?.message || `Failed to reseed entry chains: ${response.statusText}`
-        );
-      }
-
-      const data: SeedResponse = await response.json();
-      setSuccessMessage(
-        `Successfully reseeded ${data.chainsCreated} entry chain(s) with new holders: ${data.initialHolders.join(', ')}`
-      );
-      
-      // Notify parent to refresh data
-      onChainsUpdated?.();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to reseed entry chains';
-      onError?.(errorMessage);
-    } finally {
-      setReseedingEntry(false);
-    }
-  };
-
-  /**
-   * Reseed stalled exit chains
-   * Requirements: 11.3
-   */
-  const handleReseedExit = async () => {
-    if (reseedCount <= 0) {
-      onError?.('Reseed count must be a positive number');
-      return;
-    }
-
-    setReseedingExit(true);
-    setSuccessMessage(null);
-
-    try {
-      const response = await fetch(
-        `/api/sessions/${sessionId}/reseed-exit?count=${reseedCount}`,
-        {
-          method: 'POST',
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error?.message || `Failed to reseed exit chains: ${response.statusText}`
-        );
-      }
-
-      const data: SeedResponse = await response.json();
-      setSuccessMessage(
-        `Successfully reseeded ${data.chainsCreated} exit chain(s) with new holders: ${data.initialHolders.join(', ')}`
-      );
-      
-      // Notify parent to refresh data
-      onChainsUpdated?.();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to reseed exit chains';
-      onError?.(errorMessage);
-    } finally {
-      setReseedingExit(false);
-    }
-  };
-
-  /**
-   * Format timestamp for display
-   */
   const formatTimestamp = (timestamp?: number): string => {
     if (!timestamp) return 'N/A';
     return new Date(timestamp * 1000).toLocaleTimeString();
   };
 
-  // Get entry and exit chains
   const entryChains = chains.filter(c => c.phase === ChainPhase.ENTRY);
   const exitChains = chains.filter(c => c.phase === ChainPhase.EXIT);
-  
-  // Get stalled chains by phase
-  const stalledEntryChains = entryChains.filter(c => stalledChains.includes(c.chainId));
-  const stalledExitChains = exitChains.filter(c => stalledChains.includes(c.chainId));
+
+  const inputStyle: React.CSSProperties = {
+    width: '80px',
+    padding: '0.5rem 0.75rem',
+    fontSize: '0.95rem',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    textAlign: 'center',
+    fontWeight: '600',
+    boxSizing: 'border-box'
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: '0.625rem 1.25rem',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '0.95rem',
+    fontWeight: '600',
+    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap'
+  };
 
   return (
-    <div className="chain-management-controls">
-      <h2>Chain Management</h2>
+    <div style={{
+      backgroundColor: 'white',
+      padding: '2rem',
+      borderRadius: '16px',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
+    }}>
+      <h2 style={{ 
+        color: '#2d3748',
+        fontSize: '1.5rem',
+        marginBottom: '1.5rem',
+        fontWeight: '700'
+      }}>
+        🔗 Chain Management
+      </h2>
 
-      {/* Success message */}
       {successMessage && (
-        <div className="success-message" role="status">
+        <div style={{
+          padding: '1rem 1.25rem',
+          backgroundColor: '#c6f6d5',
+          border: '2px solid #48bb78',
+          borderRadius: '10px',
+          marginBottom: '1.5rem',
+          color: '#22543d',
+          fontWeight: '500'
+        }}>
           ✓ {successMessage}
         </div>
       )}
 
-      {/* Entry Chain Controls */}
-      <div className="chain-control-section">
-        <h3>Entry Chains</h3>
+      {/* Entry Chains */}
+      <div style={{
+        marginBottom: '2rem',
+        padding: '1.5rem',
+        backgroundColor: '#f7fafc',
+        borderRadius: '12px',
+        border: '2px solid #e2e8f0'
+      }}>
+        <h3 style={{ 
+          color: '#2d3748',
+          fontSize: '1.25rem',
+          marginBottom: '1rem',
+          fontWeight: '600',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          <span>🟢</span> Entry Chains
+        </h3>
         
-        <div className="chain-control-row">
-          <div className="control-group">
-            <label htmlFor="entry-chain-count">Number of chains:</label>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '1rem',
+          flexWrap: 'wrap',
+          marginBottom: entryChains.length > 0 ? '1.5rem' : 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label htmlFor="entry-chain-count" style={{ 
+              color: '#4a5568',
+              fontSize: '0.95rem',
+              fontWeight: '600'
+            }}>
+              Number of chains:
+            </label>
             <input
               id="entry-chain-count"
               type="number"
@@ -321,45 +250,97 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
               value={entryChainCount}
               onChange={(e) => setEntryChainCount(parseInt(e.target.value) || 1)}
               disabled={seedingEntry}
-              className="chain-count-input"
+              style={inputStyle}
+              onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
+              onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
             />
           </div>
           
           <button
             onClick={handleSeedEntry}
             disabled={seedingEntry}
-            className="btn btn-primary"
+            style={{
+              ...buttonStyle,
+              opacity: seedingEntry ? 0.6 : 1,
+              cursor: seedingEntry ? 'not-allowed' : 'pointer'
+            }}
+            onMouseOver={(e) => {
+              if (!seedingEntry) {
+                e.currentTarget.style.transform = 'scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+              }
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+            }}
           >
-            {seedingEntry ? 'Seeding...' : 'Seed Entry Chains'}
+            {seedingEntry ? '⏳ Seeding...' : '🌱 Seed Entry Chains'}
           </button>
         </div>
 
-        {/* Display entry chains */}
         {entryChains.length > 0 && (
-          <div className="chains-display">
-            <h4>Active Entry Chains ({entryChains.length})</h4>
-            <div className="chains-list">
+          <div>
+            <h4 style={{ 
+              color: '#4a5568',
+              fontSize: '1rem',
+              marginBottom: '0.75rem',
+              fontWeight: '600'
+            }}>
+              Active Chains ({entryChains.length})
+            </h4>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
               {entryChains.map(chain => (
                 <div 
-                  key={chain.chainId} 
-                  className={`chain-item ${chain.state.toLowerCase()} ${stalledChains.includes(chain.chainId) ? 'stalled' : ''}`}
+                  key={chain.chainId}
+                  style={{
+                    padding: '1rem',
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
+                    border: stalledChains.includes(chain.chainId) ? '2px solid #fc8181' : '2px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem'
+                  }}
                 >
-                  <div className="chain-info">
-                    <span className="chain-id" title={chain.chainId}>
-                      Chain #{chain.chainId.substring(0, 8)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.875rem',
+                      color: '#4a5568',
+                      fontWeight: '600'
+                    }}>
+                      #{chain.chainId.substring(0, 8)}
                     </span>
                     {stalledChains.includes(chain.chainId) && (
-                      <span className="stall-badge" title="Chain is stalled">⚠️ Stalled</span>
+                      <span style={{
+                        padding: '0.25rem 0.625rem',
+                        backgroundColor: '#fed7d7',
+                        color: '#742a2a',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: '700'
+                      }}>
+                        ⚠️ STALLED
+                      </span>
                     )}
                   </div>
-                  <div className="chain-details">
-                    <span className="holder">
-                      Holder: <strong>{chain.lastHolder || 'None'}</strong>
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '1rem',
+                    fontSize: '0.875rem',
+                    color: '#718096',
+                    flexWrap: 'wrap'
+                  }}>
+                    <span>
+                      Holder: <strong style={{ color: '#2d3748' }}>{chain.lastHolder || 'None'}</strong>
                     </span>
-                    <span className="sequence">
-                      Seq: <strong>{chain.lastSeq}</strong>
+                    <span>
+                      Seq: <strong style={{ color: '#2d3748' }}>{chain.lastSeq}</strong>
                     </span>
-                    <span className="last-activity">
+                    <span>
                       Last: {formatTimestamp(chain.lastAt)}
                     </span>
                   </div>
@@ -368,47 +349,42 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
             </div>
           </div>
         )}
-
-        {/* Reseed entry chains button */}
-        {stalledEntryChains.length > 0 && (
-          <div className="reseed-section">
-            <div className="stall-alert">
-              ⚠️ {stalledEntryChains.length} entry chain(s) are stalled
-            </div>
-            <div className="chain-control-row">
-              <div className="control-group">
-                <label htmlFor="reseed-entry-count">Reseed count:</label>
-                <input
-                  id="reseed-entry-count"
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={reseedCount}
-                  onChange={(e) => setReseedCount(parseInt(e.target.value) || 1)}
-                  disabled={reseedingEntry}
-                  className="chain-count-input"
-                />
-              </div>
-              
-              <button
-                onClick={handleReseedEntry}
-                disabled={reseedingEntry}
-                className="btn btn-warning"
-              >
-                {reseedingEntry ? 'Reseeding...' : 'Reseed Entry Chains'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Exit Chain Controls */}
-      <div className="chain-control-section">
-        <h3>Exit Chains</h3>
+      {/* Exit Chains */}
+      <div style={{
+        padding: '1.5rem',
+        backgroundColor: '#f7fafc',
+        borderRadius: '12px',
+        border: '2px solid #e2e8f0'
+      }}>
+        <h3 style={{ 
+          color: '#2d3748',
+          fontSize: '1.25rem',
+          marginBottom: '1rem',
+          fontWeight: '600',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          <span>🔴</span> Exit Chains
+        </h3>
         
-        <div className="chain-control-row">
-          <div className="control-group">
-            <label htmlFor="exit-chain-count">Number of chains:</label>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '1rem',
+          flexWrap: 'wrap',
+          marginBottom: exitChains.length > 0 ? '1.5rem' : 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label htmlFor="exit-chain-count" style={{ 
+              color: '#4a5568',
+              fontSize: '0.95rem',
+              fontWeight: '600'
+            }}>
+              Number of chains:
+            </label>
             <input
               id="exit-chain-count"
               type="number"
@@ -417,82 +393,102 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
               value={exitChainCount}
               onChange={(e) => setExitChainCount(parseInt(e.target.value) || 1)}
               disabled={startingExit}
-              className="chain-count-input"
+              style={inputStyle}
+              onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
+              onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
             />
           </div>
           
           <button
             onClick={handleStartExit}
             disabled={startingExit}
-            className="btn btn-primary"
+            style={{
+              ...buttonStyle,
+              opacity: startingExit ? 0.6 : 1,
+              cursor: startingExit ? 'not-allowed' : 'pointer'
+            }}
+            onMouseOver={(e) => {
+              if (!startingExit) {
+                e.currentTarget.style.transform = 'scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+              }
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+            }}
           >
-            {startingExit ? 'Starting...' : 'Start Exit Chains'}
+            {startingExit ? '⏳ Starting...' : '🚀 Start Exit Chains'}
           </button>
         </div>
 
-        {/* Display exit chains */}
         {exitChains.length > 0 && (
-          <div className="chains-display">
-            <h4>Active Exit Chains ({exitChains.length})</h4>
-            <div className="chains-list">
+          <div>
+            <h4 style={{ 
+              color: '#4a5568',
+              fontSize: '1rem',
+              marginBottom: '0.75rem',
+              fontWeight: '600'
+            }}>
+              Active Chains ({exitChains.length})
+            </h4>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
               {exitChains.map(chain => (
                 <div 
-                  key={chain.chainId} 
-                  className={`chain-item ${chain.state.toLowerCase()} ${stalledChains.includes(chain.chainId) ? 'stalled' : ''}`}
+                  key={chain.chainId}
+                  style={{
+                    padding: '1rem',
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
+                    border: stalledChains.includes(chain.chainId) ? '2px solid #fc8181' : '2px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem'
+                  }}
                 >
-                  <div className="chain-info">
-                    <span className="chain-id" title={chain.chainId}>
-                      Chain #{chain.chainId.substring(0, 8)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.875rem',
+                      color: '#4a5568',
+                      fontWeight: '600'
+                    }}>
+                      #{chain.chainId.substring(0, 8)}
                     </span>
                     {stalledChains.includes(chain.chainId) && (
-                      <span className="stall-badge" title="Chain is stalled">⚠️ Stalled</span>
+                      <span style={{
+                        padding: '0.25rem 0.625rem',
+                        backgroundColor: '#fed7d7',
+                        color: '#742a2a',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: '700'
+                      }}>
+                        ⚠️ STALLED
+                      </span>
                     )}
                   </div>
-                  <div className="chain-details">
-                    <span className="holder">
-                      Holder: <strong>{chain.lastHolder || 'None'}</strong>
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '1rem',
+                    fontSize: '0.875rem',
+                    color: '#718096',
+                    flexWrap: 'wrap'
+                  }}>
+                    <span>
+                      Holder: <strong style={{ color: '#2d3748' }}>{chain.lastHolder || 'None'}</strong>
                     </span>
-                    <span className="sequence">
-                      Seq: <strong>{chain.lastSeq}</strong>
+                    <span>
+                      Seq: <strong style={{ color: '#2d3748' }}>{chain.lastSeq}</strong>
                     </span>
-                    <span className="last-activity">
+                    <span>
                       Last: {formatTimestamp(chain.lastAt)}
                     </span>
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* Reseed exit chains button */}
-        {stalledExitChains.length > 0 && (
-          <div className="reseed-section">
-            <div className="stall-alert">
-              ⚠️ {stalledExitChains.length} exit chain(s) are stalled
-            </div>
-            <div className="chain-control-row">
-              <div className="control-group">
-                <label htmlFor="reseed-exit-count">Reseed count:</label>
-                <input
-                  id="reseed-exit-count"
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={reseedCount}
-                  onChange={(e) => setReseedCount(parseInt(e.target.value) || 1)}
-                  disabled={reseedingExit}
-                  className="chain-count-input"
-                />
-              </div>
-              
-              <button
-                onClick={handleReseedExit}
-                disabled={reseedingExit}
-                className="btn btn-warning"
-              >
-                {reseedingExit ? 'Reseeding...' : 'Reseed Exit Chains'}
-              </button>
             </div>
           </div>
         )}

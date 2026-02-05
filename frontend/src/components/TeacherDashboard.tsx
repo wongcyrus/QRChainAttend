@@ -450,8 +450,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   // Loading state
   if (loading) {
     return (
-      <div className="teacher-dashboard loading">
-        <div className="loading-spinner">Loading dashboard...</div>
+      <div style={{ 
+        padding: '4rem 2rem',
+        textAlign: 'center',
+        backgroundColor: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div>
+        <p style={{ color: '#718096', fontSize: '1.1rem' }}>Loading dashboard...</p>
       </div>
     );
   }
@@ -459,11 +466,36 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   // Error state
   if (error && !session) {
     return (
-      <div className="teacher-dashboard error">
-        <div className="error-message" role="alert">
+      <div style={{
+        padding: '2rem',
+        backgroundColor: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
+      }}>
+        <div style={{
+          padding: '1.5rem',
+          backgroundColor: '#fff5f5',
+          border: '2px solid #fc8181',
+          borderRadius: '12px',
+          marginBottom: '1.5rem',
+          color: '#c53030'
+        }}>
           <strong>Error:</strong> {error}
         </div>
-        <button onClick={fetchSessionData} className="retry-button">
+        <button 
+          onClick={fetchSessionData}
+          style={{
+            padding: '0.875rem 1.5rem',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            fontSize: '0.95rem',
+            fontWeight: '600',
+            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+          }}
+        >
           Retry
         </button>
       </div>
@@ -475,16 +507,41 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   }
 
   return (
-    <div className="teacher-dashboard">
-      {/* Header */}
-      <div className="dashboard-header">
-        <h1>Teacher Dashboard</h1>
-        <div className="session-info">
-          <span className="session-id">Session: {session.classId}</span>
-          <span className={`session-status ${session.status.toLowerCase()}`}>
+    <div>
+      {/* Session Status Header */}
+      <div style={{
+        backgroundColor: 'white',
+        padding: '1.5rem 2rem',
+        borderRadius: '12px',
+        marginBottom: '1.5rem',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '1rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <span style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: session.status === 'ACTIVE' ? '#48bb78' : '#a0aec0',
+            color: 'white',
+            borderRadius: '20px',
+            fontSize: '0.875rem',
+            fontWeight: '700',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
             {session.status}
           </span>
-          <span className={`connection-status ${connectionStatus}`}>
+          <span style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: connectionStatus === 'connected' ? '#48bb78' : connectionStatus === 'connecting' ? '#ed8936' : '#e53e3e',
+            color: 'white',
+            borderRadius: '20px',
+            fontSize: '0.875rem',
+            fontWeight: '600'
+          }}>
             {connectionStatus === 'connected' && '🟢 Live'}
             {connectionStatus === 'connecting' && '🟡 Connecting...'}
             {connectionStatus === 'disconnected' && '🔴 Disconnected'}
@@ -494,146 +551,270 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
       {/* Error banner */}
       {error && (
-        <div className="error-banner" role="alert">
+        <div style={{
+          padding: '1rem 1.25rem',
+          backgroundColor: '#fff5f5',
+          border: '2px solid #fc8181',
+          borderRadius: '10px',
+          marginBottom: '1.5rem',
+          color: '#c53030'
+        }}>
           {error}
         </div>
       )}
 
-      {/* Statistics Cards - Requirements: 12.4 */}
-      <div className="stats-grid">
-        <div className="stat-card total">
-          <div className="stat-value">{stats.totalStudents}</div>
-          <div className="stat-label">Total Students</div>
+      {/* Statistics Cards */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '1rem',
+        marginBottom: '2rem'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          textAlign: 'center',
+          border: '2px solid #667eea'
+        }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#667eea', marginBottom: '0.5rem' }}>
+            {stats.totalStudents}
+          </div>
+          <div style={{ color: '#718096', fontSize: '0.875rem', fontWeight: '600' }}>
+            Total Students
+          </div>
         </div>
         
-        <div className="stat-card present">
-          <div className="stat-value">{stats.presentEntry}</div>
-          <div className="stat-label">Present Entry</div>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          textAlign: 'center',
+          border: '2px solid #48bb78'
+        }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#48bb78', marginBottom: '0.5rem' }}>
+            {stats.presentEntry}
+          </div>
+          <div style={{ color: '#718096', fontSize: '0.875rem', fontWeight: '600' }}>
+            Present Entry
+          </div>
         </div>
         
-        <div className="stat-card late">
-          <div className="stat-value">{stats.lateEntry}</div>
-          <div className="stat-label">Late Entry</div>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          textAlign: 'center',
+          border: '2px solid #ed8936'
+        }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#ed8936', marginBottom: '0.5rem' }}>
+            {stats.lateEntry}
+          </div>
+          <div style={{ color: '#718096', fontSize: '0.875rem', fontWeight: '600' }}>
+            Late Entry
+          </div>
         </div>
         
-        <div className="stat-card early-leave">
-          <div className="stat-value">{stats.earlyLeave}</div>
-          <div className="stat-label">Early Leave</div>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          textAlign: 'center',
+          border: '2px solid #f6ad55'
+        }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#f6ad55', marginBottom: '0.5rem' }}>
+            {stats.earlyLeave}
+          </div>
+          <div style={{ color: '#718096', fontSize: '0.875rem', fontWeight: '600' }}>
+            Early Leave
+          </div>
         </div>
         
-        <div className="stat-card verified">
-          <div className="stat-value">{stats.exitVerified}</div>
-          <div className="stat-label">Exit Verified</div>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          textAlign: 'center',
+          border: '2px solid #4299e1'
+        }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#4299e1', marginBottom: '0.5rem' }}>
+            {stats.exitVerified}
+          </div>
+          <div style={{ color: '#718096', fontSize: '0.875rem', fontWeight: '600' }}>
+            Exit Verified
+          </div>
         </div>
         
-        <div className="stat-card pending">
-          <div className="stat-value">{stats.notYetVerified}</div>
-          <div className="stat-label">Not Yet Verified</div>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          textAlign: 'center',
+          border: '2px solid #a0aec0'
+        }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#a0aec0', marginBottom: '0.5rem' }}>
+            {stats.notYetVerified}
+          </div>
+          <div style={{ color: '#718096', fontSize: '0.875rem', fontWeight: '600' }}>
+            Not Yet Verified
+          </div>
         </div>
       </div>
 
-      {/* Chain Status - Requirements: 12.2, 12.3 */}
-      {chains.length > 0 && (
-        <div className="chains-section">
-          <h2>Chain Status</h2>
-          <div className="chains-grid">
-            {chains.map(chain => (
-              <div 
-                key={chain.chainId} 
-                className={`chain-card ${chain.state.toLowerCase()} ${stalledChains.includes(chain.chainId) ? 'stalled' : ''}`}
-              >
-                <div className="chain-header">
-                  <span className="chain-phase">{chain.phase}</span>
-                  <span className={`chain-state ${chain.state.toLowerCase()}`}>
-                    {chain.state}
-                  </span>
-                  {stalledChains.includes(chain.chainId) && (
-                    <span className="stall-indicator" title="Chain is stalled">⚠️</span>
-                  )}
-                </div>
-                <div className="chain-details">
-                  <div className="chain-detail">
-                    <span className="label">Chain ID:</span>
-                    <span className="value">{chain.chainId.substring(0, 8)}...</span>
-                  </div>
-                  <div className="chain-detail">
-                    <span className="label">Last Holder:</span>
-                    <span className="value">{chain.lastHolder || 'None'}</span>
-                  </div>
-                  <div className="chain-detail">
-                    <span className="label">Sequence:</span>
-                    <span className="value">{chain.lastSeq}</span>
-                  </div>
-                  <div className="chain-detail">
-                    <span className="label">Last Activity:</span>
-                    <span className="value">{formatTimestamp(chain.lastAt)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Chain Management Controls */}
+      <div style={{ marginBottom: '2rem' }}>
+        <ChainManagementControls
+          sessionId={sessionId}
+          chains={chains}
+          stalledChains={stalledChains}
+          onChainsUpdated={fetchSessionData}
+          onError={(error) => {
+            setError(error);
+            if (onError) {
+              onError(error);
+            }
+          }}
+        />
+      </div>
 
-      {/* Chain Management Controls - Requirements: 3.1, 6.1, 11.3 */}
-      <ChainManagementControls
-        sessionId={sessionId}
-        chains={chains}
-        stalledChains={stalledChains}
-        onChainsUpdated={fetchSessionData}
-        onError={(error) => {
-          setError(error);
-          if (onError) {
-            onError(error);
-          }
-        }}
-      />
-
-      {/* Student List - Requirements: 12.4 */}
-      <div className="students-section">
-        <h2>Student Attendance ({attendance.length})</h2>
+      {/* Student List */}
+      <div style={{
+        backgroundColor: 'white',
+        padding: '2rem',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+        marginTop: '2rem'
+      }}>
+        <h2 style={{ 
+          color: '#2d3748',
+          fontSize: '1.5rem',
+          marginBottom: '1.5rem',
+          fontWeight: '700'
+        }}>
+          👥 Student Attendance ({attendance.length})
+        </h2>
         
         {attendance.length === 0 ? (
-          <div className="empty-state">
-            <p>No students have joined this session yet.</p>
+          <div style={{
+            padding: '3rem 2rem',
+            textAlign: 'center',
+            backgroundColor: '#f7fafc',
+            borderRadius: '12px'
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
+            <p style={{ color: '#718096', fontSize: '1.1rem', margin: 0 }}>
+              No students have joined this session yet.
+            </p>
           </div>
         ) : (
-          <div className="students-table-container">
-            <table className="students-table">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: '0.95rem'
+            }}>
               <thead>
-                <tr>
-                  <th>Student ID</th>
-                  <th>Status</th>
-                  <th>Entry Time</th>
-                  <th>Exit Verified</th>
-                  <th>Exit Time</th>
-                  <th>Early Leave</th>
+                <tr style={{ backgroundColor: '#f7fafc' }}>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'left',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Student ID</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'left',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Status</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'left',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Entry Time</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Exit Verified</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'left',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Exit Time</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'left',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Early Leave</th>
                 </tr>
               </thead>
               <tbody>
                 {attendance.map(record => (
-                  <tr key={record.studentId} className={getStatusBadgeClass(record)}>
-                    <td className="student-id">{record.studentId}</td>
-                    <td>
-                      <span className={`status-badge ${getStatusBadgeClass(record)}`}>
+                  <tr key={record.studentId} style={{
+                    borderBottom: '1px solid #e2e8f0',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f7fafc'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <td style={{ padding: '1rem', color: '#2d3748', fontWeight: '500' }}>
+                      {record.studentId}
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <span style={{
+                        padding: '0.375rem 0.75rem',
+                        backgroundColor: 
+                          record.entryStatus === EntryStatus.PRESENT_ENTRY ? '#c6f6d5' :
+                          record.entryStatus === EntryStatus.LATE_ENTRY ? '#fed7d7' :
+                          '#e2e8f0',
+                        color:
+                          record.entryStatus === EntryStatus.PRESENT_ENTRY ? '#22543d' :
+                          record.entryStatus === EntryStatus.LATE_ENTRY ? '#742a2a' :
+                          '#4a5568',
+                        borderRadius: '12px',
+                        fontSize: '0.875rem',
+                        fontWeight: '600'
+                      }}>
                         {getStatusText(record)}
                       </span>
                     </td>
-                    <td>{formatTimestamp(record.entryAt)}</td>
-                    <td>
-                      <span className={`verification-badge ${record.exitVerified ? 'verified' : 'not-verified'}`}>
+                    <td style={{ padding: '1rem', color: '#718096' }}>
+                      {formatTimestamp(record.entryAt)}
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <span style={{
+                        padding: '0.375rem 0.75rem',
+                        backgroundColor: record.exitVerified ? '#c6f6d5' : '#fed7d7',
+                        color: record.exitVerified ? '#22543d' : '#742a2a',
+                        borderRadius: '12px',
+                        fontSize: '0.875rem',
+                        fontWeight: '600'
+                      }}>
                         {record.exitVerified ? '✓ Yes' : '✗ No'}
                       </span>
                     </td>
-                    <td>{formatTimestamp(record.exitVerifiedAt)}</td>
-                    <td>
-                      {record.earlyLeaveAt ? (
-                        <span className="early-leave-time">
-                          {formatTimestamp(record.earlyLeaveAt)}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
+                    <td style={{ padding: '1rem', color: '#718096' }}>
+                      {formatTimestamp(record.exitVerifiedAt)}
+                    </td>
+                    <td style={{ padding: '1rem', color: '#718096' }}>
+                      {record.earlyLeaveAt ? formatTimestamp(record.earlyLeaveAt) : '—'}
                     </td>
                   </tr>
                 ))}

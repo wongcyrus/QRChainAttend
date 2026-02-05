@@ -183,6 +183,8 @@ export default function TeacherPage() {
 
   // If a session is selected, show the dashboard
   if (selectedSessionId) {
+    const currentSession = sessions.find(s => s.sessionId === selectedSessionId);
+    
     return (
       <div style={{ 
         minHeight: '100vh',
@@ -190,7 +192,7 @@ export default function TeacherPage() {
         padding: '2rem',
         fontFamily: 'system-ui, sans-serif'
       }}>
-        <div style={{ marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <button 
             onClick={() => setSelectedSessionId(null)}
             style={{
@@ -216,7 +218,63 @@ export default function TeacherPage() {
           >
             ← Back to Sessions
           </button>
+          
+          {currentSession && (
+            <button 
+              onClick={() => handleShowQR(currentSession)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                backgroundColor: '#48bb78',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 8px rgba(72, 187, 120, 0.2)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(72, 187, 120, 0.3)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(72, 187, 120, 0.2)';
+              }}
+            >
+              📱 Show QR Code
+            </button>
+          )}
         </div>
+        
+        {currentSession && (
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            padding: '1.5rem 2rem',
+            borderRadius: '12px',
+            marginBottom: '1.5rem',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+          }}>
+            <h1 style={{ 
+              margin: '0 0 0.5rem 0',
+              fontSize: '2rem',
+              color: '#2d3748',
+              fontWeight: '700'
+            }}>
+              📚 {currentSession.classId}
+            </h1>
+            <p style={{ 
+              margin: 0, 
+              color: '#718096',
+              fontSize: '0.95rem'
+            }}>
+              Session Dashboard
+            </p>
+          </div>
+        )}
+        
         <TeacherDashboard 
           sessionId={selectedSessionId}
           onError={handleError}
