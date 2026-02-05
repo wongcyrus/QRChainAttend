@@ -133,7 +133,7 @@ interface TeacherDashboardProps {
   onError?: (error: string) => void;
 }
 
-export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
+const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
   sessionId,
   onError,
 }) => {
@@ -156,6 +156,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   // SignalR connection ref
   const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const isConnectingRef = useRef<boolean>(false);
 
   /**
    * Fetch initial session data
@@ -328,6 +329,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
    * Requirements: 12.1, 12.2, 12.3, 12.6
    */
   const connectSignalR = useCallback(async () => {
+    // Prevent multiple simultaneous connection attempts
+    if (isConnectingRef.current || connectionRef.current) {
+      return;
+    }
+    
+    isConnectingRef.current = true;
+    
     try {
       setConnectionStatus('connecting');
       
@@ -378,6 +386,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       
       connection.onclose(() => {
         setConnectionStatus('disconnected');
+        isConnectingRef.current = false;
+        connectionRef.current = null;
       });
       
       // Start connection
@@ -385,11 +395,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       setConnectionStatus('connected');
       
       connectionRef.current = connection;
+      isConnectingRef.current = false;
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to connect to SignalR';
       setError(errorMessage);
       setConnectionStatus('disconnected');
+      isConnectingRef.current = false;
       if (onError) {
         onError(errorMessage);
       }
@@ -400,19 +412,24 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
    * Initialize dashboard
    */
   useEffect(() => {
+    // Only run once when sessionId changes
     // Fetch initial data
     fetchSessionData();
     
-    // Connect to SignalR
-    connectSignalR();
+    // Connect to SignalR only if not already connected
+    if (!connectionRef.current && !isConnectingRef.current) {
+      connectSignalR();
+    }
     
     // Cleanup on unmount
     return () => {
       if (connectionRef.current) {
         connectionRef.current.stop();
+        connectionRef.current = null;
       }
+      isConnectingRef.current = false;
     };
-  }, [fetchSessionData, connectSignalR]);
+  }, [sessionId]); // Only depend on sessionId
 
   /**
    * Format timestamp for display
@@ -826,3 +843,5 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     </div>
   );
 };
+
+export const TeacherDashboard = React.memo(TeacherDashboardComponent);
