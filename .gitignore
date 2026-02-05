@@ -22,6 +22,9 @@ out/
 .env.production.local
 local.settings.json
 
+# Archived files
+.archive/
+
 # Logs
 logs/
 *.log

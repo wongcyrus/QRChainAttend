@@ -1,21 +1,54 @@
 /**
- * Create Session API Endpoint
- * Feature: qr-chain-attendance
- * Requirements: 2.1, 2.2, 2.5
- * 
- * POST /api/sessions
- * Creates a new session with the specified parameters
- * Requires Teacher role
+ * Create Session API Endpoint - REFACTORED (Self-contained)
+ * No external service dependencies
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { AuthService } from '../services/AuthService';
-import { SessionService } from '../services/SessionService';
-import { Role, CreateSessionRequest, CreateSessionResponse } from '../types';
+import { TableClient } from '@azure/data-tables';
+import { randomUUID } from 'crypto';
 
-/**
- * HTTP trigger function to create a new session
- */
+// Inline types
+interface CreateSessionRequest {
+  classId: string;
+  startAt: string;
+  endAt: string;
+  lateCutoffMinutes: number;
+  exitWindowMinutes?: number;
+  constraints?: any;
+}
+
+interface CreateSessionResponse {
+  sessionId: string;
+  sessionQR: string;
+}
+
+// Inline helper functions
+function parseUserPrincipal(header: string): any {
+  try {
+    const decoded = Buffer.from(header, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    throw new Error('Invalid authentication header');
+  }
+}
+
+function getUserId(principal: any): string {
+  return principal.userId || principal.userDetails;
+}
+
+function hasRole(principal: any, role: string): boolean {
+  const roles = principal.userRoles || [];
+  return roles.includes(role);
+}
+
+function getTableClient(tableName: string): TableClient {
+  const connectionString = process.env.AzureWebJobsStorage;
+  if (!connectionString) {
+    throw new Error('AzureWebJobsStorage not configured');
+  }
+  return TableClient.fromConnectionString(connectionString, tableName);
+}
+
 export async function createSession(
   request: HttpRequest,
   context: InvocationContext
@@ -23,66 +56,72 @@ export async function createSession(
   context.log('Processing POST /api/sessions request');
 
   try {
-    // Parse and validate authentication
-    const authService = new AuthService();
+    // Parse authentication
     const principalHeader = request.headers.get('x-ms-client-principal');
-    
     if (!principalHeader) {
       return {
         status: 401,
-        jsonBody: {
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Missing authentication header',
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
     }
 
-    const principal = authService.parseUserPrincipal(principalHeader);
+    const principal = parseUserPrincipal(principalHeader);
     
     // Require Teacher role
-    try {
-      authService.requireRole(principal, Role.TEACHER);
-    } catch (error: any) {
+    if (!hasRole(principal, 'Teacher')) {
       return {
         status: 403,
-        jsonBody: {
-          error: {
-            code: 'FORBIDDEN',
-            message: error.message,
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
       };
     }
 
     // Parse request body
     const body = await request.json() as CreateSessionRequest;
 
-    // Validate required fields (Requirement 2.1)
+    // Validate required fields
     if (!body.classId || !body.startAt || !body.endAt || body.lateCutoffMinutes === undefined) {
       return {
         status: 400,
-        jsonBody: {
-          error: {
-            code: 'INVALID_REQUEST',
-            message: 'Missing required fields: classId, startAt, endAt, lateCutoffMinutes',
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing required fields', timestamp: Date.now() } }
       };
     }
 
-    // Create session
-    const sessionService = new SessionService();
-    const teacherId = authService.getUserId(principal);
-    const { session, sessionQR } = await sessionService.createSession(teacherId, body);
+    // Generate session ID
+    const sessionId = randomUUID();
+    const teacherId = getUserId(principal);
+    const now = new Date().toISOString();
 
-    // Return response (Requirement 2.5)
+    // Create session entity
+    const sessionsTable = getTableClient('Sessions');
+    const entity = {
+      partitionKey: 'SESSION',
+      rowKey: sessionId,
+      classId: body.classId,
+      teacherId,
+      startAt: body.startAt,
+      endAt: body.endAt,
+      lateCutoffMinutes: body.lateCutoffMinutes,
+      exitWindowMinutes: body.exitWindowMinutes ?? 10,
+      status: 'ACTIVE',
+      ownerTransfer: true,
+      constraints: body.constraints ? JSON.stringify(body.constraints) : undefined,
+      lateEntryActive: false,
+      earlyLeaveActive: false,
+      createdAt: now
+    };
+
+    await sessionsTable.createEntity(entity);
+
+    // Generate Session QR
+    const qrData = {
+      type: 'SESSION',
+      sessionId,
+      classId: body.classId
+    };
+    const sessionQR = Buffer.from(JSON.stringify(qrData)).toString('base64');
+
     const response: CreateSessionResponse = {
-      sessionId: session.sessionId,
+      sessionId,
       sessionQR
     };
 

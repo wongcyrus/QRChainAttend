@@ -2,6 +2,18 @@
 
 An Azure-based classroom attendance solution that uses peer-to-peer QR code chains and rotating QR codes to verify student presence while resisting common cheating methods (screenshots, remote scans, proxy attendance).
 
+## 🎉 Current Status
+
+**All 20 Azure Functions successfully deployed!** ✅
+
+- ✅ **8 fully functional** endpoints (session management, authentication, token rotation)
+- ⏳ **12 stub functions** deployed (scanning and chain management - to be implemented)
+- ✅ **Frontend** deployed to Azure Static Web Apps
+- ✅ **Authentication** working with Azure AD
+- ✅ **Infrastructure** fully provisioned
+
+See [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed status.
+
 ## 🚀 Quick Start
 
 **New to the project?** Start here:

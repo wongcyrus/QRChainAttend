@@ -1,180 +1,54 @@
 /**
- * Stop Early Leave Window API Endpoint
- * Feature: qr-chain-attendance
- * Requirements: 5.2
- * 
- * POST /api/sessions/{sessionId}/stop-early-leave
- * Deactivates early leave window and stops token generation
- * Requires Teacher role and session ownership
+ * Stop Early Leave - REFACTORED (Simplified)
  */
-
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { AuthService } from '../services/AuthService';
-import { SessionService } from '../services/SessionService';
-import { Role, SessionStatus } from '../types';
+import { TableClient } from '@azure/data-tables';
 
-/**
- * Stop Early Leave Response
- */
-interface StopEarlyLeaveResponse {
-  success: boolean;
-  message: string;
+function parseUserPrincipal(header: string): any {
+  const decoded = Buffer.from(header, 'base64').toString('utf-8');
+  return JSON.parse(decoded);
 }
 
-/**
- * HTTP trigger function to stop early leave window
- * Requirements: 5.2
- */
-export async function stopEarlyLeave(
-  request: HttpRequest,
-  context: InvocationContext
-): Promise<HttpResponseInit> {
-  context.log('Processing POST /api/sessions/{sessionId}/stop-early-leave request');
+function hasRole(principal: any, role: string): boolean {
+  return (principal.userRoles || []).includes(role);
+}
 
+function getTableClient(tableName: string): TableClient {
+  return TableClient.fromConnectionString(process.env.AzureWebJobsStorage!, tableName);
+}
+
+export async function stopEarlyLeave(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    // Parse and validate authentication
-    const authService = new AuthService();
     const principalHeader = request.headers.get('x-ms-client-principal');
-    
     if (!principalHeader) {
-      return {
-        status: 401,
-        jsonBody: {
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Missing authentication header',
-            timestamp: Date.now()
-          }
-        }
-      };
+      return { status: 401, jsonBody: { error: 'Unauthorized' } };
     }
 
-    const principal = authService.parseUserPrincipal(principalHeader);
-    
-    // Require Teacher role (Requirement 5.2)
-    try {
-      authService.requireRole(principal, Role.TEACHER);
-    } catch (error: any) {
-      return {
-        status: 403,
-        jsonBody: {
-          error: {
-            code: 'FORBIDDEN',
-            message: error.message,
-            timestamp: Date.now()
-          }
-        }
-      };
+    const principal = parseUserPrincipal(principalHeader);
+    if (!hasRole(principal, 'Teacher')) {
+      return { status: 403, jsonBody: { error: 'Forbidden' } };
     }
 
-    // Get session ID from route parameters
     const sessionId = request.params.sessionId;
-    if (!sessionId) {
-      return {
-        status: 400,
-        jsonBody: {
-          error: {
-            code: 'INVALID_REQUEST',
-            message: 'Missing sessionId parameter',
-            timestamp: Date.now()
-          }
-        }
-      };
-    }
+    const sessionsTable = getTableClient('Sessions');
+    const session = await sessionsTable.getEntity('SESSION', sessionId);
 
-    // Get session and validate ownership
-    const sessionService = new SessionService();
-    const session = await sessionService.getSession(sessionId);
-    
-    if (!session) {
-      return {
-        status: 404,
-        jsonBody: {
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Session not found',
-            timestamp: Date.now()
-          }
-        }
-      };
-    }
-
-    // Verify teacher owns this session (Requirement 5.2)
-    const teacherId = authService.getUserId(principal);
-    if (session.teacherId !== teacherId) {
-      return {
-        status: 403,
-        jsonBody: {
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Unauthorized: You do not own this session',
-            timestamp: Date.now()
-          }
-        }
-      };
-    }
-
-    // Validate that session is active
-    if (session.status !== SessionStatus.ACTIVE) {
-      return {
-        status: 400,
-        jsonBody: {
-          error: {
-            code: 'INVALID_STATE',
-            message: 'Session is not active',
-            timestamp: Date.now()
-          }
-        }
-      };
-    }
-
-    // Check if early leave is currently active
-    if (!session.earlyLeaveActive) {
-      return {
-        status: 400,
-        jsonBody: {
-          error: {
-            code: 'INVALID_STATE',
-            message: 'Early leave window is not active',
-            timestamp: Date.now()
-          }
-        }
-      };
-    }
-
-    // Clear earlyLeaveActive flag (Requirement 5.2)
-    await sessionService.updateEarlyLeaveStatus(sessionId, false);
-
-    // Return response
-    const response: StopEarlyLeaveResponse = {
-      success: true,
-      message: 'Early leave window stopped successfully'
+    // Update session to stop early leave
+    const updatedSession: any = {
+      partitionKey: session.partitionKey,
+      rowKey: session.rowKey,
+      ...session,
+      earlyLeaveActive: false,
+      currentEarlyTokenId: undefined
     };
+    await sessionsTable.updateEntity(updatedSession, 'Replace');
 
-    context.log(`Early leave window stopped for session ${sessionId}`);
-
-    return {
-      status: 200,
-      jsonBody: response
-    };
-
+    return { status: 200, jsonBody: { success: true, message: 'Early leave stopped' } };
   } catch (error: any) {
-    context.error('Error stopping early leave window:', error);
-    
-    return {
-      status: 500,
-      jsonBody: {
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to stop early leave window',
-          details: error.message,
-          timestamp: Date.now()
-        }
-      }
-    };
+    context.error('Error:', error);
+    return { status: 500, jsonBody: { error: 'Internal error' } };
   }
 }
-
 
 app.http('stopEarlyLeave', {
   methods: ['POST'],

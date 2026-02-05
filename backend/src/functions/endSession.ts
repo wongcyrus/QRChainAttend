@@ -1,22 +1,38 @@
 /**
- * End Session API Endpoint
- * Feature: qr-chain-attendance
- * Requirements: 2.3, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6
- * 
- * POST /api/sessions/{sessionId}/end
- * Ends a session and computes final attendance status for all students
- * Requires Teacher role and session ownership
+ * End Session API Endpoint - REFACTORED (Self-contained)
+ * No external service dependencies
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { AuthService } from '../services/AuthService';
-import { SessionService } from '../services/SessionService';
-import { attendanceService } from '../services/AttendanceService';
-import { Role, EndSessionResponse } from '../types';
+import { TableClient } from '@azure/data-tables';
 
-/**
- * HTTP trigger function to end a session
- */
+// Inline helper functions
+function parseUserPrincipal(header: string): any {
+  try {
+    const decoded = Buffer.from(header, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    throw new Error('Invalid authentication header');
+  }
+}
+
+function getUserId(principal: any): string {
+  return principal.userId || principal.userDetails;
+}
+
+function hasRole(principal: any, role: string): boolean {
+  const roles = principal.userRoles || [];
+  return roles.includes(role);
+}
+
+function getTableClient(tableName: string): TableClient {
+  const connectionString = process.env.AzureWebJobsStorage;
+  if (!connectionString) {
+    throw new Error('AzureWebJobsStorage not configured');
+  }
+  return TableClient.fromConnectionString(connectionString, tableName);
+}
+
 export async function endSession(
   request: HttpRequest,
   context: InvocationContext
@@ -24,115 +40,106 @@ export async function endSession(
   context.log('Processing POST /api/sessions/{sessionId}/end request');
 
   try {
-    // Parse and validate authentication
-    const authService = new AuthService();
+    // Parse authentication
     const principalHeader = request.headers.get('x-ms-client-principal');
-    
     if (!principalHeader) {
       return {
         status: 401,
-        jsonBody: {
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Missing authentication header',
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
     }
 
-    const principal = authService.parseUserPrincipal(principalHeader);
+    const principal = parseUserPrincipal(principalHeader);
     
     // Require Teacher role
-    try {
-      authService.requireRole(principal, Role.TEACHER);
-    } catch (error: any) {
+    if (!hasRole(principal, 'Teacher')) {
       return {
         status: 403,
-        jsonBody: {
-          error: {
-            code: 'FORBIDDEN',
-            message: error.message,
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
       };
     }
 
-    // Get sessionId from route parameters
+    const teacherId = getUserId(principal);
     const sessionId = request.params.sessionId;
+    
     if (!sessionId) {
       return {
         status: 400,
-        jsonBody: {
-          error: {
-            code: 'INVALID_REQUEST',
-            message: 'Missing sessionId parameter',
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', timestamp: Date.now() } }
       };
     }
 
-    // Compute final attendance status (Requirement 7.1-7.6)
-    const finalAttendance = await attendanceService.computeFinalStatus(sessionId);
+    // Get session
+    const sessionsTable = getTableClient('Sessions');
+    let session: any;
+    
+    try {
+      session = await sessionsTable.getEntity('SESSION', sessionId);
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        return {
+          status: 404,
+          jsonBody: { error: { code: 'NOT_FOUND', message: 'Session not found', timestamp: Date.now() } }
+        };
+      }
+      throw error;
+    }
 
-    // End the session (Requirement 2.3)
-    const teacherId = authService.getUserId(principal);
-    await new SessionService().endSession(sessionId, teacherId);
+    // Verify ownership
+    if (session.teacherId !== teacherId) {
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not own this session', timestamp: Date.now() } }
+      };
+    }
 
-    // Return response
-    const response: EndSessionResponse = {
-      finalAttendance
+    // Check if already ended
+    if (session.status === 'ENDED') {
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'INVALID_STATE', message: 'Session already ended', timestamp: Date.now() } }
+      };
+    }
+
+    // Update session status
+    const now = new Date().toISOString();
+    const updatedEntity = {
+      ...session,
+      status: 'ENDED',
+      lateEntryActive: false,
+      earlyLeaveActive: false,
+      endedAt: now
     };
+
+    await sessionsTable.updateEntity(updatedEntity, 'Replace');
+
+    // Get attendance records
+    const attendanceTable = getTableClient('Attendance');
+    const attendance: any[] = [];
+    
+    for await (const entity of attendanceTable.listEntities({ queryOptions: { filter: `PartitionKey eq '${sessionId}'` } })) {
+      attendance.push({
+        studentId: entity.rowKey,
+        entryStatus: entity.entryStatus,
+        entryAt: entity.entryAt,
+        exitVerified: entity.exitVerified,
+        exitVerifiedAt: entity.exitVerifiedAt,
+        earlyLeaveAt: entity.earlyLeaveAt,
+        finalStatus: entity.finalStatus
+      });
+    }
 
     return {
       status: 200,
-      jsonBody: response
+      jsonBody: {
+        success: true,
+        sessionId,
+        attendance
+      }
     };
 
   } catch (error: any) {
     context.error('Error ending session:', error);
-    
-    // Handle specific error cases
-    if (error.message.includes('not found')) {
-      return {
-        status: 404,
-        jsonBody: {
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Session not found',
-            timestamp: Date.now()
-          }
-        }
-      };
-    }
-    
-    if (error.message.includes('Unauthorized') || error.message.includes('do not own')) {
-      return {
-        status: 403,
-        jsonBody: {
-          error: {
-            code: 'FORBIDDEN',
-            message: error.message,
-            timestamp: Date.now()
-          }
-        }
-      };
-    }
-    
-    if (error.message.includes('already ended')) {
-      return {
-        status: 400,
-        jsonBody: {
-          error: {
-            code: 'INVALID_STATE',
-            message: error.message,
-            timestamp: Date.now()
-          }
-        }
-      };
-    }
     
     return {
       status: 500,

@@ -1,32 +1,38 @@
 /**
- * Get Attendance API Endpoint
- * Feature: qr-chain-attendance
- * Requirements: 14.1, 14.2, 14.3, 14.4, 14.5
- * 
- * GET /api/sessions/{sessionId}/attendance
- * Returns attendance records for a session
- * Includes finalStatus if session has ended
- * Requires Teacher role and session ownership
+ * Get Attendance API Endpoint - REFACTORED (Self-contained)
+ * No external service dependencies
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { AuthService } from '../services/AuthService';
-import { SessionService } from '../services/SessionService';
-import { attendanceService } from '../services/AttendanceService';
-import { Role, AttendanceRecord, SessionStatus } from '../types';
+import { TableClient } from '@azure/data-tables';
 
-/**
- * Attendance response
- * Requirements: 14.1, 14.2, 14.3
- */
-interface AttendanceResponse {
-  attendance: AttendanceRecord[];
+// Inline helper functions
+function parseUserPrincipal(header: string): any {
+  try {
+    const decoded = Buffer.from(header, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    throw new Error('Invalid authentication header');
+  }
 }
 
-/**
- * HTTP trigger function to get attendance records
- * Requirements: 14.1, 14.2, 14.3, 14.4, 14.5
- */
+function getUserId(principal: any): string {
+  return principal.userId || principal.userDetails;
+}
+
+function hasRole(principal: any, role: string): boolean {
+  const roles = principal.userRoles || [];
+  return roles.includes(role);
+}
+
+function getTableClient(tableName: string): TableClient {
+  const connectionString = process.env.AzureWebJobsStorage;
+  if (!connectionString) {
+    throw new Error('AzureWebJobsStorage not configured');
+  }
+  return TableClient.fromConnectionString(connectionString, tableName);
+}
+
 export async function getAttendance(
   request: HttpRequest,
   context: InvocationContext
@@ -34,120 +40,89 @@ export async function getAttendance(
   context.log('Processing GET /api/sessions/{sessionId}/attendance request');
 
   try {
-    // Parse and validate authentication
-    const authService = new AuthService();
+    // Parse authentication
     const principalHeader = request.headers.get('x-ms-client-principal');
-    
     if (!principalHeader) {
       return {
         status: 401,
-        jsonBody: {
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Missing authentication header',
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
     }
 
-    const principal = authService.parseUserPrincipal(principalHeader);
+    const principal = parseUserPrincipal(principalHeader);
     
-    // Require Teacher role (Requirement 14.5)
-    try {
-      authService.requireRole(principal, Role.TEACHER);
-    } catch (error: any) {
+    // Require Teacher role
+    if (!hasRole(principal, 'Teacher')) {
       return {
         status: 403,
-        jsonBody: {
-          error: {
-            code: 'FORBIDDEN',
-            message: error.message,
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
       };
     }
 
-    // Get sessionId from route parameters
+    const teacherId = getUserId(principal);
     const sessionId = request.params.sessionId;
+    
     if (!sessionId) {
       return {
         status: 400,
-        jsonBody: {
-          error: {
-            code: 'INVALID_REQUEST',
-            message: 'Missing sessionId parameter',
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', timestamp: Date.now() } }
       };
     }
 
-    // Verify session exists and teacher owns it (Requirement 14.5)
-    const sessionService = new SessionService();
-    const session = await sessionService.getSession(sessionId);
+    // Verify session exists and teacher owns it
+    const sessionsTable = getTableClient('Sessions');
+    let session: any;
     
-    if (!session) {
-      return {
-        status: 404,
-        jsonBody: {
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Session not found',
-            timestamp: Date.now()
-          }
-        }
-      };
+    try {
+      session = await sessionsTable.getEntity('SESSION', sessionId);
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        return {
+          status: 404,
+          jsonBody: { error: { code: 'NOT_FOUND', message: 'Session not found', timestamp: Date.now() } }
+        };
+      }
+      throw error;
     }
 
-    const teacherId = authService.getUserId(principal);
+    // Verify ownership
     if (session.teacherId !== teacherId) {
       return {
         status: 403,
-        jsonBody: {
-          error: {
-            code: 'FORBIDDEN',
-            message: 'You do not own this session',
-            timestamp: Date.now()
-          }
-        }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not own this session', timestamp: Date.now() } }
       };
     }
 
-    // Get attendance records for the session (Requirement 14.1)
-    const attendance = await attendanceService.getAllAttendance(sessionId);
-
-    // If session is not ended, exclude finalStatus from records (Requirement 14.4)
-    // If session is ended, finalStatus is already included (Requirement 14.1)
-    const filteredAttendance = session.status === SessionStatus.ENDED
-      ? attendance  // Include finalStatus for ended sessions
-      : attendance.map(record => {
-          // Exclude finalStatus for active sessions
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { finalStatus, ...recordWithoutFinalStatus } = record;
-          return recordWithoutFinalStatus as AttendanceRecord;
-        });
-
-    // Return attendance records (Requirements 14.2, 14.3)
-    const response: AttendanceResponse = {
-      attendance: filteredAttendance
-    };
+    // Get attendance records
+    const attendanceTable = getTableClient('Attendance');
+    const attendance: any[] = [];
+    
+    for await (const entity of attendanceTable.listEntities({ queryOptions: { filter: `PartitionKey eq '${sessionId}'` } })) {
+      attendance.push({
+        studentId: entity.rowKey,
+        entryStatus: entity.entryStatus,
+        entryAt: entity.entryAt,
+        exitVerified: entity.exitVerified,
+        exitVerifiedAt: entity.exitVerifiedAt,
+        earlyLeaveAt: entity.earlyLeaveAt,
+        finalStatus: entity.finalStatus
+      });
+    }
 
     return {
       status: 200,
-      jsonBody: response
+      jsonBody: { attendance }
     };
 
   } catch (error: any) {
-    context.error('Error getting attendance records:', error);
+    context.error('Error getting attendance:', error);
     
     return {
       status: 500,
       jsonBody: {
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'Failed to get attendance records',
+          message: 'Failed to get attendance',
           details: error.message,
           timestamp: Date.now()
         }
@@ -155,21 +130,6 @@ export async function getAttendance(
     };
   }
 }
-
-
-app.http('getAttendance', {
-  methods: ['GET'],
-  route: 'sessions/{sessionId}/attendance',
-  authLevel: 'anonymous',
-  handler: getAttendance
-});
-
-app.http('getAttendance', {
-  methods: ['GET'],
-  route: 'sessions/{sessionId}/attendance',
-  authLevel: 'anonymous',
-  handler: getAttendance
-});
 
 app.http('getAttendance', {
   methods: ['GET'],

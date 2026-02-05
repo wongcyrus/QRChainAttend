@@ -1,194 +1,180 @@
 /**
- * Token Rotation Timer Function
- * Feature: qr-chain-attendance
- * Requirements: 4.2, 5.1, 5.2
- * 
- * Timer-triggered Azure Function that runs every 60 seconds to:
- * - Query sessions with active late entry or early leave windows
- * - Mark expired tokens as EXPIRED
- * - Generate new tokens for active windows
- * - Update Session records with current token IDs
+ * Token Rotation Timer Function - REFACTORED (Self-contained)
+ * Timer trigger that runs every 60 seconds
  */
 
-import { app, InvocationContext, Timer } from "@azure/functions";
-import { getTableClient, TableName } from "../storage";
-import { SessionEntity, TokenEntity, TokenType, TokenStatus, SessionStatus } from "../types";
-import { tokenService } from "../services/TokenService";
-import { sessionService } from "../services/SessionService";
-import { getConfig } from "../config";
+import { app, InvocationContext, Timer } from '@azure/functions';
+import { TableClient } from '@azure/data-tables';
 
-/**
- * Timer trigger function that rotates tokens every 60 seconds
- * Requirements: 4.2, 5.1, 5.2
- */
+function getTableClient(tableName: string): TableClient {
+  const connectionString = process.env.AzureWebJobsStorage;
+  if (!connectionString) {
+    throw new Error('AzureWebJobsStorage not configured');
+  }
+  return TableClient.fromConnectionString(connectionString, tableName);
+}
+
 export async function rotateTokens(myTimer: Timer, context: InvocationContext): Promise<void> {
-  context.log("Token rotation timer triggered at:", new Date().toISOString());
+  context.log('Token rotation timer triggered at:', new Date().toISOString());
 
   try {
-    const config = getConfig();
-    const sessionsTable = getTableClient(TableName.SESSIONS);
-    const tokensTable = getTableClient(TableName.TOKENS);
-
-    // Query all active sessions
-    const sessionEntities = sessionsTable.listEntities<SessionEntity>({
-      queryOptions: { 
-        filter: `PartitionKey eq 'SESSION' and status eq '${SessionStatus.ACTIVE}'` 
-      }
-    });
+    const sessionsTable = getTableClient('Sessions');
+    const tokensTable = getTableClient('Tokens');
+    const now = Math.floor(Date.now() / 1000);
 
     let sessionsProcessed = 0;
     let tokensExpired = 0;
     let tokensCreated = 0;
 
+    // Query all active sessions
+    const sessionEntities = sessionsTable.listEntities({
+      queryOptions: { 
+        filter: `PartitionKey eq 'SESSION' and status eq 'ACTIVE'` 
+      }
+    });
+
     // Process each active session
-    for await (const sessionEntity of sessionEntities) {
-      const sessionId = sessionEntity.rowKey;
+    for await (const session of sessionEntities) {
+      const sessionId = session.rowKey as string;
       
       // Process late entry tokens if active
-      if (sessionEntity.lateEntryActive && sessionEntity.currentLateTokenId) {
-        const result = await rotateSessionToken(
-          sessionId,
-          sessionEntity.currentLateTokenId,
-          TokenType.LATE_ENTRY,
-          config.lateRotationSeconds,
-          context
-        );
-        
-        if (result.expired) {
-          tokensExpired++;
-        }
-        
-        if (result.newTokenId) {
-          // Update session with new late entry token
-          await sessionService.updateLateEntryStatus(sessionId, true, result.newTokenId);
-          tokensCreated++;
-          context.log(`Created new late entry token for session ${sessionId}: ${result.newTokenId}`);
+      if (session.lateEntryActive && session.currentLateTokenId) {
+        try {
+          const token = await tokensTable.getEntity(sessionId, session.currentLateTokenId as string);
+          
+          // Check if expired
+          if ((token.exp as number) <= now) {
+            // Mark as expired
+            const updatedToken: any = {
+              partitionKey: token.partitionKey,
+              rowKey: token.rowKey,
+              ...token,
+              status: 'EXPIRED'
+            };
+            await tokensTable.updateEntity(updatedToken, 'Replace');
+            tokensExpired++;
+            
+            // Create new token
+            const newTokenId = generateTokenId();
+            const newExp = now + 60; // 60 seconds TTL
+            
+            await tokensTable.createEntity({
+              partitionKey: sessionId,
+              rowKey: newTokenId,
+              type: 'LATE_ENTRY',
+              exp: newExp,
+              status: 'ACTIVE',
+              singleUse: true,
+              createdAt: now
+            });
+            
+            // Update session with new token
+            const updatedSession: any = {
+              partitionKey: session.partitionKey,
+              rowKey: session.rowKey,
+              ...session,
+              currentLateTokenId: newTokenId
+            };
+            await sessionsTable.updateEntity(updatedSession, 'Replace');
+            
+            tokensCreated++;
+            context.log(`Rotated late entry token for session ${sessionId}`);
+          }
+        } catch (error: any) {
+          context.error(`Error rotating late entry token for session ${sessionId}:`, error);
         }
       }
 
       // Process early leave tokens if active
-      if (sessionEntity.earlyLeaveActive && sessionEntity.currentEarlyTokenId) {
-        const result = await rotateSessionToken(
-          sessionId,
-          sessionEntity.currentEarlyTokenId,
-          TokenType.EARLY_LEAVE,
-          config.earlyLeaveRotationSeconds,
-          context
-        );
-        
-        if (result.expired) {
-          tokensExpired++;
-        }
-        
-        if (result.newTokenId) {
-          // Update session with new early leave token
-          await sessionService.updateEarlyLeaveStatus(sessionId, true, result.newTokenId);
-          tokensCreated++;
-          context.log(`Created new early leave token for session ${sessionId}: ${result.newTokenId}`);
+      if (session.earlyLeaveActive && session.currentEarlyTokenId) {
+        try {
+          const token = await tokensTable.getEntity(sessionId, session.currentEarlyTokenId as string);
+          
+          // Check if expired
+          if ((token.exp as number) <= now) {
+            // Mark as expired
+            const updatedToken: any = {
+              partitionKey: token.partitionKey,
+              rowKey: token.rowKey,
+              ...token,
+              status: 'EXPIRED'
+            };
+            await tokensTable.updateEntity(updatedToken, 'Replace');
+            tokensExpired++;
+            
+            // Create new token
+            const newTokenId = generateTokenId();
+            const newExp = now + 60; // 60 seconds TTL
+            
+            await tokensTable.createEntity({
+              partitionKey: sessionId,
+              rowKey: newTokenId,
+              type: 'EARLY_LEAVE',
+              exp: newExp,
+              status: 'ACTIVE',
+              singleUse: true,
+              createdAt: now
+            });
+            
+            // Update session with new token
+            const updatedSession: any = {
+              partitionKey: session.partitionKey,
+              rowKey: session.rowKey,
+              ...session,
+              currentEarlyTokenId: newTokenId
+            };
+            await sessionsTable.updateEntity(updatedSession, 'Replace');
+            
+            tokensCreated++;
+            context.log(`Rotated early leave token for session ${sessionId}`);
+          }
+        } catch (error: any) {
+          context.error(`Error rotating early leave token for session ${sessionId}:`, error);
         }
       }
 
       sessionsProcessed++;
     }
 
-    // Mark all expired tokens in the database
-    // This is a cleanup operation for any tokens that weren't caught during rotation
-    const now = Math.floor(Date.now() / 1000);
-    const expiredTokens = tokensTable.listEntities<TokenEntity>({
+    // Cleanup: Mark all expired tokens
+    const expiredTokens = tokensTable.listEntities({
       queryOptions: {
-        filter: `status eq '${TokenStatus.ACTIVE}' and exp lt ${now}`
+        filter: `status eq 'ACTIVE' and exp lt ${now}`
       }
     });
 
-    for await (const tokenEntity of expiredTokens) {
+    for await (const token of expiredTokens) {
       try {
-        const updatedEntity: TokenEntity = {
-          ...tokenEntity,
-          status: TokenStatus.EXPIRED
+        const updatedToken: any = {
+          partitionKey: token.partitionKey,
+          rowKey: token.rowKey,
+          ...token,
+          status: 'EXPIRED'
         };
-        
-        await tokensTable.updateEntity(updatedEntity, "Replace");
+        await tokensTable.updateEntity(updatedToken, 'Replace');
         tokensExpired++;
-        context.log(`Marked token ${tokenEntity.rowKey} as EXPIRED`);
       } catch (error: any) {
-        // Log error but continue processing other tokens
-        context.error(`Error marking token ${tokenEntity.rowKey} as expired:`, error);
+        context.error(`Error marking token ${token.rowKey} as expired:`, error);
       }
     }
 
-    context.log(`Token rotation completed: ${sessionsProcessed} sessions processed, ${tokensExpired} tokens expired, ${tokensCreated} tokens created`);
+    context.log(`Token rotation completed: ${sessionsProcessed} sessions, ${tokensExpired} expired, ${tokensCreated} created`);
   } catch (error: any) {
-    context.error("Error in token rotation:", error);
-    throw error;
+    context.error('Error in token rotation:', error);
   }
 }
 
-/**
- * Rotate a single session token (late entry or early leave)
- * 
- * @param sessionId - Session ID
- * @param currentTokenId - Current token ID
- * @param tokenType - Type of token (LATE_ENTRY or EARLY_LEAVE)
- * @param ttlSeconds - TTL for new token
- * @param context - Invocation context for logging
- * @returns Result with expired flag and new token ID if created
- */
-async function rotateSessionToken(
-  sessionId: string,
-  currentTokenId: string,
-  tokenType: TokenType.LATE_ENTRY | TokenType.EARLY_LEAVE,
-  ttlSeconds: number,
-  context: InvocationContext
-): Promise<{ expired: boolean; newTokenId?: string }> {
-  try {
-    // Validate current token
-    const validation = await tokenService.validateToken(currentTokenId, sessionId);
-    
-    // If token is expired, create a new one
-    if (!validation.valid && validation.error === "EXPIRED") {
-      context.log(`Token ${currentTokenId} expired, creating new ${tokenType} token`);
-      
-      // Create new token
-      const newToken = await tokenService.createToken({
-        sessionId,
-        type: tokenType,
-        ttlSeconds,
-        singleUse: true
-      });
-      
-      return {
-        expired: true,
-        newTokenId: newToken.tokenId
-      };
-    }
-    
-    // Token is still valid, no rotation needed
-    return { expired: false };
-  } catch (error: any) {
-    context.error(`Error rotating token ${currentTokenId}:`, error);
-    // On error, try to create a new token anyway to maintain service
-    try {
-      const newToken = await tokenService.createToken({
-        sessionId,
-        type: tokenType,
-        ttlSeconds,
-        singleUse: true
-      });
-      
-      return {
-        expired: true,
-        newTokenId: newToken.tokenId
-      };
-    } catch (createError: any) {
-      context.error(`Failed to create replacement token:`, createError);
-      return { expired: false };
-    }
-  }
+// Generate random token ID
+function generateTokenId(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Buffer.from(bytes).toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
 }
 
-// Register timer trigger
-// Runs every 60 seconds (0 seconds, every minute)
-
+// Register timer trigger - runs every 60 seconds
 app.timer('rotateTokens', {
   schedule: '0 * * * * *',
   handler: rotateTokens

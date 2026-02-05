@@ -2,7 +2,7 @@
   "name": "@qr-attendance/backend",
   "version": "1.0.0",
   "description": "Azure Functions backend for QR Chain Attendance System",
-  "main": "dist/functions/*.js",
+  "main": "dist/src/functions/*.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -18,8 +18,7 @@
     "@azure/data-tables": "^13.2.2",
     "@azure/functions": "^4.11.1",
     "@azure/identity": "^4.0.1",
-    "@azure/web-pubsub": "^1.1.2",
-    "@qr-attendance/shared": "^1.0.0"
+    "@azure/web-pubsub": "^1.1.2"
   },
   "devDependencies": {
     "@types/jest": "^29.5.11",
