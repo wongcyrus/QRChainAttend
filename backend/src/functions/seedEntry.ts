@@ -97,9 +97,18 @@ export async function seedEntry(
     });
 
     const students: string[] = [];
+    const now = Date.now();
+    const onlineThreshold = 30000; // Consider online if seen in last 30 seconds
+    
     for await (const record of attendanceRecords) {
-      // Only include students who haven't been marked yet
-      if (!record.entryStatus) {
+      // Only include students who:
+      // 1. Haven't been marked yet
+      // 2. Are currently online (or lastSeen within threshold)
+      const isOnline = record.isOnline === true;
+      const lastSeen = record.lastSeen ? (record.lastSeen as number) : 0;
+      const isRecentlyActive = (now - lastSeen) < onlineThreshold;
+      
+      if (!record.entryStatus && (isOnline || isRecentlyActive)) {
         students.push(record.rowKey as string);
       }
     }
@@ -110,7 +119,7 @@ export async function seedEntry(
         jsonBody: { 
           error: { 
             code: 'NO_STUDENTS', 
-            message: 'No unmarked students available to seed chains', 
+            message: 'No online unmarked students available to seed chains', 
             timestamp: Date.now() 
           } 
         }
@@ -127,8 +136,7 @@ export async function seedEntry(
     // Create chains and tokens
     const chainsTable = getTableClient('Chains');
     const tokensTable = getTableClient('Tokens');
-    const now = Date.now();
-    const expiresAt = now + (20 * 1000); // 20 seconds
+    const expiresAt = now + (20 * 1000); // 20 seconds (reuse 'now' from above)
 
     for (let i = 0; i < actualCount; i++) {
       const chainId = randomUUID();

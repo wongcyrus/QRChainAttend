@@ -144,7 +144,7 @@ export default function StudentPage() {
     return (
       <SimpleStudentView 
         sessionId={sessionId}
-        studentId={user.userId}
+        studentId={user.userDetails}
         onLeaveSession={() => router.push('/student')}
       />
     );

@@ -612,6 +612,22 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           border: '2px solid #48bb78'
         }}>
           <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#48bb78', marginBottom: '0.5rem' }}>
+            {(stats as any).onlineStudents || 0}
+          </div>
+          <div style={{ color: '#718096', fontSize: '0.875rem', fontWeight: '600' }}>
+            🟢 Online Now
+          </div>
+        </div>
+        
+        <div style={{
+          backgroundColor: 'white',
+          padding: '1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          textAlign: 'center',
+          border: '2px solid #48bb78'
+        }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#48bb78', marginBottom: '0.5rem' }}>
             {stats.presentEntry}
           </div>
           <div style={{ color: '#718096', fontSize: '0.875rem', fontWeight: '600' }}>
@@ -747,6 +763,13 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                   }}>Student ID</th>
                   <th style={{ 
                     padding: '1rem',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Online</th>
+                  <th style={{ 
+                    padding: '1rem',
                     textAlign: 'left',
                     fontWeight: '600',
                     color: '#4a5568',
@@ -793,6 +816,18 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                   >
                     <td style={{ padding: '1rem', color: '#2d3748', fontWeight: '500' }}>
                       {record.studentId || 'Unknown'}
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <span style={{
+                        padding: '0.375rem 0.75rem',
+                        backgroundColor: (record as any).isOnline ? '#c6f6d5' : '#e2e8f0',
+                        color: (record as any).isOnline ? '#22543d' : '#718096',
+                        borderRadius: '12px',
+                        fontSize: '0.875rem',
+                        fontWeight: '600'
+                      }}>
+                        {(record as any).isOnline ? '🟢 Online' : '⚪ Offline'}
+                      </span>
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <span style={{

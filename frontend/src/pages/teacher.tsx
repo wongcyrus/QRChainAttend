@@ -353,7 +353,7 @@ export default function TeacherPage() {
               <p style={{ 
                 fontSize: '0.875rem', 
                 color: '#718096', 
-                marginBottom: '2rem',
+                marginBottom: '1rem',
                 fontFamily: 'monospace',
                 backgroundColor: '#f7fafc',
                 padding: '0.5rem',
@@ -362,6 +362,59 @@ export default function TeacherPage() {
               }}>
                 {qrCodeData.sessionId}
               </p>
+              
+              {/* Copy URL Button */}
+              <div style={{ marginBottom: '2rem' }}>
+                <button
+                  onClick={() => {
+                    const baseUrl = typeof window !== 'undefined' 
+                      ? `${window.location.protocol}//${window.location.host}`
+                      : '';
+                    const studentUrl = `${baseUrl}/student?sessionId=${qrCodeData.sessionId}`;
+                    navigator.clipboard.writeText(studentUrl).then(() => {
+                      // Show brief success feedback
+                      const btn = document.getElementById('copy-url-btn');
+                      if (btn) {
+                        const originalText = btn.textContent;
+                        btn.textContent = '✓ Copied!';
+                        setTimeout(() => {
+                          btn.textContent = originalText;
+                        }, 2000);
+                      }
+                    });
+                  }}
+                  id="copy-url-btn"
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#edf2f7',
+                    color: '#4a5568',
+                    border: '1px solid #cbd5e0',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#e2e8f0';
+                    e.currentTarget.style.borderColor = '#a0aec0';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = '#edf2f7';
+                    e.currentTarget.style.borderColor = '#cbd5e0';
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Copy Student URL
+                </button>
+              </div>
+              
               <div style={{
                 display: 'inline-block',
                 padding: '1.5rem',
@@ -846,7 +899,7 @@ export default function TeacherPage() {
             <p style={{ 
               fontSize: '0.875rem', 
               color: '#718096', 
-              marginBottom: '2rem',
+              marginBottom: '1rem',
               fontFamily: 'monospace',
               backgroundColor: '#f7fafc',
               padding: '0.5rem',
@@ -854,6 +907,59 @@ export default function TeacherPage() {
             }}>
               {qrCodeData.sessionId}
             </p>
+            
+            {/* Copy URL Button */}
+            <div style={{ marginBottom: '2rem' }}>
+              <button
+                onClick={() => {
+                  const baseUrl = typeof window !== 'undefined' 
+                    ? `${window.location.protocol}//${window.location.host}`
+                    : '';
+                  const studentUrl = `${baseUrl}/student?sessionId=${qrCodeData.sessionId}`;
+                  navigator.clipboard.writeText(studentUrl).then(() => {
+                    // Show brief success feedback
+                    const btn = document.getElementById('copy-url-btn-2');
+                    if (btn) {
+                      const originalText = btn.textContent;
+                      btn.textContent = '✓ Copied!';
+                      setTimeout(() => {
+                        btn.textContent = originalText;
+                      }, 2000);
+                    }
+                  });
+                }}
+                id="copy-url-btn-2"
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#edf2f7',
+                  color: '#4a5568',
+                  border: '1px solid #cbd5e0',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e2e8f0';
+                  e.currentTarget.style.borderColor = '#a0aec0';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#edf2f7';
+                  e.currentTarget.style.borderColor = '#cbd5e0';
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                Copy Student URL
+              </button>
+            </div>
+            
             <div style={{
               display: 'inline-block',
               padding: '1.5rem',

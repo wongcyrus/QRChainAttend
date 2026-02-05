@@ -123,9 +123,21 @@ export async function getSession(
     // Get attendance records
     const attendanceTable = getTableClient('Attendance');
     const attendance: AttendanceRecord[] = [];
+    const now = Date.now();
+    const onlineThreshold = 30000; // Consider online if seen in last 30 seconds
     
     for await (const entity of attendanceTable.listEntities({ queryOptions: { filter: `PartitionKey eq '${sessionId}'` } })) {
-      attendance.push(entity as unknown as AttendanceRecord);
+      const record = entity as any;
+      
+      // Check if student is online
+      const isOnline = record.isOnline === true;
+      const lastSeen = record.lastSeen ? (record.lastSeen as number) : 0;
+      const isRecentlyActive = (now - lastSeen) < onlineThreshold;
+      
+      attendance.push({
+        ...record,
+        isOnline: isOnline || isRecentlyActive
+      } as unknown as AttendanceRecord);
     }
 
     // Get chains
@@ -139,6 +151,7 @@ export async function getSession(
     // Calculate stats
     const stats = {
       totalStudents: attendance.length,
+      onlineStudents: attendance.filter(a => (a as any).isOnline).length,
       presentEntry: attendance.filter(a => a.entryStatus === 'PRESENT_ENTRY').length,
       lateEntry: attendance.filter(a => a.entryStatus === 'LATE_ENTRY').length,
       earlyLeave: attendance.filter(a => a.exitTime && a.exitTime < (session.endTime || 0)).length,
@@ -178,7 +191,8 @@ export async function getSession(
         entryStatus: a.entryStatus,
         entryAt: a.entryTime,
         exitVerified: a.exitVerified || false,
-        exitVerifiedAt: a.exitTime
+        exitVerifiedAt: a.exitTime,
+        isOnline: (a as any).isOnline || false
       })),
       chains: chains.map(c => ({
         sessionId,

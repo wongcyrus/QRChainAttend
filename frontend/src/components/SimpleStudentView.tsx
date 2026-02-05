@@ -40,6 +40,66 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+
+  // Check URL parameters for scan simulation (when clicking QR URL in dev mode)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const chainId = urlParams.get('chainId');
+    const tokenId = urlParams.get('tokenId');
+    const type = urlParams.get('type');
+
+    if (chainId && tokenId && type === 'entry') {
+      // Simulate scanning by calling the scan API
+      handleScan(chainId, tokenId);
+      
+      // Clean up URL parameters
+      window.history.replaceState({}, '', `/student?sessionId=${sessionId}`);
+    }
+  }, [sessionId]);
+
+  const handleScan = async (chainId: string, tokenId: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        const mockPrincipal = {
+          userId: studentId,
+          userDetails: studentId,
+          userRoles: ['authenticated', 'student'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/chains/${chainId}/scan`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ tokenId })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setScanMessage(`✓ Scan successful! You are now the chain holder (seq ${data.seq})`);
+        // Refresh data to show updated status
+        setTimeout(() => {
+          fetchData();
+          setScanMessage(null);
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        setScanMessage(`✗ Scan failed: ${errorData.error?.message || 'Unknown error'}`);
+        setTimeout(() => setScanMessage(null), 5000);
+      }
+    } catch (err) {
+      setScanMessage(`✗ Scan failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setTimeout(() => setScanMessage(null), 5000);
+    }
+  };
 
   // Fetch session and student status
   const fetchData = async () => {
@@ -138,6 +198,34 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
     
     let connection: signalR.HubConnection | null = null;
+    let heartbeatInterval: NodeJS.Timeout | null = null;
+    
+    // Report online status
+    const reportOnlineStatus = async (isOnline: boolean) => {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        const mockPrincipal = {
+          userId: studentId,
+          userDetails: studentId, // studentId is now the email
+          userRoles: ['authenticated', 'student'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+      
+      try {
+        await fetch(`${apiUrl}/sessions/${sessionId}/student-online`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ isOnline })
+        });
+      } catch (err) {
+        console.log('Failed to report online status:', err);
+      }
+    };
     
     // Get negotiate endpoint
     const getNegotiateUrl = async () => {
@@ -148,7 +236,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
         const mockPrincipal = {
           userId: studentId,
-          userDetails: 'student@stu.vtc.edu.hk',
+          userDetails: studentId, // studentId is now the email
           userRoles: ['authenticated', 'student'],
           identityProvider: 'aad'
         };
@@ -167,6 +255,14 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     };
 
     const setupSignalR = async () => {
+      // Report online immediately
+      await reportOnlineStatus(true);
+      
+      // Setup heartbeat to keep online status fresh
+      heartbeatInterval = setInterval(() => {
+        reportOnlineStatus(true);
+      }, 15000); // Every 15 seconds
+      
       const negotiateData = await getNegotiateUrl();
       
       if (negotiateData && negotiateData.url) {
@@ -199,6 +295,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
 
         connection.onreconnected(() => {
           setConnectionStatus('connected');
+          reportOnlineStatus(true); // Report online after reconnection
           fetchData(); // Refresh data after reconnection
         });
 
@@ -225,7 +322,12 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
 
     setupSignalR();
 
+    // Report offline when component unmounts
     return () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+      reportOnlineStatus(false);
       if (connection) {
         connection.stop();
       }
@@ -317,6 +419,29 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       margin: '0 auto',
       fontFamily: 'system-ui, sans-serif'
     }}>
+      {/* Scan Message */}
+      {scanMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '1rem 2rem',
+          backgroundColor: scanMessage.startsWith('✓') ? '#d4edda' : '#f8d7da',
+          color: scanMessage.startsWith('✓') ? '#155724' : '#721c24',
+          border: `2px solid ${scanMessage.startsWith('✓') ? '#c3e6cb' : '#f5c6cb'}`,
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 1000,
+          fontSize: '1rem',
+          fontWeight: '600',
+          maxWidth: '90%',
+          textAlign: 'center'
+        }}>
+          {scanMessage}
+        </div>
+      )}
+
       {/* Header with connection status */}
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -334,6 +459,28 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
             {connectionStatus === 'disconnected' && (
               <span style={{ color: '#666' }}>⚪ Polling</span>
             )}
+          </div>
+        </div>
+        
+        {/* Student Email Display */}
+        <div style={{
+          marginTop: '1rem',
+          padding: '0.75rem 1rem',
+          backgroundColor: '#e3f2fd',
+          borderRadius: '8px',
+          border: '1px solid #90caf9',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          <span style={{ fontSize: '1.2rem' }}>👤</span>
+          <div>
+            <div style={{ fontSize: '0.75rem', color: '#1976d2', fontWeight: '600' }}>
+              Logged in as:
+            </div>
+            <div style={{ fontSize: '0.95rem', color: '#0d47a1', fontWeight: '500', fontFamily: 'monospace' }}>
+              {studentId}
+            </div>
           </div>
         </div>
       </div>

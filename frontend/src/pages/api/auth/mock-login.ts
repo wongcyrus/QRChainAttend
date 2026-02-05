@@ -18,46 +18,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Custom user from dev-config page
     mockUser = req.body;
     
-    // Check if user is already logged in elsewhere
-    const userEmail = mockUser.clientPrincipal.userDetails;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7071/api';
-    
-    try {
-      const checkResponse = await fetch(`${apiUrl}/auth/check-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email: userEmail })
-      });
-      
-      if (checkResponse.ok) {
-        const data = await checkResponse.json();
-        if (data.hasActiveSession) {
-          return res.status(409).json({ 
-            error: 'User already logged in',
-            message: `${userEmail} is already logged in another browser. Only one session per user is allowed.`
-          });
-        }
-      }
-      
-      // Register this session
-      await fetch(`${apiUrl}/auth/register-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          email: userEmail,
-          userId: mockUser.clientPrincipal.userId,
-          sessionId: `session-${Date.now()}`
-        })
-      });
-      
-    } catch (error) {
-      console.error('Session check failed:', error);
-      // Continue anyway if backend is not available
-    }
+    // In local development, skip session tracking entirely to allow:
+    // - Multiple browser tabs/windows with the same user
+    // - Easy testing with multiple students
+    // - Quick switching between accounts
+    // 
+    // In production, Azure AD handles session management automatically
   } else {
     // Default mock user
     mockUser = {
