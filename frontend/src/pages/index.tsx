@@ -35,7 +35,10 @@ export default function Home() {
 
   useEffect(() => {
     // Check if user is authenticated
-    fetch('/.auth/me', {
+    const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+    const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+    
+    fetch(authEndpoint, {
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -46,7 +49,7 @@ export default function Home() {
       .then(data => {
         if (data.clientPrincipal) {
           const email = data.clientPrincipal.userDetails || '';
-          const roles = getRolesFromEmail(email);
+          const roles = data.clientPrincipal.userRoles || getRolesFromEmail(email);
           
           setUser({
             userId: data.clientPrincipal.userId,
@@ -64,7 +67,10 @@ export default function Home() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         setLoading(true);
-        fetch('/.auth/me', {
+        const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+        const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+        
+        fetch(authEndpoint, {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -75,7 +81,7 @@ export default function Home() {
           .then(data => {
             if (data.clientPrincipal) {
               const email = data.clientPrincipal.userDetails || '';
-              const roles = getRolesFromEmail(email);
+              const roles = data.clientPrincipal.userRoles || getRolesFromEmail(email);
               
               setUser({
                 userId: data.clientPrincipal.userId,
@@ -96,11 +102,13 @@ export default function Home() {
   }, []);
 
   const handleLogin = () => {
-    window.location.href = '/.auth/login/aad';
+    const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+    window.location.href = isLocal ? '/api/auth/mock-login' : '/.auth/login/aad';
   };
 
   const handleLogout = () => {
-    window.location.href = '/.auth/logout';
+    const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+    window.location.href = isLocal ? '/api/auth/logout' : '/.auth/logout';
   };
 
   if (loading) {

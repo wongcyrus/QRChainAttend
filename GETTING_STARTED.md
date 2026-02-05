@@ -61,24 +61,18 @@ git push origin main  # Frontend auto-deploys via GitHub Actions
 ### Path 2: Local Development
 
 ```bash
-# 1. Install dependencies
-npm ci
+# Quick start (already configured!)
+./dev.sh
 
-# 2. Start services (3 terminals)
-# Terminal 1: Storage emulator
-azurite --silent --location ./azurite
+# Or manual start (2 terminals)
+# Terminal 1: cd backend && func start
+# Terminal 2: cd frontend && npm run dev
 
-# Terminal 2: Backend
-npm run dev:backend
-
-# Terminal 3: Frontend
-npm run dev:frontend
-
-# 3. Access application
-open http://localhost:3000
+# Access application
+open http://localhost:3001
 ```
 
-**Full instructions**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+**Full instructions**: [LOCAL_DEVELOPMENT_SETUP.md](LOCAL_DEVELOPMENT_SETUP.md)
 
 ### Path 3: Set Up CI/CD (Optional)
 
