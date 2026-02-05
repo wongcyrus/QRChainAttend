@@ -235,6 +235,10 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           exitVerified: update.exitVerified ?? false,
           earlyLeaveAt: update.earlyLeaveAt,
         };
+        // Add isOnline if provided
+        if ('isOnline' in update) {
+          (newRecord as any).isOnline = update.isOnline;
+        }
         return [...prev, newRecord];
       } else {
         // Update existing record
@@ -244,6 +248,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           ...(update.entryStatus && { entryStatus: update.entryStatus }),
           ...(update.exitVerified !== undefined && { exitVerified: update.exitVerified }),
           ...(update.earlyLeaveAt !== undefined && { earlyLeaveAt: update.earlyLeaveAt }),
+          ...('isOnline' in update && { isOnline: update.isOnline }),
         };
         return updated;
       }

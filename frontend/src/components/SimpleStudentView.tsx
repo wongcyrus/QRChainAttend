@@ -217,13 +217,19 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       }
       
       try {
-        await fetch(`${apiUrl}/sessions/${sessionId}/student-online`, {
+        const response = await fetch(`${apiUrl}/sessions/${sessionId}/student-online`, {
           method: 'POST',
           headers,
           body: JSON.stringify({ isOnline })
         });
+        
+        if (!response.ok) {
+          console.error('Failed to report online status:', response.status, await response.text());
+        } else {
+          console.log(`Online status reported: ${isOnline}`);
+        }
       } catch (err) {
-        console.log('Failed to report online status:', err);
+        console.error('Failed to report online status:', err);
       }
     };
     

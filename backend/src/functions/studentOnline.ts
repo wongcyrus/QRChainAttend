@@ -80,7 +80,7 @@ async function broadcastToSignalR(sessionId: string, message: any, context: Invo
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        target: 'attendanceUpdated',
+        target: 'attendanceUpdate',
         arguments: [message]
       })
     });
