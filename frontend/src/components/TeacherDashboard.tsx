@@ -429,7 +429,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       }
       isConnectingRef.current = false;
     };
-  }, [sessionId]); // Only depend on sessionId
+  }, [sessionId, fetchSessionData]); // Depend on sessionId and fetchSessionData
 
   /**
    * Format timestamp for display

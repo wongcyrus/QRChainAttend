@@ -129,14 +129,13 @@ export async function getSession(
     for await (const entity of attendanceTable.listEntities({ queryOptions: { filter: `PartitionKey eq '${sessionId}'` } })) {
       const record = entity as any;
       
-      // Check if student is online
-      const isOnline = record.isOnline === true;
+      // Check if student is online based on lastSeen timestamp only
       const lastSeen = record.lastSeen ? (record.lastSeen as number) : 0;
-      const isRecentlyActive = (now - lastSeen) < onlineThreshold;
+      const isRecentlyActive = lastSeen > 0 && (now - lastSeen) < onlineThreshold;
       
       attendance.push({
         ...record,
-        isOnline: isOnline || isRecentlyActive
+        isOnline: isRecentlyActive // Only use timestamp, ignore the isOnline flag
       } as unknown as AttendanceRecord);
     }
 

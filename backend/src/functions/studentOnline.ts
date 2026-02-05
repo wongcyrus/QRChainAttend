@@ -1,6 +1,7 @@
 /**
  * Student Online Status Tracking
  * Called when student connects/disconnects from SignalR
+ * Broadcasts status changes to teacher dashboard via SignalR
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
@@ -22,6 +23,76 @@ function getTableClient(tableName: string): TableClient {
   }
   const isLocal = connectionString.includes("127.0.0.1") || connectionString.includes("localhost");
   return TableClient.fromConnectionString(connectionString, tableName, { allowInsecureConnection: isLocal });
+}
+
+async function broadcastToSignalR(sessionId: string, message: any, context: InvocationContext) {
+  try {
+    const signalRConnectionString = process.env.SIGNALR_CONNECTION_STRING;
+    if (!signalRConnectionString || signalRConnectionString.includes('dummy')) {
+      context.log('SignalR not configured, skipping broadcast');
+      return;
+    }
+
+    // Parse connection string
+    const endpointMatch = signalRConnectionString.match(/Endpoint=([^;]+)/);
+    const accessKeyMatch = signalRConnectionString.match(/AccessKey=([^;]+)/);
+    
+    if (!endpointMatch || !accessKeyMatch) {
+      context.log('Invalid SignalR connection string format');
+      return;
+    }
+
+    const endpoint = endpointMatch[1];
+    const accessKey = accessKeyMatch[1];
+    const hubName = `dashboard${sessionId.replace(/-/g, '')}`;
+    
+    // Create JWT token for SignalR
+    const crypto = require('crypto');
+    const now = Math.floor(Date.now() / 1000);
+    const expiry = now + 3600;
+    
+    const payload = {
+      aud: `${endpoint}/api/v1/hubs/${hubName}`,
+      iat: now,
+      exp: expiry
+    };
+    
+    const header = {
+      typ: 'JWT',
+      alg: 'HS256'
+    };
+    
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = crypto
+      .createHmac('sha256', accessKey)
+      .update(`${encodedHeader}.${encodedPayload}`)
+      .digest('base64url');
+    
+    const token = `${encodedHeader}.${encodedPayload}.${signature}`;
+
+    // Send message to SignalR
+    const signalRUrl = `${endpoint}/api/v1/hubs/${hubName}`;
+    const response = await fetch(signalRUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        target: 'attendanceUpdated',
+        arguments: [message]
+      })
+    });
+
+    if (!response.ok) {
+      context.log(`SignalR broadcast failed: ${response.status}`);
+    } else {
+      context.log('SignalR broadcast successful');
+    }
+  } catch (error: any) {
+    context.log(`SignalR broadcast error: ${error.message}`);
+  }
 }
 
 export async function studentOnline(
@@ -68,6 +139,13 @@ export async function studentOnline(
       }, 'Merge');
 
       context.log(`Updated online status for ${studentEmail}: ${isOnline}`);
+
+      // Broadcast to SignalR so teacher dashboard updates in real-time
+      await broadcastToSignalR(sessionId, {
+        studentId: studentEmail,
+        isOnline: isOnline,
+        lastSeen: Date.now()
+      }, context);
 
       return {
         status: 200,

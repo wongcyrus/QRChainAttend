@@ -9,6 +9,37 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Improve dev experience - prevent browser tab closing
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      // Faster rebuilds in development
+      config.watchOptions = {
+        poll: 1000, // Check for changes every second
+        aggregateTimeout: 300, // Delay rebuild after first change
+        ignored: /node_modules/,
+      };
+      // Prevent memory issues that can cause browser crashes
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: false,
+        removeEmptyChunks: false,
+        splitChunks: false,
+      };
+    }
+    return config;
+  },
+  // Reduce full page reloads
+  onDemandEntries: {
+    // Period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 60 * 1000,
+    // Number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 5,
+  },
+  // Disable automatic static optimization to prevent full reloads
+  experimental: {
+    // Keep connections alive during rebuilds
+    isrMemoryCacheSize: 0,
+  },
 };
 
 module.exports = nextConfig;
