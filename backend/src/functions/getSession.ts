@@ -147,6 +147,17 @@ export async function getSession(
       chains.push(entity as unknown as Chain);
     }
 
+    // Get active tokens to identify current holders
+    const tokensTable = getTableClient('Tokens');
+    const activeHolders = new Set<string>();
+    
+    for await (const token of tokensTable.listEntities({ queryOptions: { filter: `PartitionKey eq '${sessionId}'` } })) {
+      // Check if token is still valid
+      if (token.expiresAt && (token.expiresAt as number) > now) {
+        activeHolders.add(token.holderId as string);
+      }
+    }
+
     // Calculate stats
     const stats = {
       totalStudents: attendance.length,
@@ -155,7 +166,8 @@ export async function getSession(
       lateEntry: attendance.filter(a => a.entryStatus === 'LATE_ENTRY').length,
       earlyLeave: attendance.filter(a => a.exitTime && a.exitTime < (session.endTime || 0)).length,
       exitVerified: attendance.filter(a => a.exitVerified).length,
-      notYetVerified: attendance.filter(a => !a.exitVerified).length
+      notYetVerified: attendance.filter(a => !a.exitVerified).length,
+      activeHolders: activeHolders.size
     };
 
     // Helper to safely convert timestamp to ISO string
@@ -191,7 +203,8 @@ export async function getSession(
         entryAt: a.entryTime,
         exitVerified: a.exitVerified || false,
         exitVerifiedAt: a.exitTime,
-        isOnline: (a as any).isOnline || false
+        isOnline: (a as any).isOnline || false,
+        isHolder: activeHolders.has(a.studentId || a.rowKey) // Check if student is a current holder
       })),
       chains: chains.map(c => ({
         sessionId,

@@ -426,6 +426,15 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       connectSignalR();
     }
     
+    // Fallback polling for local dev (when SignalR is not available)
+    // Poll every 5 seconds to update online status and holder info
+    const pollInterval = setInterval(() => {
+      if (connectionStatus === 'disconnected') {
+        // Only poll if SignalR is not connected
+        fetchSessionData();
+      }
+    }, 5000); // 5 seconds
+    
     // Cleanup on unmount
     return () => {
       if (connectionRef.current) {
@@ -433,8 +442,9 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
         connectionRef.current = null;
       }
       isConnectingRef.current = false;
+      clearInterval(pollInterval);
     };
-  }, [sessionId, fetchSessionData]); // Depend on sessionId and fetchSessionData
+  }, [sessionId, fetchSessionData, connectionStatus]); // Depend on connectionStatus to know when to poll
 
   /**
    * Format timestamp for display
@@ -775,6 +785,13 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                   }}>Online</th>
                   <th style={{ 
                     padding: '1rem',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Chain Holder</th>
+                  <th style={{ 
+                    padding: '1rem',
                     textAlign: 'left',
                     fontWeight: '600',
                     color: '#4a5568',
@@ -833,6 +850,23 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                       }}>
                         {(record as any).isOnline ? '🟢 Online' : '⚪ Offline'}
                       </span>
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      {(record as any).isHolder ? (
+                        <span style={{
+                          padding: '0.375rem 0.75rem',
+                          backgroundColor: '#fff3cd',
+                          color: '#856404',
+                          borderRadius: '12px',
+                          fontSize: '0.875rem',
+                          fontWeight: '600',
+                          border: '2px solid #ffc107'
+                        }}>
+                          🎯 Holder
+                        </span>
+                      ) : (
+                        <span style={{ color: '#a0aec0', fontSize: '0.875rem' }}>—</span>
+                      )}
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <span style={{

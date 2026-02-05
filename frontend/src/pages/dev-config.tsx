@@ -13,6 +13,24 @@ export default function DevConfig() {
   const [isLocal, setIsLocal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pre-configured test users
+  const testUsers = [
+    { email: 'teacher1@vtc.edu.hk', role: 'teacher' as const, label: 'Teacher 1' },
+    { email: 'teacher2@vtc.edu.hk', role: 'teacher' as const, label: 'Teacher 2' },
+    { email: 'teacher3@vtc.edu.hk', role: 'teacher' as const, label: 'Teacher 3' },
+    { email: 'teacher4@vtc.edu.hk', role: 'teacher' as const, label: 'Teacher 4' },
+    { email: 'student1@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 1' },
+    { email: 'student2@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 2' },
+    { email: 'student3@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 3' },
+    { email: 'student4@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 4' },
+    { email: 'student5@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 5' },
+    { email: 'student6@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 6' },
+    { email: 'student7@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 7' },
+    { email: 'student8@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 8' },
+    { email: 'student9@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 9' },
+    { email: 'student10@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 10' },
+  ];
+
   useEffect(() => {
     const local = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
     setIsLocal(local);
@@ -130,6 +148,102 @@ export default function DevConfig() {
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',
+            fontSize: '1rem',
+            fontWeight: 'bold',
+            width: '100%'
+          }}
+        >
+          Set Mock User
+        </button>
+      </div>
+
+      {/* Quick Login Section */}
+      <div style={{
+        marginTop: '3rem',
+        paddingTop: '2rem',
+        borderTop: '2px solid #e0e0e0'
+      }}>
+        <h2 style={{ marginBottom: '1rem' }}>⚡ Quick Login</h2>
+        <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+          Click to instantly login as a test user
+        </p>
+
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#0078d4' }}>
+            👨‍🏫 Teachers
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+            {testUsers.filter(u => u.role === 'teacher').map(user => (
+              <button
+                key={user.email}
+                onClick={() => {
+                  setEmail(user.email);
+                  setRole(user.role);
+                  handleSetUser();
+                }}
+                style={{
+                  padding: '0.75rem',
+                  backgroundColor: '#f0f0f0',
+                  border: '2px solid #0078d4',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#0078d4';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f0f0f0';
+                  e.currentTarget.style.color = 'black';
+                }}
+              >
+                {user.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#107c10' }}>
+            👨‍🎓 Students
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
+            {testUsers.filter(u => u.role === 'student').map(user => (
+              <button
+                key={user.email}
+                onClick={() => {
+                  setEmail(user.email);
+                  setRole(user.role);
+                  handleSetUser();
+                }}
+                style={{
+                  padding: '0.75rem 0.5rem',
+                  backgroundColor: '#f0f0f0',
+                  border: '2px solid #107c10',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#107c10';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f0f0f0';
+                  e.currentTarget.style.color = 'black';
+                }}
+              >
+                {user.label.replace('Student ', 'S')}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
             fontSize: '1rem',
             fontWeight: 'bold',
             width: '100%'

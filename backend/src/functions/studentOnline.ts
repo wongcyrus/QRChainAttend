@@ -73,6 +73,9 @@ async function broadcastToSignalR(sessionId: string, message: any, context: Invo
 
     // Send message to SignalR
     const signalRUrl = `${endpoint}/api/v1/hubs/${hubName}`;
+    context.log(`Sending SignalR message to: ${signalRUrl}`);
+    context.log(`Message:`, JSON.stringify(message));
+    
     const response = await fetch(signalRUrl, {
       method: 'POST',
       headers: {
@@ -86,7 +89,8 @@ async function broadcastToSignalR(sessionId: string, message: any, context: Invo
     });
 
     if (!response.ok) {
-      context.log(`SignalR broadcast failed: ${response.status}`);
+      const errorText = await response.text();
+      context.log(`SignalR broadcast failed: ${response.status} - ${errorText}`);
     } else {
       context.log('SignalR broadcast successful');
     }
