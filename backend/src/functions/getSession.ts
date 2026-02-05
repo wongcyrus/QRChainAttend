@@ -174,7 +174,7 @@ export async function getSession(
       },
       attendance: attendance.map(a => ({
         sessionId,
-        studentId: a.studentId,
+        studentId: a.studentId || a.rowKey, // Use rowKey (email) as fallback
         entryStatus: a.entryStatus,
         entryAt: a.entryTime,
         exitVerified: a.exitVerified || false,

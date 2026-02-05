@@ -792,7 +792,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     <td style={{ padding: '1rem', color: '#2d3748', fontWeight: '500' }}>
-                      {record.studentId}
+                      {record.studentId || 'Unknown'}
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <span style={{
