@@ -74,7 +74,7 @@ export default function DevConfig() {
   }
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
+    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', maxWidth: '700px', margin: '0 auto' }}>
       <h1>🛠️ Local Development Configuration</h1>
       <p style={{ color: '#666' }}>Configure your mock user for local testing</p>
 
@@ -91,80 +91,16 @@ export default function DevConfig() {
         </div>
       )}
 
-      <div style={{ marginTop: '2rem' }}>
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-            Email Address
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              fontSize: '1rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px'
-            }}
-            placeholder="user@vtc.edu.hk"
-          />
-        </div>
-
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-            Role
-          </label>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="radio"
-                value="teacher"
-                checked={role === 'teacher'}
-                onChange={(e) => setRole(e.target.value as 'teacher')}
-                style={{ marginRight: '0.5rem' }}
-              />
-              Teacher
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="radio"
-                value="student"
-                checked={role === 'student'}
-                onChange={(e) => setRole(e.target.value as 'student')}
-                style={{ marginRight: '0.5rem' }}
-              />
-              Student
-            </label>
-          </div>
-        </div>
-
-        <button
-          onClick={handleSetUser}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#0078d4',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            fontWeight: 'bold',
-            width: '100%'
-          }}
-        >
-          Set Mock User
-        </button>
-      </div>
-
       {/* Quick Login Section */}
       <div style={{
-        marginTop: '3rem',
-        paddingTop: '2rem',
-        borderTop: '2px solid #e0e0e0'
+        marginTop: '2rem',
+        padding: '1.5rem',
+        backgroundColor: '#f7fafc',
+        borderRadius: '12px',
+        border: '2px solid #e2e8f0'
       }}>
-        <h2 style={{ marginBottom: '1rem' }}>⚡ Quick Login</h2>
-        <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+        <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>⚡ Quick Login</h2>
+        <p style={{ color: '#666', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
           Click to instantly login as a test user
         </p>
 
@@ -244,55 +180,78 @@ export default function DevConfig() {
           </div>
         </div>
       </div>
+
+      {/* Manual Configuration */}
+      <div style={{
+        marginTop: '2rem',
+        paddingTop: '2rem',
+        borderTop: '2px solid #e0e0e0'
+      }}>
+        <h2 style={{ marginBottom: '1rem' }}>✏️ Manual Configuration</h2>
+        
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            Email Address
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              fontSize: '1rem',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              boxSizing: 'border-box'
+            }}
+            placeholder="user@vtc.edu.hk"
+          />
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            Role
+          </label>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                value="teacher"
+                checked={role === 'teacher'}
+                onChange={(e) => setRole(e.target.value as 'teacher')}
+                style={{ marginRight: '0.5rem' }}
+              />
+              Teacher
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                value="student"
+                checked={role === 'student'}
+                onChange={(e) => setRole(e.target.value as 'student')}
+                style={{ marginRight: '0.5rem' }}
+              />
+              Student
+            </label>
+          </div>
+        </div>
+
+        <button
+          onClick={handleSetUser}
+          style={{
+            padding: '0.75rem 1.5rem',
+            backgroundColor: '#0078d4',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
             fontSize: '1rem',
             fontWeight: 'bold',
             width: '100%'
           }}
         >
-          Set User & Login
-        </button>
-      </div>
-
-      <div style={{ 
-        marginTop: '2rem', 
-        padding: '1rem', 
-        backgroundColor: '#f0f0f0', 
-        borderRadius: '4px',
-        fontSize: '0.875rem'
-      }}>
-        <h3 style={{ marginTop: 0 }}>Quick Presets:</h3>
-        <button
-          onClick={() => {
-            setEmail('teacher@vtc.edu.hk');
-            setRole('teacher');
-          }}
-          style={{
-            padding: '0.5rem 1rem',
-            marginRight: '0.5rem',
-            marginBottom: '0.5rem',
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          👨‍🏫 Teacher
-        </button>
-        <button
-          onClick={() => {
-            setEmail('student@stu.vtc.edu.hk');
-            setRole('student');
-          }}
-          style={{
-            padding: '0.5rem 1rem',
-            marginBottom: '0.5rem',
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          👨‍🎓 Student
+          Set Mock User
         </button>
       </div>
 

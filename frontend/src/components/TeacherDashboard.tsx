@@ -429,7 +429,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
     // Fallback polling for local dev (when SignalR is not available)
     // Poll every 5 seconds to update online status and holder info
     const pollInterval = setInterval(() => {
-      if (connectionStatus === 'disconnected') {
+      if (connectionRef.current?.state !== signalR.HubConnectionState.Connected) {
         // Only poll if SignalR is not connected
         fetchSessionData();
       }
@@ -444,7 +444,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       isConnectingRef.current = false;
       clearInterval(pollInterval);
     };
-  }, [sessionId, fetchSessionData, connectionStatus]); // Depend on connectionStatus to know when to poll
+  }, [sessionId]); // ONLY depend on sessionId - nothing else!
 
   /**
    * Format timestamp for display
