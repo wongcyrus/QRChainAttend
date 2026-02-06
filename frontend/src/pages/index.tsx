@@ -20,12 +20,6 @@ function getRolesFromEmail(email: string): string[] {
   
   const emailLower = email.toLowerCase();
   
-  // Special case: cyruswong@outlook.com is a teacher (for testing)
-  if (emailLower === 'cyruswong@outlook.com') {
-    roles.push('teacher');
-    return roles;
-  }
-  
   if (emailLower.endsWith('@stu.vtc.edu.hk')) {
     roles.push('student');
   } else if (emailLower.endsWith('@vtc.edu.hk')) {
@@ -116,7 +110,23 @@ export default function Home() {
 
   const handleLogout = () => {
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-    window.location.href = isLocal ? '/api/auth/logout' : '/.auth/logout';
+    // For production, add post_logout_redirect_uri to ensure clean logout
+    if (isLocal) {
+      window.location.href = '/api/auth/logout';
+    } else {
+      // Logout from Static Web App and redirect to home
+      window.location.href = '/.auth/logout?post_logout_redirect_uri=/';
+    }
+  };
+
+  const handleSwitchAccount = () => {
+    const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+    if (isLocal) {
+      window.location.href = '/dev-config';
+    } else {
+      // Logout and redirect to login with account selection
+      window.location.href = '/.auth/logout?post_logout_redirect_uri=/.auth/login/aad';
+    }
   };
 
   if (loading) {
@@ -148,10 +158,25 @@ export default function Home() {
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                fontSize: '0.875rem'
+                fontSize: '0.875rem',
+                marginRight: '0.5rem'
               }}
             >
               Logout
+            </button>
+            <button
+              onClick={handleSwitchAccount}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#3182ce',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.875rem'
+              }}
+            >
+              Switch Account
             </button>
           </div>
         ) : (

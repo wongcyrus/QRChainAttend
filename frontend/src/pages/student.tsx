@@ -49,7 +49,8 @@ export default function StudentPage() {
       .then(data => {
         if (data.clientPrincipal) {
           const email = data.clientPrincipal.userDetails || '';
-          const roles = data.clientPrincipal.userRoles || getRolesFromEmail(email);
+          // Always compute roles from email (don't rely on Azure AD roles)
+          const roles = getRolesFromEmail(email);
           
           setUser({
             userId: data.clientPrincipal.userId,
@@ -95,8 +96,9 @@ export default function StudentPage() {
         'Content-Type': 'application/json'
       };
       
-      // Add mock authentication header for local development
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+      // Add authentication header
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      if (isLocal) {
         const mockPrincipal = {
           userId: user.userId,
           userDetails: user.userDetails,
@@ -104,6 +106,14 @@ export default function StudentPage() {
           identityProvider: 'aad'
         };
         headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      } else {
+        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
+        const authData = await authResponse.json();
+        if (authData.clientPrincipal) {
+          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
+        } else {
+          throw new Error('Not authenticated');
+        }
       }
       
       const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, {

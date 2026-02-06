@@ -26,12 +26,6 @@ function getRolesFromEmail(email: string): string[] {
   if (!email) return roles;
   const emailLower = email.toLowerCase();
   
-  // Special case: cyruswong@outlook.com is a teacher (for testing)
-  if (emailLower === 'cyruswong@outlook.com') {
-    roles.push('teacher');
-    return roles;
-  }
-  
   if (emailLower.endsWith('@stu.vtc.edu.hk')) {
     roles.push('student');
   } else if (emailLower.endsWith('@vtc.edu.hk')) {
@@ -66,7 +60,8 @@ export default function TeacherPage() {
       .then(data => {
         if (data.clientPrincipal) {
           const email = data.clientPrincipal.userDetails || '';
-          const roles = data.clientPrincipal.userRoles || getRolesFromEmail(email);
+          // Always compute roles from email (don't rely on Azure AD roles)
+          const roles = getRolesFromEmail(email);
           
           setUser({
             userId: data.clientPrincipal.userId,
@@ -129,7 +124,7 @@ export default function TeacherPage() {
       // Use email (userDetails) as teacher ID, not the generated userId
       const teacherId = authData.clientPrincipal.userDetails || authData.clientPrincipal.userId || '';
       // Use query parameter instead of path parameter to avoid URL encoding issues
-      const response = await fetch(`${apiUrl}/sessions/teacher?teacherId=${encodeURIComponent(teacherId)}`, {
+      const response = await fetch(`${apiUrl}/teacher/sessions?teacherId=${encodeURIComponent(teacherId)}`, {
         headers
       });
       
@@ -143,7 +138,7 @@ export default function TeacherPage() {
         // Log the full error response for debugging
         const errorText = await response.text();
         console.error('Failed to load sessions:', response.status, errorText);
-        console.error('Request URL:', `${apiUrl}/sessions/teacher?teacherId=${encodeURIComponent(teacherId)}`);
+        console.error('Request URL:', `${apiUrl}/teacher/sessions?teacherId=${encodeURIComponent(teacherId)}`);
         console.error('Request headers:', headers);
         setSessions([]);
       }

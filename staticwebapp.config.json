@@ -2,6 +2,18 @@
   "$schema": "https://json.schemastore.org/staticwebapp.config.json",
   "routes": [
     {
+      "route": "/teacher",
+      "allowedRoles": ["teacher"]
+    },
+    {
+      "route": "/student",
+      "allowedRoles": ["student"]
+    },
+    {
+      "route": "/dev-config",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
       "route": "/*",
       "allowedRoles": ["anonymous", "authenticated"]
     }
@@ -25,6 +37,7 @@
     }
   },
   "auth": {
+    "rolesSource": "/api/auth/roles",
     "identityProviders": {
       "azureActiveDirectory": {
         "registration": {

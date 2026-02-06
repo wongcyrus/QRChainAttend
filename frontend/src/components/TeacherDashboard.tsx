@@ -16,6 +16,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { ChainManagementControls } from './ChainManagementControls';
+import { SessionEndAndExportControls } from './SessionEndAndExportControls';
 
 // Type definitions
 enum EntryStatus {
@@ -171,8 +172,9 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
         'Content-Type': 'application/json'
       };
       
-      // Add mock authentication header for local development
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+      // Add authentication header
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      if (isLocal) {
         const mockPrincipal = {
           userId: 'local-dev-teacher-' + Date.now(),
           userDetails: 'teacher@vtc.edu.hk',
@@ -180,6 +182,14 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           identityProvider: 'aad'
         };
         headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      } else {
+        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
+        const authData = await authResponse.json();
+        if (authData.clientPrincipal) {
+          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
+        } else {
+          throw new Error('Not authenticated');
+        }
       }
       
       const response = await fetch(`${apiUrl}/sessions/${sessionId}`, {
@@ -722,6 +732,24 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           chains={chains}
           stalledChains={stalledChains}
           onChainsUpdated={fetchSessionData}
+          onError={(error) => {
+            setError(error);
+            if (onError) {
+              onError(error);
+            }
+          }}
+        />
+      </div>
+
+      {/* Session End and Export Controls */}
+      <div style={{ marginBottom: '2rem' }}>
+        <SessionEndAndExportControls
+          sessionId={sessionId}
+          sessionStatus={session.status}
+          onSessionEnded={(finalAttendance) => {
+            // Refresh session data after ending
+            fetchSessionData();
+          }}
           onError={(error) => {
             setError(error);
             if (onError) {

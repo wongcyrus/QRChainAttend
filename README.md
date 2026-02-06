@@ -1,119 +1,115 @@
 # QR Chain Attendance System
 
-Anti-cheat classroom attendance system using peer-to-peer QR code verification.
+A secure, real-time attendance tracking system using QR code chains and Azure services.
 
 ## 🚀 Quick Start
 
-### Local Development
-```bash
-# Install dependencies
-npm run install:all
+**Production URL**: https://red-grass-0f8bc910f.4.azurestaticapps.net
 
-# Start development servers
-npm run dev:frontend  # Frontend on http://localhost:3000
-npm run dev:backend   # Backend on http://localhost:7071
-```
-
-### Production
-- **Frontend**: https://red-grass-0f8bc910f.4.azurestaticapps.net
-- **Backend**: https://func-qrattendance-dev.azurewebsites.net/api
+**Login**:
+- Teachers: `@vtc.edu.hk` email addresses
+- Students: `@stu.vtc.edu.hk` email addresses
 
 ## 📚 Documentation
 
-- [Getting Started](GETTING_STARTED.md) - Setup and first steps
-- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Deploy to Azure
-- [Database Management](DATABASE_MANAGEMENT.md) - Manage local and production databases
-- [Backend Deployment Fix](BACKEND_DEPLOYMENT_FIX.md) - Fix deployment issues
-- [Quick Reference](QUICK_REFERENCE.md) - Common commands and tasks
+- **[Getting Started](GETTING_STARTED.md)** - Setup and first steps
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - How to deploy to Azure
+- **[Deployment History](DEPLOYMENT_HISTORY.md)** - All fixes and features
+- **[Quick Reference](QUICK_REFERENCE.md)** - Common commands and tasks
+- **[Full Documentation](DOCS_INDEX.md)** - Complete documentation index
 
-### Detailed Documentation
-- [docs/](docs/) - Architecture, monitoring, and technical details
-- [QR Chain Flow](QR_CHAIN_FLOW.md) - How the QR chain system works
-- [Test Flow](TEST_FLOW.md) - Testing guide
-- [Security](SECURITY.md) - Security considerations
+## 🎯 Key Features
 
-## 🏗️ Architecture
+- **QR Chain Technology**: Secure token passing prevents cheating
+- **Real-time Updates**: SignalR for live attendance monitoring
+- **Role-Based Access**: Email domain-based authentication
+- **CSV Export**: Download attendance records for analysis
+- **Offline Support**: PWA with offline capabilities
+- **Mobile-First**: Optimized for smartphones
 
-### Frontend (Next.js)
-- Static site hosted on Azure Static Web Apps
-- Progressive Web App (PWA) with offline support
-- Real-time updates via SignalR
+## 🛠️ Tech Stack
 
-### Backend (Azure Functions)
-- 29 serverless functions
-- Node.js 20 runtime
-- Azure Table Storage for data
-- SignalR for real-time communication
+- **Frontend**: Next.js, React, TypeScript
+- **Backend**: Azure Functions (Node.js 20)
+- **Database**: Azure Table Storage
+- **Real-time**: Azure SignalR Service
+- **Auth**: Azure AD (Static Web Apps)
+- **Hosting**: Azure Static Web Apps
+
+## 📦 Project Structure
+
+```
+├── backend/          # Azure Functions API
+├── frontend/         # Next.js web application
+├── infrastructure/   # Bicep IaC templates
+├── docs/            # Detailed documentation
+└── scripts/         # Utility scripts
+```
+
+## 🔧 Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start local development
+./dev.sh
+
+# Frontend: http://localhost:3000
+# Backend: http://localhost:7071
+```
+
+See [Getting Started](GETTING_STARTED.md) for detailed setup instructions.
+
+## 🚢 Deployment
+
+```bash
+# Deploy to Azure (both backend and frontend)
+./deploy-to-azure.sh
+```
+
+See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 
 ## 🔐 Authentication
 
-- **Azure AD** with multi-tenant support
-- **Role-based access**: Teacher / Student
-- **Email-based roles**:
+- **Production**: Azure AD authentication via Static Web Apps
+- **Local Dev**: Mock authentication for testing
+- **Roles**: Determined by email domain
   - `@vtc.edu.hk` → Teacher
   - `@stu.vtc.edu.hk` → Student
-  - `cyruswong@outlook.com` → Teacher (testing)
 
-## 🛠️ Development
+## 📊 Features by Role
 
-### Prerequisites
-- Node.js 20+
-- Azure Functions Core Tools
-- Azurite (local storage emulator)
+### Teachers
+- Create and manage sessions
+- Monitor real-time attendance
+- Control QR chain flow
+- Export attendance (CSV/JSON)
+- View student online status
 
-### Project Structure
-```
-├── frontend/          # Next.js frontend
-├── backend/           # Azure Functions backend
-├── docs/              # Documentation
-└── scripts/           # Utility scripts
-```
+### Students
+- Join sessions via QR code
+- Scan QR chains for entry/exit
+- View personal attendance status
+- Offline support for scanning
 
-### Common Commands
-```bash
-# Development
-npm run dev:frontend
-npm run dev:backend
+## 🐛 Troubleshooting
 
-# Build
-npm run build:frontend
-npm run build:backend
+See [Deployment History](DEPLOYMENT_HISTORY.md) for common issues and solutions.
 
-# Deploy
-cd backend && ./deploy.sh
-cd frontend && npm run build && swa deploy
-
-# Database
-./scripts/reset-local-db.sh
-./scripts/reset-production-db.sh
-```
-
-## 📊 Features
-
-- ✅ QR chain attendance (entry/exit)
-- ✅ Late entry tracking
-- ✅ Early leave tracking
-- ✅ Real-time student status
-- ✅ Chain holder identification
-- ✅ Session management
-- ✅ Attendance export
-- ✅ Offline support (PWA)
-
-## 🔧 Configuration
-
-### Local Development
-- Frontend: `frontend/.env.local`
-- Backend: `backend/local.settings.json`
-
-### Production
-- Azure Static Web App settings
-- Azure Function App settings
-- See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+**Quick Fixes**:
+- 401 Errors → Check authentication headers
+- 403 Errors → Verify email domain
+- 404 Errors → Check API URL configuration
 
 ## 📝 License
 
-MIT
+MIT License - See LICENSE file for details
 
 ## 👥 Support
 
-For issues and questions, see the documentation in the `docs/` folder.
+For issues or questions, check the documentation or contact the development team.
+
+---
+
+**Last Updated**: February 6, 2026

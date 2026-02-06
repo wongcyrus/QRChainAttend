@@ -52,8 +52,21 @@ function getUserId(principal: any): string {
 }
 
 function hasRole(principal: any, role: string): boolean {
+  const email = principal.userDetails || '';
+  const emailLower = email.toLowerCase();
+  
+  // Check VTC domain-based roles
+  if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
+    return true;
+  }
+  
+  if (role.toLowerCase() === 'student' && emailLower.endsWith('@stu.vtc.edu.hk')) {
+    return true;
+  }
+  
+  // Fallback to checking userRoles array
   const roles = principal.userRoles || [];
-  return roles.includes(role);
+  return roles.some((r: string) => r.toLowerCase() === role.toLowerCase());
 }
 
 // Inline table client creation

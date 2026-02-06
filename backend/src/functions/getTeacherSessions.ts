@@ -39,11 +39,6 @@ function hasRole(principal: any, role: string): boolean {
   const email = principal.userDetails || '';
   const emailLower = email.toLowerCase();
   
-  // Special case: cyruswong@outlook.com is a teacher (for testing)
-  if (emailLower === 'cyruswong@outlook.com' && role.toLowerCase() === 'teacher') {
-    return true;
-  }
-  
   // Check VTC domain-based roles
   if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
     return true;
@@ -225,7 +220,7 @@ export async function getTeacherSessions(
 
 app.http('getTeacherSessions', {
   methods: ['GET'],
-  route: 'sessions/teacher',
+  route: 'teacher/sessions',
   authLevel: 'anonymous',
   handler: getTeacherSessions
 });

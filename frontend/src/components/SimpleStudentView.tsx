@@ -66,7 +66,8 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         'Content-Type': 'application/json'
       };
       
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      if (isLocal) {
         const mockPrincipal = {
           userId: studentId,
           userDetails: studentId,
@@ -74,6 +75,14 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
           identityProvider: 'aad'
         };
         headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      } else {
+        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
+        const authData = await authResponse.json();
+        if (authData.clientPrincipal) {
+          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
+        } else {
+          throw new Error('Not authenticated');
+        }
       }
 
       const response = await fetch(`${apiUrl}/sessions/${sessionId}/chains/${chainId}/scan`, {
@@ -111,7 +120,8 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         'Content-Type': 'application/json'
       };
       
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      if (isLocal) {
         const mockPrincipal = {
           userId: studentId,
           userDetails: 'student@stu.vtc.edu.hk',
@@ -119,6 +129,14 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
           identityProvider: 'aad'
         };
         headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      } else {
+        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
+        const authData = await authResponse.json();
+        if (authData.clientPrincipal) {
+          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
+        } else {
+          throw new Error('Not authenticated');
+        }
       }
       
       // Fetch session info
@@ -206,7 +224,8 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         'Content-Type': 'application/json'
       };
       
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      if (isLocal) {
         const mockPrincipal = {
           userId: studentId,
           userDetails: studentId, // studentId is now the email
@@ -214,6 +233,12 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
           identityProvider: 'aad'
         };
         headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      } else {
+        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
+        const authData = await authResponse.json();
+        if (authData.clientPrincipal) {
+          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
+        }
       }
       
       try {
@@ -239,7 +264,8 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         'Content-Type': 'application/json'
       };
       
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      if (isLocal) {
         const mockPrincipal = {
           userId: studentId,
           userDetails: studentId, // studentId is now the email
@@ -247,6 +273,12 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
           identityProvider: 'aad'
         };
         headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      } else {
+        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
+        const authData = await authResponse.json();
+        if (authData.clientPrincipal) {
+          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
+        }
       }
       
       try {

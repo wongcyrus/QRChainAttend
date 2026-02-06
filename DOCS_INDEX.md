@@ -1,135 +1,138 @@
 # Documentation Index
 
-Complete documentation for the QR Chain Attendance System.
+Complete guide to the QR Chain Attendance System documentation.
 
-## 📖 Getting Started
+## 🚀 Getting Started
 
-- **[README.md](README.md)** - Project overview and quick start
-- **[GETTING_STARTED.md](GETTING_STARTED.md)** - Setup and first steps
-- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Common commands and tasks
+Start here if you're new to the project:
 
-## 🚀 Deployment
+1. **[README](README.md)** - Project overview and quick start
+2. **[Getting Started](GETTING_STARTED.md)** - Detailed setup guide
+3. **[Quick Reference](QUICK_REFERENCE.md)** - Common commands and tasks
 
-- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Deploy to Azure
-- **[BACKEND_DEPLOYMENT_FIX.md](BACKEND_DEPLOYMENT_FIX.md)** - Fix backend deployment issues
-- **[DATABASE_MANAGEMENT.md](DATABASE_MANAGEMENT.md)** - Manage databases
+## 📖 Core Documentation
 
-## 🏗️ Architecture & Design
+### Deployment & Operations
 
-- **[QR_CHAIN_FLOW.md](QR_CHAIN_FLOW.md)** - How the QR chain system works
-- **[docs/BACKEND_ARCHITECTURE.md](docs/BACKEND_ARCHITECTURE.md)** - Backend design
-- **[docs/FRONTEND_ARCHITECTURE.md](docs/FRONTEND_ARCHITECTURE.md)** - Frontend design
-- **[docs/SIGNALR_AUTHENTICATION.md](docs/SIGNALR_AUTHENTICATION.md)** - SignalR JWT auth
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - How to deploy to Azure
+- **[Deployment History](DEPLOYMENT_HISTORY.md)** - All fixes, issues, and features
+- **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Pre-deployment verification
 
-## 🧪 Testing & Development
+### Development
 
-- **[TEST_FLOW.md](TEST_FLOW.md)** - Testing guide
-- **[DEV_TOOLS.md](DEV_TOOLS.md)** - Development tools
-- **[LOCAL_DEVELOPMENT_SETUP.md](LOCAL_DEVELOPMENT_SETUP.md)** - Local dev setup
+- **[Local Development Setup](LOCAL_DEVELOPMENT_SETUP.md)** - Set up local environment
+- **[Database Management](DATABASE_MANAGEMENT.md)** - Manage local and production databases
+- **[Dev Tools](DEV_TOOLS.md)** - Development utilities and scripts
 
-## 🔐 Security & Authentication
+### User Guides
 
-- **[SECURITY.md](SECURITY.md)** - Security considerations
-- **[docs/AZURE_AD_SETUP.md](docs/AZURE_AD_SETUP.md)** - Azure AD configuration
+- **[Login Guide](LOGIN_GUIDE.md)** - How to log in and switch accounts
+- **[QR Chain Flow](QR_CHAIN_FLOW.md)** - How the QR chain system works
+- **[Test Flow](TEST_FLOW.md)** - Testing guide for the system
 
-## 📊 Operations
+### Technical Documentation
 
-- **[docs/MONITORING.md](docs/MONITORING.md)** - Monitoring and alerts
-- **[docs/CICD_SETUP.md](docs/CICD_SETUP.md)** - CI/CD pipeline
-- **[docs/ALERT_RESPONSE.md](docs/ALERT_RESPONSE.md)** - Alert response guide
+- **[Security](SECURITY.md)** - Security considerations and best practices
+- **[Project Status](PROJECT_STATUS.md)** - Current implementation status
 
-## 📚 Additional Resources
+## 📁 Detailed Documentation (docs/)
 
-- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Current project status
-- **[docs/IMPLEMENTATION_HISTORY.md](docs/IMPLEMENTATION_HISTORY.md)** - Development history
-- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Detailed deployment docs
-- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development guidelines
+### Architecture
 
-## 🗄️ Archived Documentation
+- **[Backend Architecture](docs/BACKEND_ARCHITECTURE.md)** - Azure Functions design
+- **[Frontend Architecture](docs/FRONTEND_ARCHITECTURE.md)** - Next.js application structure
+- **[SignalR Authentication](docs/SIGNALR_AUTHENTICATION.md)** - Real-time connection setup
 
-Historical documentation moved to `docs/archive/`:
-- ADFS_AUTHENTICATION_SETUP.md
-- AUTHENTICATION_SETUP_COMPLETE.md
-- DEPLOYMENT_SUCCESS.md
-- fix-production-auth.md
-- PRODUCTION_AUTH_FIXED.md
-- PRODUCTION_LOGIN_FIX.md
-- ROLES_FIX_DEPLOYED.md
-- SEED_ENTRY_IMPLEMENTATION.md
-- STUDENT_FLOW_COMPLETE.md
-- VTC_ADFS_LOGIN_GUIDE.md
+### Infrastructure & DevOps
 
-## 📁 Documentation Structure
+- **[Azure AD Setup](docs/AZURE_AD_SETUP.md)** - Authentication configuration
+- **[CI/CD Setup](docs/CICD_SETUP.md)** - GitHub Actions workflows
+- **[Deployment](docs/DEPLOYMENT.md)** - Infrastructure deployment
+- **[Monitoring](docs/MONITORING.md)** - Application monitoring and alerts
+- **[Alert Response](docs/ALERT_RESPONSE.md)** - How to respond to alerts
 
-```
-.
-├── README.md                      # Project overview
-├── GETTING_STARTED.md             # Quick start guide
-├── DEPLOYMENT_GUIDE.md            # Deployment instructions
-├── QUICK_REFERENCE.md             # Command reference
-├── DATABASE_MANAGEMENT.md         # Database operations
-├── BACKEND_DEPLOYMENT_FIX.md      # Deployment troubleshooting
-├── QR_CHAIN_FLOW.md              # System design
-├── TEST_FLOW.md                   # Testing guide
-├── SECURITY.md                    # Security docs
-├── DEV_TOOLS.md                   # Development tools
-├── LOCAL_DEVELOPMENT_SETUP.md     # Local setup
-├── PROJECT_STATUS.md              # Current status
-├── LOGIN_GUIDE.md                 # Login instructions
-├── DEPLOYMENT_COMPLETE.md         # Deployment status
-└── docs/
-    ├── BACKEND_ARCHITECTURE.md    # Backend design
-    ├── FRONTEND_ARCHITECTURE.md   # Frontend design
-    ├── SIGNALR_AUTHENTICATION.md  # SignalR auth
-    ├── AZURE_AD_SETUP.md          # Azure AD config
-    ├── MONITORING.md              # Monitoring setup
-    ├── CICD_SETUP.md              # CI/CD pipeline
-    ├── ALERT_RESPONSE.md          # Alert handling
-    ├── IMPLEMENTATION_HISTORY.md  # Dev history
-    ├── DEPLOYMENT.md              # Detailed deployment
-    ├── DEVELOPMENT.md             # Dev guidelines
-    └── archive/                   # Historical docs
-```
+### Development
 
-## 🔍 Finding Documentation
+- **[Development Guide](docs/DEVELOPMENT.md)** - Development workflow
+- **[Implementation History](docs/IMPLEMENTATION_HISTORY.md)** - Feature implementation timeline
 
-### By Topic
+## 🗂️ Documentation by Topic
 
-- **Setup**: GETTING_STARTED.md, LOCAL_DEVELOPMENT_SETUP.md
-- **Deployment**: DEPLOYMENT_GUIDE.md, BACKEND_DEPLOYMENT_FIX.md
-- **Architecture**: QR_CHAIN_FLOW.md, docs/BACKEND_ARCHITECTURE.md
-- **Testing**: TEST_FLOW.md
-- **Operations**: DATABASE_MANAGEMENT.md, docs/MONITORING.md
-- **Security**: SECURITY.md, docs/SIGNALR_AUTHENTICATION.md
+### For New Developers
 
-### By Role
+1. Read [README](README.md) for overview
+2. Follow [Getting Started](GETTING_STARTED.md) to set up
+3. Review [Backend Architecture](docs/BACKEND_ARCHITECTURE.md) and [Frontend Architecture](docs/FRONTEND_ARCHITECTURE.md)
+4. Check [Development Guide](docs/DEVELOPMENT.md) for workflow
 
-**Developer**:
-1. GETTING_STARTED.md
-2. LOCAL_DEVELOPMENT_SETUP.md
-3. QR_CHAIN_FLOW.md
-4. TEST_FLOW.md
+### For Deployment
 
-**DevOps**:
-1. DEPLOYMENT_GUIDE.md
-2. BACKEND_DEPLOYMENT_FIX.md
-3. DATABASE_MANAGEMENT.md
-4. docs/CICD_SETUP.md
+1. Review [Deployment Checklist](DEPLOYMENT_CHECKLIST.md)
+2. Follow [Deployment Guide](DEPLOYMENT_GUIDE.md)
+3. Check [Deployment History](DEPLOYMENT_HISTORY.md) for known issues
+4. Monitor using [Monitoring](docs/MONITORING.md) guide
 
-**Operations**:
-1. docs/MONITORING.md
-2. docs/ALERT_RESPONSE.md
-3. DATABASE_MANAGEMENT.md
+### For Troubleshooting
 
-## 📝 Contributing
+1. Check [Deployment History](DEPLOYMENT_HISTORY.md) for common issues
+2. Review [Alert Response](docs/ALERT_RESPONSE.md) for monitoring alerts
+3. See [Quick Reference](QUICK_REFERENCE.md) for diagnostic commands
 
-When adding new documentation:
-1. Place in appropriate location (root for main docs, `docs/` for detailed)
-2. Update this index
-3. Link from README.md if it's a primary document
-4. Use clear, descriptive filenames
-5. Include "Last Updated" date
+### For Testing
+
+1. Follow [Test Flow](TEST_FLOW.md) for manual testing
+2. Use [Dev Tools](DEV_TOOLS.md) for testing utilities
+3. Check [Database Management](DATABASE_MANAGEMENT.md) for test data
+
+## 📝 Document Status
+
+### Active Documents
+
+All documents listed above are current and maintained.
+
+### Archived Documents
+
+Historical documents are in `.archive/old-docs/`:
+- Old deployment fixes (consolidated into DEPLOYMENT_HISTORY.md)
+- Previous authentication implementations
+- Legacy setup guides
+
+## 🔄 Document Updates
+
+**Last Major Update**: February 6, 2026
+
+**Recent Changes**:
+- Consolidated deployment fixes into DEPLOYMENT_HISTORY.md
+- Updated README with clearer structure
+- Archived outdated fix documents
+- Added CSV export feature documentation
+
+## 📞 Getting Help
+
+1. **Check Documentation**: Start with relevant docs above
+2. **Search Issues**: Look in DEPLOYMENT_HISTORY.md for similar problems
+3. **Review Logs**: Use monitoring tools in Azure Portal
+4. **Contact Team**: Reach out to development team
+
+## 🎯 Quick Links by Role
+
+### Developers
+- [Getting Started](GETTING_STARTED.md)
+- [Backend Architecture](docs/BACKEND_ARCHITECTURE.md)
+- [Frontend Architecture](docs/FRONTEND_ARCHITECTURE.md)
+- [Development Guide](docs/DEVELOPMENT.md)
+
+### DevOps
+- [Deployment Guide](DEPLOYMENT_GUIDE.md)
+- [CI/CD Setup](docs/CICD_SETUP.md)
+- [Monitoring](docs/MONITORING.md)
+- [Alert Response](docs/ALERT_RESPONSE.md)
+
+### Users
+- [Login Guide](LOGIN_GUIDE.md)
+- [QR Chain Flow](QR_CHAIN_FLOW.md)
+- [Test Flow](TEST_FLOW.md)
 
 ---
 
-**Last Updated**: February 6, 2026
+**Note**: This index is maintained manually. When adding new documentation, update this file accordingly.

@@ -145,7 +145,9 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+      // Get authentication info
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      if (isLocal) {
         const mockPrincipal = {
           userId: teacherId || 'local-dev-teacher',
           userDetails: teacherEmail || 'teacher@vtc.edu.hk',
@@ -153,6 +155,17 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
           identityProvider: 'aad'
         };
         headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      } else {
+        // In production, get auth info from /.auth/me
+        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
+        const authData = await authResponse.json();
+        
+        if (authData.clientPrincipal) {
+          // Forward the authentication to the backend
+          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
+        } else {
+          throw new Error('Not authenticated');
+        }
       }
       
       const response = await fetch(`${apiUrl}/sessions`, {

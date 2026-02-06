@@ -74,8 +74,19 @@ cd frontend
 echo -e "${YELLOW}Installing dependencies...${NC}"
 npm install
 
-echo -e "${YELLOW}Building frontend...${NC}"
-npm run build
+# Temporarily move .env.local to build for production
+if [ -f ".env.local" ]; then
+    echo -e "${YELLOW}Backing up .env.local for production build...${NC}"
+    mv .env.local .env.local.backup
+fi
+
+echo -e "${YELLOW}Building frontend for production...${NC}"
+NODE_ENV=production npm run build
+
+# Restore .env.local
+if [ -f ".env.local.backup" ]; then
+    mv .env.local.backup .env.local
+fi
 
 echo -e "${GREEN}✓ Frontend built successfully!${NC}"
 echo ""

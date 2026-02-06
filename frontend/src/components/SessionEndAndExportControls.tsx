@@ -77,8 +77,27 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
     setSuccessMessage(null);
 
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/end`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Get authentication
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
+      const authData = await authResponse.json();
+      
+      if (!authData.clientPrincipal) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
+      };
+      
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/end`, {
         method: 'POST',
+        headers
       });
 
       if (!response.ok) {
@@ -118,7 +137,27 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
     setSuccessMessage(null);
 
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/attendance`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Get authentication
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
+      const authData = await authResponse.json();
+      
+      if (!authData.clientPrincipal) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
+      };
+      
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, {
+        headers
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -150,6 +189,101 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
       );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to export attendance';
+      if (onError) {
+        onError(errorMessage);
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  /**
+   * Export attendance data as CSV
+   * Requirements: 14.1, 14.2, 14.3
+   */
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    setSuccessMessage(null);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Get authentication
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
+      const authData = await authResponse.json();
+      
+      if (!authData.clientPrincipal) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
+      };
+      
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, {
+        headers
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error?.message || `Failed to export attendance: ${response.statusText}`
+        );
+      }
+
+      const data: AttendanceResponse = await response.json();
+
+      // Convert to CSV format
+      const csvHeaders = [
+        'Student ID',
+        'Entry Status',
+        'Entry Time',
+        'Exit Verified',
+        'Exit Time',
+        'Early Leave Time',
+        'Final Status'
+      ];
+
+      const rows = data.attendance.map(record => [
+        record.studentId || '',
+        record.entryStatus || '',
+        record.entryAt ? new Date(record.entryAt * 1000).toLocaleString() : '',
+        record.exitVerified ? 'Yes' : 'No',
+        record.exitVerifiedAt ? new Date(record.exitVerifiedAt * 1000).toLocaleString() : '',
+        record.earlyLeaveAt ? new Date(record.earlyLeaveAt * 1000).toLocaleString() : '',
+        record.finalStatus || ''
+      ]);
+
+      // Build CSV string
+      const csvContent = [
+        csvHeaders.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Create CSV blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `attendance-${sessionId}-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setSuccessMessage(
+        `Attendance CSV exported successfully for ${data.attendance.length} student(s).`
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to export CSV';
       if (onError) {
         onError(errorMessage);
       }
@@ -246,12 +380,21 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
         )}
 
         <button
+          onClick={handleExportCSV}
+          disabled={isExporting}
+          className="btn btn-success btn-export-csv"
+          aria-label="Export attendance data as CSV"
+        >
+          {isExporting ? 'Exporting...' : '📊 Export CSV'}
+        </button>
+
+        <button
           onClick={handleExportAttendance}
           disabled={isExporting}
           className="btn btn-primary btn-export"
           aria-label="Export attendance data as JSON"
         >
-          {isExporting ? 'Exporting...' : 'Export Attendance (JSON)'}
+          {isExporting ? 'Exporting...' : '📄 Export JSON'}
         </button>
       </div>
 
@@ -425,6 +568,17 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
           background: #005a9e;
           transform: translateY(-1px);
           box-shadow: 0 4px 8px rgba(0, 120, 212, 0.3);
+        }
+
+        .btn-success {
+          background: #28a745;
+          color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+          background: #218838;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
         }
 
         .session-status-indicator {
