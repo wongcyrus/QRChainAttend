@@ -1,14 +1,11 @@
 #!/bin/bash
 
-# Initialize Azurite Tables
-# Creates all required tables for the QR Chain Attendance system
+# Initialize Tables for QR Chain Attendance System
+# Works for both local (Azurite) and Azure environments
 
-echo "🔧 Initializing Azurite Tables"
+echo "🔧 Initializing Tables"
 echo "=============================="
 echo ""
-
-# Connection string for local Azurite
-CONNECTION_STRING="AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;DefaultEndpointsProtocol=http;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;"
 
 # Tables to create
 TABLES=(
@@ -19,7 +16,39 @@ TABLES=(
   "UserSessions"
 )
 
-# Check if Azure CLI or az-storage-table is available
+# Determine environment and get connection string
+if [ -n "$AZURE_STORAGE_CONNECTION_STRING" ]; then
+    echo "📍 Environment: Azure (using AZURE_STORAGE_CONNECTION_STRING)"
+    CONNECTION_STRING="$AZURE_STORAGE_CONNECTION_STRING"
+elif [ -n "$1" ]; then
+    echo "📍 Environment: Azure (using provided resource group)"
+    RESOURCE_GROUP="$1"
+    STORAGE_ACCOUNT="${2:-stqrattendancedev}"
+    
+    echo "   Resource Group: $RESOURCE_GROUP"
+    echo "   Storage Account: $STORAGE_ACCOUNT"
+    echo ""
+    
+    echo "Getting storage account connection string..."
+    CONNECTION_STRING=$(az storage account show-connection-string \
+      --name "$STORAGE_ACCOUNT" \
+      --resource-group "$RESOURCE_GROUP" \
+      --query connectionString \
+      --output tsv)
+    
+    if [ -z "$CONNECTION_STRING" ]; then
+        echo "❌ Failed to get connection string"
+        exit 1
+    fi
+    echo "✓ Got connection string"
+else
+    echo "📍 Environment: Local (Azurite)"
+    CONNECTION_STRING="AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;DefaultEndpointsProtocol=http;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;"
+fi
+
+echo ""
+
+# Check if Azure CLI is available
 if ! command -v az &> /dev/null; then
     echo "⚠️  Azure CLI not found. Using curl to create tables..."
     echo ""
@@ -71,7 +100,16 @@ for table in "${TABLES[@]}"; do
     echo "   - $table"
 done
 echo ""
-echo "🔍 View tables in Azure Storage Explorer:"
-echo "   Connection: http://127.0.0.1:10002"
-echo "   Account: devstoreaccount1"
-echo ""
+
+# Show usage info
+if [ -z "$AZURE_STORAGE_CONNECTION_STRING" ] && [ -z "$1" ]; then
+    echo "💡 Usage:"
+    echo "   Local (Azurite):  ./scripts/init-tables.sh"
+    echo "   Azure:            ./scripts/init-tables.sh <resource-group> [storage-account]"
+    echo "   Azure (env var):  AZURE_STORAGE_CONNECTION_STRING=<conn-string> ./scripts/init-tables.sh"
+    echo ""
+    echo "🔍 View tables in Azure Storage Explorer:"
+    echo "   Connection: http://127.0.0.1:10002"
+    echo "   Account: devstoreaccount1"
+    echo ""
+fi

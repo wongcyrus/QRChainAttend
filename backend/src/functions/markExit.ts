@@ -1,6 +1,6 @@
 /**
- * Join Session API Endpoint - REFACTORED (Self-contained)
- * No external service dependencies
+ * Mark Exit - REFACTORED (Self-contained)
+ * Validates encrypted exit token and marks student as exited
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
@@ -18,7 +18,6 @@ function parseUserPrincipal(header: string): any {
 }
 
 function getUserId(principal: any): string {
-  // Use email (userDetails) as the student ID for better readability
   return principal.userDetails || principal.userId;
 }
 
@@ -26,7 +25,6 @@ function hasRole(principal: any, role: string): boolean {
   const email = principal.userDetails || '';
   const emailLower = email.toLowerCase();
   
-  // Check VTC domain-based roles
   if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
     return true;
   }
@@ -35,7 +33,6 @@ function hasRole(principal: any, role: string): boolean {
     return true;
   }
   
-  // Fallback to checking userRoles array
   const roles = principal.userRoles || [];
   return roles.some((r: string) => r.toLowerCase() === role.toLowerCase());
 }
@@ -73,11 +70,11 @@ function decryptToken(encryptedToken: string): any {
   }
 }
 
-export async function joinSession(
+export async function markExit(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  context.log('Processing POST /api/sessions/{sessionId}/join request');
+  context.log('Processing POST /api/sessions/{sessionId}/exit request');
 
   try {
     // Parse authentication
@@ -109,50 +106,58 @@ export async function joinSession(
       };
     }
 
-    // Parse request body for token validation
+    // Parse request body for token
     let token: string | undefined;
     try {
       const body = await request.json() as any;
       token = body?.token;
     } catch {
-      // No body or invalid JSON - token is optional for backward compatibility
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing token in request body', timestamp: Date.now() } }
+      };
     }
 
-    // If token is provided, decrypt and validate it
-    if (token) {
-      try {
-        const tokenData = decryptToken(token);
-        
-        // Verify token type
-        if (tokenData.type !== 'ENTRY') {
-          return {
-            status: 403,
-            jsonBody: { error: { code: 'INVALID_TOKEN_TYPE', message: 'Token is not an entry token', timestamp: Date.now() } }
-          };
-        }
-        
-        // Verify session ID matches
-        if (tokenData.sessionId !== sessionId) {
-          return {
-            status: 403,
-            jsonBody: { error: { code: 'SESSION_MISMATCH', message: 'Token session does not match', timestamp: Date.now() } }
-          };
-        }
-        
-        // Check if token is expired (60 seconds validity)
-        const now = Math.floor(Date.now() / 1000);
-        if (tokenData.expiresAt < now) {
-          return {
-            status: 403,
-            jsonBody: { error: { code: 'TOKEN_EXPIRED', message: 'Entry token has expired', timestamp: Date.now() } }
-          };
-        }
-      } catch (error: any) {
+    if (!token) {
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Exit token is required', timestamp: Date.now() } }
+      };
+    }
+
+    // Decrypt and validate exit token
+    try {
+      const tokenData = decryptToken(token);
+      
+      // Verify token type
+      if (tokenData.type !== 'EXIT') {
         return {
           status: 403,
-          jsonBody: { error: { code: 'INVALID_TOKEN', message: 'Invalid or corrupted entry token', timestamp: Date.now() } }
+          jsonBody: { error: { code: 'INVALID_TOKEN_TYPE', message: 'Token is not an exit token', timestamp: Date.now() } }
         };
       }
+      
+      // Verify session ID matches
+      if (tokenData.sessionId !== sessionId) {
+        return {
+          status: 403,
+          jsonBody: { error: { code: 'SESSION_MISMATCH', message: 'Token session does not match', timestamp: Date.now() } }
+        };
+      }
+      
+      // Check if token is expired (60 seconds validity)
+      const now = Math.floor(Date.now() / 1000);
+      if (tokenData.expiresAt < now) {
+        return {
+          status: 403,
+          jsonBody: { error: { code: 'TOKEN_EXPIRED', message: 'Exit token has expired', timestamp: Date.now() } }
+        };
+      }
+    } catch (error: any) {
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'INVALID_TOKEN', message: 'Invalid or corrupted exit token', timestamp: Date.now() } }
+      };
     }
 
     // Verify session exists
@@ -169,12 +174,21 @@ export async function joinSession(
       throw error;
     }
 
-    // Create or check attendance record
+    // Update attendance record to mark exit
     const attendanceTable = getTableClient('Attendance');
     
     try {
-      // Check if already enrolled
-      await attendanceTable.getEntity(sessionId, studentId);
+      const attendanceRecord = await attendanceTable.getEntity(sessionId, studentId);
+      
+      // Update with exit verification
+      const updatedEntity = {
+        partitionKey: attendanceRecord.partitionKey,
+        rowKey: attendanceRecord.rowKey,
+        exitVerified: true,
+        exitedAt: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
+      };
+      
+      await attendanceTable.updateEntity(updatedEntity, 'Merge');
       
       return {
         status: 200,
@@ -182,43 +196,28 @@ export async function joinSession(
           success: true,
           sessionId,
           studentId,
-          message: 'Already enrolled in session'
+          message: 'Exit marked successfully'
         }
       };
     } catch (error: any) {
       if (error.statusCode === 404) {
-        // Create new enrollment with join timestamp
-        const entity = {
-          partitionKey: sessionId,
-          rowKey: studentId,
-          exitVerified: false,
-          joinedAt: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
-        };
-        
-        await attendanceTable.createEntity(entity);
-        
         return {
-          status: 201,
-          jsonBody: {
-            success: true,
-            sessionId,
-            studentId,
-            message: 'Successfully enrolled in session'
-          }
+          status: 404,
+          jsonBody: { error: { code: 'NOT_ENROLLED', message: 'Student not enrolled in this session', timestamp: Date.now() } }
         };
       }
       throw error;
     }
 
   } catch (error: any) {
-    context.error('Error joining session:', error);
+    context.error('Error marking exit:', error);
     
     return {
       status: 500,
       jsonBody: {
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'Failed to join session',
+          message: 'Failed to mark exit',
           details: error.message,
           timestamp: Date.now()
         }
@@ -227,9 +226,9 @@ export async function joinSession(
   }
 }
 
-app.http('joinSession', {
+app.http('markExit', {
   methods: ['POST'],
-  route: 'sessions/{sessionId}/join',
+  route: 'sessions/{sessionId}/exit',
   authLevel: 'anonymous',
-  handler: joinSession
+  handler: markExit
 });

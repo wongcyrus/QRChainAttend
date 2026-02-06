@@ -43,7 +43,8 @@ export default function TeacherPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [qrCodeData, setQrCodeData] = useState<{ sessionId: string; classId: string; qrDataUrl: string } | null>(null);
+  const [qrCodeData, setQrCodeData] = useState<{ sessionId: string; classId: string; type: 'ENTRY' | 'EXIT'; qrDataUrl: string } | null>(null);
+  const [qrRefreshKey, setQrRefreshKey] = useState(0); // For triggering QR refresh
 
   useEffect(() => {
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
@@ -161,13 +162,91 @@ export default function TeacherPage() {
     setTimeout(() => setError(null), 5000);
   };
 
-  const handleShowQR = async (session: Session) => {
+  // Auto-refresh QR code every 30 seconds when modal is open
+  useEffect(() => {
+    if (!showQRModal || !qrCodeData) return;
+    
+    const refreshQR = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+        const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+        const authResponse = await fetch(authEndpoint, { credentials: 'include' });
+        const authData = await authResponse.json();
+        
+        if (!authData.clientPrincipal) return;
+        
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+          'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
+        };
+        
+        const endpoint = qrCodeData.type === 'ENTRY' ? 'entry-qr' : 'exit-qr';
+        const response = await fetch(`${apiUrl}/sessions/${qrCodeData.sessionId}/${endpoint}`, { headers });
+        
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const baseUrl = window.location.origin;
+        const studentUrl = `${baseUrl}/student?sessionId=${qrCodeData.sessionId}&type=${qrCodeData.type}&token=${data.token}`;
+        
+        const qrDataUrl = await QRCode.toDataURL(studentUrl, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+        
+        setQrCodeData(prev => prev ? { ...prev, qrDataUrl } : null);
+      } catch (err) {
+        console.error('Failed to refresh QR code:', err);
+      }
+    };
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(refreshQR, 30000);
+    
+    return () => clearInterval(interval);
+  }, [showQRModal, qrCodeData?.sessionId, qrCodeData?.type]);
+
+  const handleShowEntryQR = async (session: Session) => {
     try {
-      // Generate URL for the session
-      const baseUrl = window.location.origin;
-      const sessionURL = `${baseUrl}/student?sessionId=${session.sessionId}`;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      const qrDataUrl = await QRCode.toDataURL(sessionURL, {
+      // Get authentication
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
+      const authData = await authResponse.json();
+      
+      if (!authData.clientPrincipal) {
+        setError('Not authenticated');
+        return;
+      }
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
+      };
+      
+      // Get entry QR token from backend
+      const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/entry-qr`, { headers });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get entry QR code');
+      }
+      
+      const data = await response.json();
+      
+      // Create URL for students to scan
+      const baseUrl = window.location.origin;
+      const studentUrl = `${baseUrl}/student?sessionId=${session.sessionId}&type=ENTRY&token=${data.token}`;
+      
+      // Generate QR code with the URL
+      const qrDataUrl = await QRCode.toDataURL(studentUrl, {
         width: 300,
         margin: 2,
         color: {
@@ -179,11 +258,68 @@ export default function TeacherPage() {
       setQrCodeData({
         sessionId: session.sessionId,
         classId: session.classId,
+        type: 'ENTRY',
         qrDataUrl
       });
       setShowQRModal(true);
     } catch (err) {
-      setError('Failed to generate QR code');
+      setError('Failed to generate entry QR code');
+    }
+  };
+
+  const handleShowExitQR = async (session: Session) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Get authentication
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
+      const authData = await authResponse.json();
+      
+      if (!authData.clientPrincipal) {
+        setError('Not authenticated');
+        return;
+      }
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
+      };
+      
+      // Get exit QR token from backend
+      const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/exit-qr`, { headers });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get exit QR code');
+      }
+      
+      const data = await response.json();
+      
+      // Create URL for students to scan
+      const baseUrl = window.location.origin;
+      const studentUrl = `${baseUrl}/student?sessionId=${session.sessionId}&type=EXIT&token=${data.token}`;
+      
+      // Generate QR code with the URL
+      const qrDataUrl = await QRCode.toDataURL(studentUrl, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      setQrCodeData({
+        sessionId: session.sessionId,
+        classId: session.classId,
+        type: 'EXIT',
+        qrDataUrl
+      });
+      setShowQRModal(true);
+    } catch (err) {
+      setError('Failed to generate exit QR code');
     }
   };
 
@@ -207,33 +343,6 @@ export default function TeacherPage() {
   // If a session is selected, show the dashboard
   if (selectedSessionId) {
     const currentSession = sessions.find(s => s.sessionId === selectedSessionId);
-    
-    const handleShowSessionQR = async () => {
-      if (!currentSession) return;
-      
-      try {
-        const baseUrl = window.location.origin;
-        const sessionURL = `${baseUrl}/student?sessionId=${currentSession.sessionId}`;
-        
-        const qrDataUrl = await QRCode.toDataURL(sessionURL, {
-          width: 300,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
-        });
-        
-        setQrCodeData({
-          sessionId: currentSession.sessionId,
-          classId: currentSession.classId,
-          qrDataUrl
-        });
-        setShowQRModal(true);
-      } catch (err) {
-        setError('Failed to generate QR code');
-      }
-    };
     
     return (
       <div style={{ 
@@ -270,31 +379,59 @@ export default function TeacherPage() {
           </button>
           
           {currentSession && (
-            <button 
-              onClick={handleShowSessionQR}
-              style={{
-                padding: '0.75rem 1.5rem',
-                backgroundColor: '#48bb78',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: '600',
-                transition: 'all 0.2s',
-                boxShadow: '0 2px 8px rgba(72, 187, 120, 0.2)'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(72, 187, 120, 0.3)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(72, 187, 120, 0.2)';
-              }}
-            >
-              📱 Show QR Code
-            </button>
+            <>
+              <button 
+                onClick={() => handleShowEntryQR(currentSession)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#48bb78',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 8px rgba(72, 187, 120, 0.2)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(72, 187, 120, 0.3)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(72, 187, 120, 0.2)';
+                }}
+              >
+                📥 Show Entry QR
+              </button>
+              
+              <button 
+                onClick={() => handleShowExitQR(currentSession)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#ed8936',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 8px rgba(237, 137, 54, 0.2)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(237, 137, 54, 0.3)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(237, 137, 54, 0.2)';
+                }}
+              >
+                📤 Show Exit QR
+              </button>
+            </>
           )}
         </div>
         
@@ -359,15 +496,25 @@ export default function TeacherPage() {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📱</div>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
+                {qrCodeData.type === 'ENTRY' ? '📥' : '📤'}
+              </div>
               <h2 style={{ 
                 color: '#2d3748',
                 marginTop: 0,
                 marginBottom: '0.5rem',
                 fontSize: '1.75rem'
               }}>
-                {qrCodeData.classId}
+                {qrCodeData.type === 'ENTRY' ? 'Entry QR Code' : 'Exit QR Code'}
               </h2>
+              <h3 style={{ 
+                color: '#4a5568',
+                marginTop: 0,
+                marginBottom: '0.5rem',
+                fontSize: '1.25rem'
+              }}>
+                {qrCodeData.classId}
+              </h3>
               <p style={{ 
                 fontSize: '0.875rem', 
                 color: '#718096', 
@@ -378,69 +525,19 @@ export default function TeacherPage() {
                 borderRadius: '6px',
                 wordBreak: 'break-all'
               }}>
-                {qrCodeData.sessionId}
+                Session: {qrCodeData.sessionId.substring(0, 8)}...
               </p>
               
-              {/* Copy URL Button */}
-              <div style={{ marginBottom: '2rem' }}>
-                <button
-                  onClick={() => {
-                    const baseUrl = typeof window !== 'undefined' 
-                      ? `${window.location.protocol}//${window.location.host}`
-                      : '';
-                    const studentUrl = `${baseUrl}/student?sessionId=${qrCodeData.sessionId}`;
-                    navigator.clipboard.writeText(studentUrl).then(() => {
-                      // Show brief success feedback
-                      const btn = document.getElementById('copy-url-btn');
-                      if (btn) {
-                        const originalText = btn.textContent;
-                        btn.textContent = '✓ Copied!';
-                        setTimeout(() => {
-                          btn.textContent = originalText;
-                        }, 2000);
-                      }
-                    });
-                  }}
-                  id="copy-url-btn"
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#edf2f7',
-                    color: '#4a5568',
-                    border: '1px solid #cbd5e0',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = '#e2e8f0';
-                    e.currentTarget.style.borderColor = '#a0aec0';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = '#edf2f7';
-                    e.currentTarget.style.borderColor = '#cbd5e0';
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                  </svg>
-                  Copy Student URL
-                </button>
-              </div>
               
               <div style={{
                 display: 'inline-block',
                 padding: '1.5rem',
-                backgroundColor: '#f7fafc',
+                backgroundColor: qrCodeData.type === 'ENTRY' ? '#e6ffed' : '#fff5e6',
                 borderRadius: '16px',
-                marginBottom: '1.5rem'
+                marginBottom: '1.5rem',
+                border: `3px solid ${qrCodeData.type === 'ENTRY' ? '#48bb78' : '#ed8936'}`
               }}>
-                <img src={qrCodeData.qrDataUrl} alt="Session QR Code" style={{
+                <img src={qrCodeData.qrDataUrl} alt={`${qrCodeData.type} QR Code`} style={{
                   display: 'block',
                   borderRadius: '8px'
                 }} />
@@ -451,7 +548,9 @@ export default function TeacherPage() {
                 margin: '0 0 1.5rem 0',
                 lineHeight: '1.6'
               }}>
-                Students can scan this QR code to join the session
+                {qrCodeData.type === 'ENTRY' 
+                  ? 'Students scan this QR code to mark their entry' 
+                  : 'Students scan this QR code to mark their exit'}
               </p>
               <button
                 onClick={handleCloseQRModal}
@@ -811,7 +910,7 @@ export default function TeacherPage() {
                       onClick={() => setSelectedSessionId(session.sessionId)}
                       style={{
                         flex: '1',
-                        minWidth: '140px',
+                        minWidth: '120px',
                         padding: '0.875rem 1.25rem',
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         color: 'white',
@@ -836,10 +935,10 @@ export default function TeacherPage() {
                     </button>
                     
                     <button
-                      onClick={() => handleShowQR(session)}
+                      onClick={() => handleShowEntryQR(session)}
                       style={{
                         flex: '1',
-                        minWidth: '140px',
+                        minWidth: '120px',
                         padding: '0.875rem 1.25rem',
                         backgroundColor: '#48bb78',
                         color: 'white',
@@ -860,7 +959,35 @@ export default function TeacherPage() {
                         e.currentTarget.style.boxShadow = '0 4px 12px rgba(72, 187, 120, 0.3)';
                       }}
                     >
-                      📱 QR Code
+                      📥 Entry QR
+                    </button>
+                    
+                    <button
+                      onClick={() => handleShowExitQR(session)}
+                      style={{
+                        flex: '1',
+                        minWidth: '120px',
+                        padding: '0.875rem 1.25rem',
+                        backgroundColor: '#ed8936',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        fontSize: '0.95rem',
+                        fontWeight: '600',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(237, 137, 54, 0.3)'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.02)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(237, 137, 54, 0.4)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(237, 137, 54, 0.3)';
+                      }}
+                    >
+                      📤 Exit QR
                     </button>
                   </div>
                 </div>
@@ -904,7 +1031,7 @@ export default function TeacherPage() {
               fontSize: '3rem',
               marginBottom: '1rem'
             }}>
-              📱
+              {qrCodeData.type === 'ENTRY' ? '📥' : '📤'}
             </div>
             <h2 style={{ 
               color: '#2d3748',
@@ -912,8 +1039,16 @@ export default function TeacherPage() {
               marginBottom: '0.5rem',
               fontSize: '1.75rem'
             }}>
-              {qrCodeData.classId}
+              {qrCodeData.type === 'ENTRY' ? 'Entry QR Code' : 'Exit QR Code'}
             </h2>
+            <h3 style={{ 
+              color: '#4a5568',
+              marginTop: 0,
+              marginBottom: '0.5rem',
+              fontSize: '1.25rem'
+            }}>
+              {qrCodeData.classId}
+            </h3>
             <p style={{ 
               fontSize: '0.875rem', 
               color: '#718096', 
@@ -921,71 +1056,21 @@ export default function TeacherPage() {
               fontFamily: 'monospace',
               backgroundColor: '#f7fafc',
               padding: '0.5rem',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              wordBreak: 'break-all'
             }}>
-              {qrCodeData.sessionId}
+              Session: {qrCodeData.sessionId.substring(0, 8)}...
             </p>
-            
-            {/* Copy URL Button */}
-            <div style={{ marginBottom: '2rem' }}>
-              <button
-                onClick={() => {
-                  const baseUrl = typeof window !== 'undefined' 
-                    ? `${window.location.protocol}//${window.location.host}`
-                    : '';
-                  const studentUrl = `${baseUrl}/student?sessionId=${qrCodeData.sessionId}`;
-                  navigator.clipboard.writeText(studentUrl).then(() => {
-                    // Show brief success feedback
-                    const btn = document.getElementById('copy-url-btn-2');
-                    if (btn) {
-                      const originalText = btn.textContent;
-                      btn.textContent = '✓ Copied!';
-                      setTimeout(() => {
-                        btn.textContent = originalText;
-                      }, 2000);
-                    }
-                  });
-                }}
-                id="copy-url-btn-2"
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#edf2f7',
-                  color: '#4a5568',
-                  border: '1px solid #cbd5e0',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: '500',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 0.2s'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = '#e2e8f0';
-                  e.currentTarget.style.borderColor = '#a0aec0';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = '#edf2f7';
-                  e.currentTarget.style.borderColor = '#cbd5e0';
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                Copy Student URL
-              </button>
-            </div>
             
             <div style={{
               display: 'inline-block',
               padding: '1.5rem',
-              backgroundColor: '#f7fafc',
+              backgroundColor: qrCodeData.type === 'ENTRY' ? '#e6ffed' : '#fff5e6',
               borderRadius: '16px',
-              marginBottom: '1.5rem'
+              marginBottom: '1.5rem',
+              border: `3px solid ${qrCodeData.type === 'ENTRY' ? '#48bb78' : '#ed8936'}`
             }}>
-              <img src={qrCodeData.qrDataUrl} alt="Session QR Code" style={{
+              <img src={qrCodeData.qrDataUrl} alt={`${qrCodeData.type} QR Code`} style={{
                 display: 'block',
                 borderRadius: '8px'
               }} />
@@ -996,7 +1081,9 @@ export default function TeacherPage() {
               margin: '0 0 1.5rem 0',
               lineHeight: '1.6'
             }}>
-              Students can scan this QR code to join the session
+              {qrCodeData.type === 'ENTRY' 
+                ? 'Students scan this QR code to mark their entry' 
+                : 'Students scan this QR code to mark their exit'}
             </p>
             <button
               onClick={handleCloseQRModal}

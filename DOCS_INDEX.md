@@ -15,13 +15,15 @@ Start here if you're new to the project:
 ### Deployment & Operations
 
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - How to deploy to Azure
-- **[Deployment History](DEPLOYMENT_HISTORY.md)** - All fixes, issues, and features
+- **[Deployment Scripts Guide](DEPLOYMENT_SCRIPTS_GUIDE.md)** - All deployment scripts explained
 - **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Pre-deployment verification
+- **[Azure Environment](AZURE_ENVIRONMENT.md)** - Current Azure resources and configuration
 
 ### Development
 
 - **[Local Development Setup](LOCAL_DEVELOPMENT_SETUP.md)** - Set up local environment
 - **[Database Management](DATABASE_MANAGEMENT.md)** - Manage local and production databases
+- **[Database Tables](DATABASE_TABLES.md)** - Database schema and table structure
 - **[Dev Tools](DEV_TOOLS.md)** - Development utilities and scripts
 
 ### User Guides
@@ -68,15 +70,15 @@ Start here if you're new to the project:
 ### For Deployment
 
 1. Review [Deployment Checklist](DEPLOYMENT_CHECKLIST.md)
-2. Follow [Deployment Guide](DEPLOYMENT_GUIDE.md)
-3. Check [Deployment History](DEPLOYMENT_HISTORY.md) for known issues
+2. Choose script from [Deployment Scripts Guide](DEPLOYMENT_SCRIPTS_GUIDE.md)
+3. Follow [Deployment Guide](DEPLOYMENT_GUIDE.md) for detailed steps
 4. Monitor using [Monitoring](docs/MONITORING.md) guide
 
 ### For Troubleshooting
 
-1. Check [Deployment History](DEPLOYMENT_HISTORY.md) for common issues
-2. Review [Alert Response](docs/ALERT_RESPONSE.md) for monitoring alerts
-3. See [Quick Reference](QUICK_REFERENCE.md) for diagnostic commands
+1. Review [Alert Response](docs/ALERT_RESPONSE.md) for monitoring alerts
+2. See [Quick Reference](QUICK_REFERENCE.md) for diagnostic commands
+3. Check [Database Management](DATABASE_MANAGEMENT.md) for database issues
 
 ### For Testing
 
@@ -86,32 +88,23 @@ Start here if you're new to the project:
 
 ## 📝 Document Status
 
-### Active Documents
-
-All documents listed above are current and maintained.
-
-### Archived Documents
-
-Historical documents are in `.archive/old-docs/`:
-- Old deployment fixes (consolidated into DEPLOYMENT_HISTORY.md)
-- Previous authentication implementations
-- Legacy setup guides
+All documents listed above are current and actively maintained.
 
 ## 🔄 Document Updates
 
-**Last Major Update**: February 6, 2026
+**Last Update**: February 6, 2026
 
 **Recent Changes**:
-- Consolidated deployment fixes into DEPLOYMENT_HISTORY.md
-- Updated README with clearer structure
-- Archived outdated fix documents
-- Added CSV export feature documentation
+- Removed outdated history and fix documents
+- Streamlined to current, useful documentation only
+- Added deployment scripts guide
+- Updated database documentation
 
 ## 📞 Getting Help
 
 1. **Check Documentation**: Start with relevant docs above
-2. **Search Issues**: Look in DEPLOYMENT_HISTORY.md for similar problems
-3. **Review Logs**: Use monitoring tools in Azure Portal
+2. **Review Logs**: Use monitoring tools in Azure Portal
+3. **Test Locally**: Follow [Local Development Setup](LOCAL_DEVELOPMENT_SETUP.md)
 4. **Contact Team**: Reach out to development team
 
 ## 🎯 Quick Links by Role
@@ -124,6 +117,7 @@ Historical documents are in `.archive/old-docs/`:
 
 ### DevOps
 - [Deployment Guide](DEPLOYMENT_GUIDE.md)
+- [Deployment Scripts Guide](DEPLOYMENT_SCRIPTS_GUIDE.md)
 - [CI/CD Setup](docs/CICD_SETUP.md)
 - [Monitoring](docs/MONITORING.md)
 - [Alert Response](docs/ALERT_RESPONSE.md)

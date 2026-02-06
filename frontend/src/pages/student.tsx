@@ -32,7 +32,7 @@ export default function StudentPage() {
   const [error, setError] = useState<string | null>(null);
   const [manualSessionId, setManualSessionId] = useState('');
   const [hasAutoJoined, setHasAutoJoined] = useState(false);
-  const { sessionId } = router.query;
+  const { sessionId, type, token } = router.query;
 
   useEffect(() => {
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
@@ -78,11 +78,13 @@ export default function StudentPage() {
   useEffect(() => {
     if (user && sessionId && typeof sessionId === 'string' && !hasAutoJoined && !joining) {
       setHasAutoJoined(true);
-      handleJoinSession(sessionId);
+      const qrType = typeof type === 'string' ? type : undefined;
+      const qrToken = typeof token === 'string' ? token : undefined;
+      handleJoinSession(sessionId, qrType, qrToken);
     }
-  }, [user, sessionId, hasAutoJoined, joining]);
+  }, [user, sessionId, type, token, hasAutoJoined, joining]);
 
-  const handleJoinSession = async (sessionIdToJoin: string) => {
+  const handleJoinSession = async (sessionIdToJoin: string, qrType?: string, qrToken?: string) => {
     if (!user) return;
     
     setJoining(true);
@@ -116,21 +118,58 @@ export default function StudentPage() {
         }
       }
       
-      const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, {
-        method: 'POST',
-        headers
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || 'Failed to join session');
+      // Handle ENTRY or EXIT based on QR type
+      if (qrType === 'ENTRY') {
+        // Mark entry with token validation
+        const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ token: qrToken })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || 'Failed to mark entry');
+        }
+        
+        // Successfully joined - navigate to session view (without token in URL)
+        router.push(`/student?sessionId=${sessionIdToJoin}`);
+        
+      } else if (qrType === 'EXIT') {
+        // Mark exit with token validation
+        const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/exit`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ token: qrToken })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || 'Failed to mark exit');
+        }
+        
+        // Successfully marked exit - show success message and redirect
+        alert('Exit marked successfully! You can now leave.');
+        router.push('/student');
+        
+      } else {
+        // No type specified - just join the session (backward compatibility)
+        const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, {
+          method: 'POST',
+          headers
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || 'Failed to join session');
+        }
+        
+        // Successfully joined - navigate to session view
+        router.push(`/student?sessionId=${sessionIdToJoin}`);
       }
       
-      // Successfully joined - navigate to session view
-      router.push(`/student?sessionId=${sessionIdToJoin}`);
-      
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join session');
+      setError(err instanceof Error ? err.message : 'Failed to process request');
       setHasAutoJoined(false); // Allow retry
     } finally {
       setJoining(false);

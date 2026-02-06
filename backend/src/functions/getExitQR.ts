@@ -1,0 +1,167 @@
+/**
+ * Get Exit QR Code Data - REFACTORED (Self-contained)
+ * Generates encrypted token for exit QR code (no database storage)
+ */
+
+import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { TableClient } from '@azure/data-tables';
+import * as crypto from 'crypto';
+
+// Inline helper functions
+function parseUserPrincipal(header: string): any {
+  try {
+    const decoded = Buffer.from(header, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    throw new Error('Invalid authentication header');
+  }
+}
+
+function getUserId(principal: any): string {
+  return principal.userDetails || principal.userId;
+}
+
+function hasRole(principal: any, role: string): boolean {
+  const email = principal.userDetails || '';
+  const emailLower = email.toLowerCase();
+  
+  if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
+    return true;
+  }
+  
+  if (role.toLowerCase() === 'student' && emailLower.endsWith('@stu.vtc.edu.hk')) {
+    return true;
+  }
+  
+  const roles = principal.userRoles || [];
+  return roles.some((r: string) => r.toLowerCase() === role.toLowerCase());
+}
+
+function getTableClient(tableName: string): TableClient {
+  const connectionString = process.env.AzureWebJobsStorage;
+  if (!connectionString) {
+    throw new Error('AzureWebJobsStorage not configured');
+  }
+  const isLocal = connectionString.includes("127.0.0.1") || connectionString.includes("localhost");
+  return TableClient.fromConnectionString(connectionString, tableName, { allowInsecureConnection: isLocal });
+}
+
+function encryptToken(data: any): string {
+  const secret = process.env.QR_ENCRYPTION_KEY || 'default-secret-key-change-in-production';
+  const algorithm = 'aes-256-cbc';
+  const key = crypto.scryptSync(secret, 'salt', 32);
+  const iv = crypto.randomBytes(16);
+  
+  const cipher = crypto.createCipheriv(algorithm, key, iv);
+  let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  
+  // Return iv + encrypted data
+  return iv.toString('hex') + ':' + encrypted;
+}
+
+export async function getExitQR(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  context.log('Processing GET /api/sessions/{sessionId}/exit-qr request');
+
+  try {
+    // Parse authentication
+    const principalHeader = request.headers.get('x-ms-client-principal');
+    if (!principalHeader) {
+      return {
+        status: 401,
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
+      };
+    }
+
+    const principal = parseUserPrincipal(principalHeader);
+    
+    // Require Teacher role
+    if (!hasRole(principal, 'Teacher')) {
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+      };
+    }
+
+    const teacherId = getUserId(principal);
+    const sessionId = request.params.sessionId;
+    
+    if (!sessionId) {
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', timestamp: Date.now() } }
+      };
+    }
+
+    // Verify session exists and teacher owns it
+    const sessionsTable = getTableClient('Sessions');
+    let session: any;
+    
+    try {
+      session = await sessionsTable.getEntity('SESSION', sessionId);
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        return {
+          status: 404,
+          jsonBody: { error: { code: 'NOT_FOUND', message: 'Session not found', timestamp: Date.now() } }
+        };
+      }
+      throw error;
+    }
+
+    // Verify ownership
+    if (session.teacherId !== teacherId) {
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not own this session', timestamp: Date.now() } }
+      };
+    }
+
+    // Create encrypted token with timestamp (valid for 60 seconds)
+    const now = Math.floor(Date.now() / 1000);
+    const tokenData = {
+      sessionId,
+      type: 'EXIT',
+      timestamp: now,
+      expiresAt: now + 60 // 60 seconds validity
+    };
+    
+    const encryptedToken = encryptToken(tokenData);
+
+    return {
+      status: 200,
+      jsonBody: {
+        sessionId,
+        type: 'EXIT',
+        token: encryptedToken,
+        expiresAt: tokenData.expiresAt,
+        refreshInterval: 30000 // Refresh every 30 seconds
+      }
+    };
+
+  } catch (error: any) {
+    context.error('Error generating exit QR:', error);
+    
+    return {
+      status: 500,
+      jsonBody: {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to generate exit QR',
+          details: error.message,
+          timestamp: Date.now()
+        }
+      }
+    };
+  }
+}
+
+app.http('getExitQR', {
+  methods: ['GET'],
+  route: 'sessions/{sessionId}/exit-qr',
+  authLevel: 'anonymous',
+  handler: getExitQR
+});

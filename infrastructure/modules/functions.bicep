@@ -65,7 +65,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
     httpsOnly: true
     clientAffinityEnabled: false
     siteConfig: {
-      linuxFxVersion: 'NODE|22'
+      linuxFxVersion: 'NODE|20'
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
@@ -89,7 +89,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         }
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~22'
+          value: '~20'
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -139,6 +139,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'AOAI_DEPLOYMENT'
           value: ''
+        }
+        {
+          name: 'QR_ENCRYPTION_KEY'
+          value: uniqueString(resourceGroup().id, functionAppName, 'qr-encryption')
         }
       ]
       cors: {
