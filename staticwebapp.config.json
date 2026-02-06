@@ -2,108 +2,8 @@
   "$schema": "https://json.schemastore.org/staticwebapp.config.json",
   "routes": [
     {
-      "route": "/api/sessions",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/seed-entry",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/reseed-entry",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/end",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/start-exit-chain",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/reseed-exit",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/start-early-leave",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/stop-early-leave",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/late-qr",
-      "methods": ["GET"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/early-qr",
-      "methods": ["GET"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/attendance",
-      "methods": ["GET"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*/dashboard/negotiate",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/sessions/*",
-      "methods": ["GET"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/scan/chain",
-      "methods": ["POST"],
-      "allowedRoles": ["student"]
-    },
-    {
-      "route": "/api/scan/late-entry",
-      "methods": ["POST"],
-      "allowedRoles": ["student"]
-    },
-    {
-      "route": "/api/scan/early-leave",
-      "methods": ["POST"],
-      "allowedRoles": ["student"]
-    },
-    {
-      "route": "/api/scan/exit-chain",
-      "methods": ["POST"],
-      "allowedRoles": ["student"]
-    },
-    {
-      "route": "/api/sessions/*/join",
-      "methods": ["POST"],
-      "allowedRoles": ["student"]
-    },
-    {
-      "route": "/api/ai/session-summary",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/ai/stall-advice",
-      "methods": ["POST"],
-      "allowedRoles": ["teacher"]
-    },
-    {
-      "route": "/api/*",
-      "allowedRoles": ["authenticated"]
+      "route": "/*",
+      "allowedRoles": ["anonymous", "authenticated"]
     }
   ],
   "navigationFallback": {
@@ -145,7 +45,10 @@
     "X-Frame-Options": "DENY",
     "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(self), geolocation=(self), microphone=()"
+    "Permissions-Policy": "camera=(self), geolocation=(self), microphone=()",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0"
   },
   "mimeTypes": {
     ".json": "application/json",

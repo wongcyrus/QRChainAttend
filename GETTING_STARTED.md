@@ -1,180 +1,167 @@
-# Getting Started with QR Chain Attendance
+# Getting Started
 
-Quick guide to get the system running locally.
+Quick guide to get the QR Chain Attendance System running locally.
 
 ## Prerequisites
 
-- Node.js 18+ installed
-- npm or yarn
-- Git
+- **Node.js 20+**: [Download](https://nodejs.org/)
+- **Azure Functions Core Tools**: `npm install -g azure-functions-core-tools@4`
+- **Azurite**: For local storage emulation
 
-## Quick Start (3 Steps)
+## Installation
 
 ### 1. Clone and Install
-```bash
-git clone <repository-url>
-cd QRChainAttend
-npm install
-```
-
-### 2. Start Development Servers
-```bash
-./dev-tools.sh start
-```
-
-This starts:
-- Backend on http://localhost:7071/api
-- Frontend on http://localhost:3002
-
-### 3. Open Browser
-Go to: http://localhost:3002/dev-config
-
-## First Time Usage
-
-### Login as Teacher
-1. Go to http://localhost:3002/dev-config
-2. Enter email: `teacher@vtc.edu.hk`
-3. Click "Login"
-4. Click "Teacher Dashboard"
-
-### Create a Session
-1. Fill in the form:
-   - Class ID: `CS101`
-   - Start time: (current time)
-   - End time: (1 hour later)
-   - Late cutoff: `15` minutes
-2. Click "Create Session"
-3. Note the session ID or QR code
-
-### Login as Students
-1. Open new browser tabs (2-3 tabs)
-2. Go to http://localhost:3002/dev-config in each
-3. Enter emails:
-   - `student1@stu.vtc.edu.hk`
-   - `student2@stu.vtc.edu.hk`
-   - `student3@stu.vtc.edu.hk`
-4. Click "Student View" in each
-
-### Join Session
-In each student tab:
-1. Enter the session ID from teacher
-2. Click "Join Session"
-3. You should see session information
-
-### Start Attendance
-Back in teacher dashboard:
-1. Scroll to "Chain Management"
-2. Set "Number of chains" to 2 or 3
-3. Click "Seed Entry Chains"
-4. Success message shows which students are holders
-
-### See QR Codes
-In student tabs:
-- Wait 5 seconds for automatic refresh
-- Holders will see yellow box with QR code
-- Message: "🎯 You are the Chain Holder!"
-- Non-holders see instructions
-
-## Development Tools
-
-All commands use `./dev-tools.sh`:
 
 ```bash
-./dev-tools.sh start      # Start servers
-./dev-tools.sh stop       # Stop servers
-./dev-tools.sh restart    # Restart servers
-./dev-tools.sh reset-db   # Clear database
-./dev-tools.sh status     # Check status
-./dev-tools.sh logs       # View logs
+# Install all dependencies
+npm run install:all
 ```
 
-See [DEV_TOOLS.md](DEV_TOOLS.md) for details.
+This installs dependencies for:
+- Root workspace
+- Frontend (Next.js)
+- Backend (Azure Functions)
+
+### 2. Start Azurite (Local Storage)
+
+```bash
+# In a separate terminal
+npx azurite --silent --location azurite --debug azurite/debug.log
+```
+
+Or use the dev tools script:
+```bash
+./dev-tools.sh
+# Select option 1: Start Azurite
+```
+
+### 3. Initialize Local Database
+
+```bash
+./scripts/init-tables.sh
+```
+
+This creates the required tables:
+- Sessions
+- Attendance
+- Chains
+- Tokens
+- ScanLogs
+
+### 4. Start Development Servers
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+npm start
+```
+Backend runs on: http://localhost:7071
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+Frontend runs on: http://localhost:3000
+
+## First Use
+
+1. Visit http://localhost:3000
+2. Click "Login" (uses mock authentication in local dev)
+3. Choose a role:
+   - Teacher: Create and manage sessions
+   - Student: Join sessions and scan QR codes
+
+## Configuration
+
+### Frontend (`frontend/.env.local`)
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:7071/api
+NEXT_PUBLIC_ENVIRONMENT=local
+```
+
+### Backend (`backend/local.settings.json`)
+```json
+{
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "SIGNALR_CONNECTION_STRING": "dummy",
+    "CHAIN_TOKEN_TTL_SECONDS": "20"
+  }
+}
+```
+
+## Testing the Flow
+
+### As a Teacher
+
+1. Login and go to Teacher Dashboard
+2. Click "Create New Session"
+3. Fill in session details
+4. Click "Seed Entry Chains" to start
+5. Students can now join
+
+### As a Student
+
+1. Login (use a different browser/incognito)
+2. Go to Student View
+3. Enter the session ID
+4. Scan QR codes when you become the chain holder
 
 ## Common Issues
 
-### Servers won't start
-```bash
-./dev-tools.sh stop
-./dev-tools.sh start
-```
+### Backend won't start
+- **Check**: Is Azurite running?
+- **Fix**: Start Azurite first
+
+### Frontend can't connect to backend
+- **Check**: Is backend running on port 7071?
+- **Fix**: Restart backend with `npm start`
+
+### Tables don't exist
+- **Fix**: Run `./scripts/init-tables.sh`
 
 ### Port already in use
-```bash
-# Check what's using the ports
-lsof -i :7071  # Backend
-lsof -i :3002  # Frontend
-
-# Kill processes
-./dev-tools.sh stop
-```
-
-### Database has old data
-```bash
-./dev-tools.sh reset-db
-./dev-tools.sh restart
-```
-
-### Student view keeps reloading
-This was fixed. Make sure you have the latest code:
-```bash
-git pull
-npm install
-./dev-tools.sh restart
-```
+- **Frontend**: Change port in `package.json` dev script
+- **Backend**: Change port in `backend/local.settings.json`
 
 ## Next Steps
 
-- [QR Chain Flow](QR_CHAIN_FLOW.md) - Understand how attendance works
-- [Login Guide](LOGIN_GUIDE.md) - Authentication details
-- [Development Tools](DEV_TOOLS.md) - All dev-tools commands
-- [Local Development](LOCAL_DEVELOPMENT_SETUP.md) - Full setup guide
+- [QR Chain Flow](QR_CHAIN_FLOW.md) - Understand how the system works
+- [Test Flow](TEST_FLOW.md) - Testing guide
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Deploy to Azure
+- [Quick Reference](QUICK_REFERENCE.md) - Common commands
 
-## Project Structure
+## Development Tools
 
-```
-├── backend/              # Azure Functions API
-│   ├── src/functions/    # API endpoints
-│   └── local.settings.json
-├── frontend/             # Next.js web app
-│   ├── src/pages/        # Routes
-│   ├── src/components/   # React components
-│   └── .env.local
-├── dev-tools.sh          # Main development tool
-└── README.md
+Use the dev tools script for common tasks:
+```bash
+./dev-tools.sh
 ```
 
-## URLs
+Options:
+1. Start Azurite
+2. Stop Azurite
+3. Reset local database
+4. View logs
+5. Run tests
 
-- Frontend: http://localhost:3002
-- Backend API: http://localhost:7071/api
-- Dev Login: http://localhost:3002/dev-config
-- Teacher Dashboard: http://localhost:3002/teacher
-- Student View: http://localhost:3002/student
+## Useful Commands
 
-## Environment Files
+```bash
+# Reset local database
+./scripts/reset-local-db.sh
 
-### Backend: `backend/local.settings.json`
-Already configured for local development with Azurite.
+# View backend logs
+cd backend && npm start
 
-### Frontend: `frontend/.env.local`
-```env
-NEXT_PUBLIC_ENVIRONMENT=local
-NEXT_PUBLIC_API_URL=http://localhost:7071/api
+# Run tests
+npm test
+
+# Lint code
+npm run lint
 ```
 
-These files are already set up for local development.
+---
 
-## Testing the Complete Flow
-
-1. **Start**: `./dev-tools.sh start`
-2. **Teacher**: Login → Create session → Seed chains
-3. **Students**: Login → Join session → Wait for QR codes
-4. **Verify**: Holders see QR codes, teacher sees attendance
-5. **Reset**: `./dev-tools.sh reset-db` when done
-
-## Help
-
-- Check status: `./dev-tools.sh status`
-- View logs: `./dev-tools.sh logs`
-- Live logs: `tail -f backend.log` or `tail -f frontend.log`
-- Documentation: [DOCS_INDEX.md](DOCS_INDEX.md)
+**Need help?** Check the [docs/](docs/) folder for detailed documentation.

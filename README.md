@@ -6,179 +6,114 @@ Anti-cheat classroom attendance system using peer-to-peer QR code verification.
 
 ### Local Development
 ```bash
-# Start everything
-./dev-tools.sh start
+# Install dependencies
+npm run install:all
 
-# Open browser
-# Frontend: http://localhost:3002
-# Login: http://localhost:3002/dev-config
+# Start development servers
+npm run dev:frontend  # Frontend on http://localhost:3000
+npm run dev:backend   # Backend on http://localhost:7071
 ```
 
-**New to the project?** See [GETTING_STARTED.md](GETTING_STARTED.md)
-
-### Deploy to Azure
-```bash
-# See complete deployment guide
-cat DEPLOYMENT_GUIDE.md
-```
-
-## 🛠️ Development Tools
-
-One script for all development tasks:
-
-```bash
-./dev-tools.sh start      # Start backend + frontend
-./dev-tools.sh stop       # Stop all servers
-./dev-tools.sh restart    # Restart everything
-./dev-tools.sh reset-db   # Clear local database
-./dev-tools.sh status     # Check what's running
-./dev-tools.sh logs       # View recent logs
-./dev-tools.sh help       # Show all commands
-```
-
-📖 **Full guide**: [DEV_TOOLS.md](DEV_TOOLS.md)
+### Production
+- **Frontend**: https://red-grass-0f8bc910f.4.azurestaticapps.net
+- **Backend**: https://func-qrattendance-dev.azurewebsites.net/api
 
 ## 📚 Documentation
 
-### Getting Started
-- [Getting Started](GETTING_STARTED.md) - First time setup
-- [Development Tools](DEV_TOOLS.md) - Using dev-tools.sh
-- [Local Development](LOCAL_DEVELOPMENT_SETUP.md) - Full dev environment
+- [Getting Started](GETTING_STARTED.md) - Setup and first steps
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Deploy to Azure
+- [Database Management](DATABASE_MANAGEMENT.md) - Manage local and production databases
+- [Backend Deployment Fix](BACKEND_DEPLOYMENT_FIX.md) - Fix deployment issues
+- [Quick Reference](QUICK_REFERENCE.md) - Common commands and tasks
 
-### User Guides
-- [Login Guide](LOGIN_GUIDE.md) - How to login (teacher/student)
-- [QR Chain Flow](QR_CHAIN_FLOW.md) - How attendance works
-- [Seed Entry](SEED_ENTRY_IMPLEMENTATION.md) - Starting attendance chains
-
-### Technical
-- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Azure deployment
-- [Authentication](AUTHENTICATION_SETUP_COMPLETE.md) - Azure AD config
-- [Backend Architecture](docs/BACKEND_ARCHITECTURE.md) - API design
-- [Frontend Architecture](docs/FRONTEND_ARCHITECTURE.md) - UI components
-- [Security](SECURITY.md) - Security features
-
-### Reference
-- [Documentation Index](DOCS_INDEX.md) - All documentation
-- [Project Status](PROJECT_STATUS.md) - Implementation status
+### Detailed Documentation
+- [docs/](docs/) - Architecture, monitoring, and technical details
+- [QR Chain Flow](QR_CHAIN_FLOW.md) - How the QR chain system works
+- [Test Flow](TEST_FLOW.md) - Testing guide
+- [Security](SECURITY.md) - Security considerations
 
 ## 🏗️ Architecture
 
+### Frontend (Next.js)
+- Static site hosted on Azure Static Web Apps
+- Progressive Web App (PWA) with offline support
+- Real-time updates via SignalR
+
+### Backend (Azure Functions)
+- 29 serverless functions
+- Node.js 20 runtime
+- Azure Table Storage for data
+- SignalR for real-time communication
+
+## 🔐 Authentication
+
+- **Azure AD** with multi-tenant support
+- **Role-based access**: Teacher / Student
+- **Email-based roles**:
+  - `@vtc.edu.hk` → Teacher
+  - `@stu.vtc.edu.hk` → Student
+  - `cyruswong@outlook.com` → Teacher (testing)
+
+## 🛠️ Development
+
+### Prerequisites
+- Node.js 20+
+- Azure Functions Core Tools
+- Azurite (local storage emulator)
+
+### Project Structure
 ```
-Frontend (Next.js PWA) → Backend (Azure Functions) → Azure Storage
-                      ↓
-                  SignalR (Real-time)
-                      ↓
-              Azure AD (Authentication)
+├── frontend/          # Next.js frontend
+├── backend/           # Azure Functions backend
+├── docs/              # Documentation
+└── scripts/           # Utility scripts
 ```
 
-## ✨ Features
-
-- 🔐 Azure AD authentication with role-based access
-- 📱 Progressive Web App (offline support)
-- 🔄 Real-time updates via SignalR
-- 🎯 Anti-cheat QR chain verification
-- 📊 Teacher dashboard with live attendance
-- 👥 Student session enrollment
-- 📱 Phone camera QR scanning (external app)
-
-## 🎯 How It Works
-
-### Teacher Flow
-1. Login at `/dev-config` (local) or Azure AD (production)
-2. Create session with class ID and times
-3. Click "Seed Entry Chains" to start attendance
-4. Monitor real-time attendance in dashboard
-
-### Student Flow
-1. Scan teacher's session QR code with phone camera
-2. Browser opens, redirects to login if needed
-3. Auto-joins session after login
-4. When becoming chain holder, QR code appears
-5. Other students scan holder's QR code
-6. Chain continues until all students marked
-
-📖 **Full flow**: [QR_CHAIN_FLOW.md](QR_CHAIN_FLOW.md)
-
-## 🧪 Testing Locally
-
+### Common Commands
 ```bash
-# 1. Start servers
-./dev-tools.sh start
+# Development
+npm run dev:frontend
+npm run dev:backend
 
-# 2. Login as teacher
-# Go to: http://localhost:3002/dev-config
-# Email: teacher@vtc.edu.hk
+# Build
+npm run build:frontend
+npm run build:backend
 
-# 3. Create session
-# Click "Teacher Dashboard" → "Create Session"
+# Deploy
+cd backend && ./deploy.sh
+cd frontend && npm run build && swa deploy
 
-# 4. Login as students (in new tabs)
-# Go to: http://localhost:3002/dev-config
-# Email: student1@stu.vtc.edu.hk
-
-# 5. Join session
-# Copy session ID from teacher's QR code
-
-# 6. Seed entry chains
-# In teacher dashboard, click "Seed Entry Chains"
-
-# 7. Watch QR codes appear
-# Holders will see their QR codes after ~5 seconds
+# Database
+./scripts/reset-local-db.sh
+./scripts/reset-production-db.sh
 ```
 
-## 🗑️ Reset Database
+## 📊 Features
 
-```bash
-# Clear all local data and start fresh
-./dev-tools.sh reset-db
-./dev-tools.sh restart
-```
+- ✅ QR chain attendance (entry/exit)
+- ✅ Late entry tracking
+- ✅ Early leave tracking
+- ✅ Real-time student status
+- ✅ Chain holder identification
+- ✅ Session management
+- ✅ Attendance export
+- ✅ Offline support (PWA)
 
-## 📖 Common Tasks
+## 🔧 Configuration
 
-### View Logs
-```bash
-./dev-tools.sh logs           # Recent logs
-tail -f backend.log           # Live backend logs
-tail -f frontend.log          # Live frontend logs
-```
+### Local Development
+- Frontend: `frontend/.env.local`
+- Backend: `backend/local.settings.json`
 
-### Check Status
-```bash
-./dev-tools.sh status         # See what's running
-```
-
-### Troubleshooting
-```bash
-# Servers won't start?
-./dev-tools.sh stop
-./dev-tools.sh start
-
-# Database issues?
-./dev-tools.sh reset-db
-./dev-tools.sh restart
-
-# Port conflicts?
-lsof -i :7071                 # Check backend port
-lsof -i :3002                 # Check frontend port
-```
-
-## 🛠️ Tech Stack
-
-- **Frontend**: React, Next.js 14, TypeScript
-- **Backend**: Azure Functions, Node.js, TypeScript
-- **Storage**: Azure Table Storage (Azurite for local)
-- **Real-time**: Azure SignalR Service
-- **Auth**: Microsoft Entra ID (Azure AD)
-- **Hosting**: Azure Static Web Apps
-
-## 🤝 Contributing
-
-1. Read [SECURITY.md](SECURITY.md) first
-2. Follow [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) guidelines
-3. Run tests before committing
-4. Never commit secrets
+### Production
+- Azure Static Web App settings
+- Azure Function App settings
+- See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
 
 ## 📝 License
 
 MIT
+
+## 👥 Support
+
+For issues and questions, see the documentation in the `docs/` folder.

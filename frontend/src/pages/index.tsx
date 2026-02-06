@@ -20,6 +20,12 @@ function getRolesFromEmail(email: string): string[] {
   
   const emailLower = email.toLowerCase();
   
+  // Special case: cyruswong@outlook.com is a teacher (for testing)
+  if (emailLower === 'cyruswong@outlook.com') {
+    roles.push('teacher');
+    return roles;
+  }
+  
   if (emailLower.endsWith('@stu.vtc.edu.hk')) {
     roles.push('student');
   } else if (emailLower.endsWith('@vtc.edu.hk')) {
@@ -49,7 +55,8 @@ export default function Home() {
       .then(data => {
         if (data.clientPrincipal) {
           const email = data.clientPrincipal.userDetails || '';
-          const roles = data.clientPrincipal.userRoles || getRolesFromEmail(email);
+          // Always compute roles from email, ignore Azure AD roles
+          const roles = getRolesFromEmail(email);
           
           setUser({
             userId: data.clientPrincipal.userId,
@@ -81,7 +88,8 @@ export default function Home() {
           .then(data => {
             if (data.clientPrincipal) {
               const email = data.clientPrincipal.userDetails || '';
-              const roles = data.clientPrincipal.userRoles || getRolesFromEmail(email);
+              // Always compute roles from email, ignore Azure AD roles
+              const roles = getRolesFromEmail(email);
               
               setUser({
                 userId: data.clientPrincipal.userId,

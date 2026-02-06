@@ -5,6 +5,23 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
+// Assign roles based on email domain
+function getRolesFromEmail(email: string): string[] {
+  const roles: string[] = ['authenticated'];
+  
+  if (!email) return roles;
+  
+  const emailLower = email.toLowerCase();
+  
+  if (emailLower.endsWith('@stu.vtc.edu.hk')) {
+    roles.push('student');
+  } else if (emailLower.endsWith('@vtc.edu.hk')) {
+    roles.push('teacher');
+  }
+  
+  return roles;
+}
+
 export async function getUserRoles(
   request: HttpRequest,
   context: InvocationContext
@@ -24,13 +41,17 @@ export async function getUserRoles(
     // Decode the principal
     const principal = JSON.parse(Buffer.from(principalHeader, 'base64').toString('utf-8'));
     
+    // Compute roles from email domain
+    const email = principal.userDetails || '';
+    const roles = getRolesFromEmail(email);
+    
     return {
       status: 200,
       jsonBody: {
         userId: principal.userId,
-        userDetails: principal.userDetails,
+        userDetails: email,
         identityProvider: principal.identityProvider,
-        userRoles: principal.userRoles || [],
+        userRoles: roles,
         claims: principal.claims || []
       }
     };

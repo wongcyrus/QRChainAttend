@@ -25,6 +25,13 @@ function getRolesFromEmail(email: string): string[] {
   const roles: string[] = ['authenticated'];
   if (!email) return roles;
   const emailLower = email.toLowerCase();
+  
+  // Special case: cyruswong@outlook.com is a teacher (for testing)
+  if (emailLower === 'cyruswong@outlook.com') {
+    roles.push('teacher');
+    return roles;
+  }
+  
   if (emailLower.endsWith('@stu.vtc.edu.hk')) {
     roles.push('student');
   } else if (emailLower.endsWith('@vtc.edu.hk')) {
@@ -92,25 +99,37 @@ export default function TeacherPage() {
 
   const loadSessions = async () => {
     try {
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      // Create mock auth header for local development
+      // Get fresh auth info
+      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
+      const authData = await authResponse.json();
+      
+      if (!authData.clientPrincipal) {
+        console.error('Not authenticated');
+        return;
+      }
+      
+      // Create headers with authentication
       const headers: HeadersInit = {
         'Content-Type': 'application/json'
       };
       
-      // Add mock authentication header
-      const mockPrincipal = {
-        userId: user?.userId,
-        userDetails: user?.userDetails,
-        userRoles: user?.userRoles,
-        identityProvider: 'aad'
+      // Create principal header for backend
+      const principal = {
+        userId: authData.clientPrincipal.userId,
+        userDetails: authData.clientPrincipal.userDetails,
+        userRoles: getRolesFromEmail(authData.clientPrincipal.userDetails),
+        identityProvider: authData.clientPrincipal.identityProvider || 'aad'
       };
-      headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(principal)).toString('base64');
       
       // Use email (userDetails) as teacher ID, not the generated userId
-      const teacherId = user?.userDetails || user?.userId;
-      const response = await fetch(`${apiUrl}/sessions/teacher/${teacherId}`, {
+      const teacherId = authData.clientPrincipal.userDetails || authData.clientPrincipal.userId || '';
+      // Use query parameter instead of path parameter to avoid URL encoding issues
+      const response = await fetch(`${apiUrl}/sessions/teacher?teacherId=${encodeURIComponent(teacherId)}`, {
         headers
       });
       
@@ -121,7 +140,11 @@ export default function TeacherPage() {
         // No sessions found - this is okay
         setSessions([]);
       } else {
-        console.error('Failed to load sessions:', response.status);
+        // Log the full error response for debugging
+        const errorText = await response.text();
+        console.error('Failed to load sessions:', response.status, errorText);
+        console.error('Request URL:', `${apiUrl}/sessions/teacher?teacherId=${encodeURIComponent(teacherId)}`);
+        console.error('Request headers:', headers);
         setSessions([]);
       }
     } catch (err) {

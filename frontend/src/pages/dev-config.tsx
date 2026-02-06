@@ -36,6 +36,7 @@ export default function DevConfig() {
     setIsLocal(local);
     
     if (!local) {
+      // Redirect to home in production
       router.push('/');
     }
   }, [router]);
