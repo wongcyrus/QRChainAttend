@@ -85,6 +85,7 @@ interface AttendanceRecord {
   exitVerifiedAt?: number;
   earlyLeaveAt?: number;
   finalStatus?: FinalStatus;
+  joinedAt?: number;
 }
 
 interface Chain {
@@ -465,6 +466,14 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
   };
 
   /**
+   * Format student ID by removing @stu.vtc.edu.hk domain
+   */
+  const formatStudentId = (studentId: string): string => {
+    if (!studentId) return 'Unknown';
+    return studentId.replace('@stu.vtc.edu.hk', '');
+  };
+
+  /**
    * Get status badge class
    */
   const getStatusBadgeClass = (record: AttendanceRecord): string => {
@@ -810,6 +819,13 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                     fontWeight: '600',
                     color: '#4a5568',
                     borderBottom: '2px solid #e2e8f0'
+                  }}>Join Time</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
                   }}>Online</th>
                   <th style={{ 
                     padding: '1rem',
@@ -865,7 +881,10 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     <td style={{ padding: '1rem', color: '#2d3748', fontWeight: '500' }}>
-                      {record.studentId || 'Unknown'}
+                      {formatStudentId(record.studentId)}
+                    </td>
+                    <td style={{ padding: '1rem', color: '#718096', textAlign: 'center' }}>
+                      {formatTimestamp(record.joinedAt)}
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                       <span style={{

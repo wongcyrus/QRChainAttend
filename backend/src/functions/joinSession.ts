@@ -116,11 +116,12 @@ export async function joinSession(
       };
     } catch (error: any) {
       if (error.statusCode === 404) {
-        // Create new enrollment
+        // Create new enrollment with join timestamp
         const entity = {
           partitionKey: sessionId,
           rowKey: studentId,
-          exitVerified: false
+          exitVerified: false,
+          joinedAt: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
         };
         
         await attendanceTable.createEntity(entity);

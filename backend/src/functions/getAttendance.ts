@@ -120,7 +120,9 @@ export async function getAttendance(
         exitVerified: entity.exitVerified,
         exitVerifiedAt: entity.exitVerifiedAt,
         earlyLeaveAt: entity.earlyLeaveAt,
-        finalStatus: entity.finalStatus
+        finalStatus: entity.finalStatus,
+        // Use joinedAt if available, otherwise fall back to Timestamp (for existing records)
+        joinedAt: entity.joinedAt || (entity.timestamp ? Math.floor(new Date(entity.timestamp).getTime() / 1000) : undefined)
       });
     }
 

@@ -39,6 +39,7 @@ interface AttendanceRecord {
   exitVerifiedAt?: number;
   earlyLeaveAt?: number;
   finalStatus?: FinalStatus;
+  joinedAt?: number;
 }
 
 interface EndSessionResponse {
@@ -237,9 +238,16 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
 
       const data: AttendanceResponse = await response.json();
 
+      // Helper function to format student ID
+      const formatStudentId = (studentId: string): string => {
+        if (!studentId) return '';
+        return studentId.replace('@stu.vtc.edu.hk', '');
+      };
+
       // Convert to CSV format
       const csvHeaders = [
         'Student ID',
+        'Join Time',
         'Entry Status',
         'Entry Time',
         'Exit Verified',
@@ -249,7 +257,8 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
       ];
 
       const rows = data.attendance.map(record => [
-        record.studentId || '',
+        formatStudentId(record.studentId),
+        record.joinedAt ? new Date(record.joinedAt * 1000).toLocaleString() : '',
         record.entryStatus || '',
         record.entryAt ? new Date(record.entryAt * 1000).toLocaleString() : '',
         record.exitVerified ? 'Yes' : 'No',
@@ -451,6 +460,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
               <thead>
                 <tr>
                   <th>Student ID</th>
+                  <th>Join Time</th>
                   <th>Final Status</th>
                   <th>Entry Status</th>
                   <th>Entry Time</th>
@@ -462,7 +472,8 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
               <tbody>
                 {finalAttendance.map(record => (
                   <tr key={record.studentId}>
-                    <td className="student-id">{record.studentId}</td>
+                    <td className="student-id">{record.studentId.replace('@stu.vtc.edu.hk', '')}</td>
+                    <td>{formatTimestamp(record.joinedAt)}</td>
                     <td>
                       <span className={`status-badge ${getStatusBadgeClass(record.finalStatus)}`}>
                         {record.finalStatus || 'N/A'}

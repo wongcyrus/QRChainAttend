@@ -148,7 +148,9 @@ export async function getSession(
       
       attendance.push({
         ...record,
-        isOnline: isRecentlyActive // Only use timestamp, ignore the isOnline flag
+        isOnline: isRecentlyActive, // Only use timestamp, ignore the isOnline flag
+        // Use joinedAt if available, otherwise fall back to Timestamp (for existing records)
+        joinedAt: record.joinedAt || (record.timestamp ? Math.floor(new Date(record.timestamp).getTime() / 1000) : undefined)
       } as unknown as AttendanceRecord);
     }
 
