@@ -139,8 +139,16 @@
         
         <div style="margin-top: 32px;">
             <a href="/" class="button">Go to Home</a>
-            <a href="/.auth/logout" class="button button-secondary">Sign Out</a>
+            <a href="javascript:void(0)" onclick="handleSignOut()" class="button button-secondary">Sign Out & Switch Account</a>
         </div>
+        
+        <script>
+        function handleSignOut() {
+            // Clear Microsoft session first, then Azure Static Web Apps session
+            window.location.href = 'https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=' + 
+                encodeURIComponent(window.location.origin + '/.auth/login/aad?prompt=select_account');
+        }
+        </script>
         
         <p style="margin-top: 32px; font-size: 14px; color: #718096;">
             If you believe this is an error, please contact your system administrator.

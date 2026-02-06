@@ -110,12 +110,13 @@ export default function Home() {
 
   const handleLogout = () => {
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-    // For production, add post_logout_redirect_uri to ensure clean logout
     if (isLocal) {
       window.location.href = '/api/auth/logout';
     } else {
-      // Logout from Static Web App and redirect to home
-      window.location.href = '/.auth/logout?post_logout_redirect_uri=/';
+      // Method 1: Purge user data from Azure Static Web Apps first, then logout
+      // This ensures the Microsoft session is also cleared
+      window.location.href = 'https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=' + 
+        encodeURIComponent(window.location.origin + '/.auth/logout?post_logout_redirect_uri=/');
     }
   };
 
@@ -124,8 +125,10 @@ export default function Home() {
     if (isLocal) {
       window.location.href = '/dev-config';
     } else {
-      // Logout and redirect to login with account selection
-      window.location.href = '/.auth/logout?post_logout_redirect_uri=/.auth/login/aad';
+      // Clear Microsoft Entra ID session first, then redirect to login with account picker
+      // This forces the account selection dialog to appear
+      window.location.href = 'https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=' + 
+        encodeURIComponent(window.location.origin + '/.auth/login/aad?prompt=select_account');
     }
   };
 
