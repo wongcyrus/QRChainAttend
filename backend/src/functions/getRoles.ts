@@ -14,12 +14,6 @@ function getRolesFromEmail(email: string): string[] {
   
   const emailLower = email.toLowerCase();
   
-  // Special case: cyruswong@outlook.com is a teacher (for testing)
-  if (emailLower === 'cyruswong@outlook.com') {
-    roles.push('teacher');
-    return roles;
-  }
-  
   // Students: @stu.vtc.edu.hk
   if (emailLower.endsWith('@stu.vtc.edu.hk')) {
     roles.push('student');

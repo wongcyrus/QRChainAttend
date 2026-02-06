@@ -18,6 +18,7 @@ interface Session {
   sessionId: string;
   classId: string;
   startAt: string;
+  endAt?: string;
   status: string;
 }
 
@@ -320,6 +321,60 @@ export default function TeacherPage() {
       setShowQRModal(true);
     } catch (err) {
       setError('Failed to generate exit QR code');
+    }
+  };
+
+  const handleDeleteSession = async (session: Session) => {
+    // Show confirmation dialog
+    const message = `Are you sure you want to delete "${session.classId}"?\n\nThis will delete:\n- ${session.status === 'ENDED' ? 'Historical' : 'Active'} attendance records\n- Session chains\n- Tokens\n- Scan logs\n\nThis action cannot be undone.`;
+    
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Get authentication
+      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
+      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
+      const authData = await authResponse.json();
+      
+      if (!authData.clientPrincipal) {
+        setError('Not authenticated');
+        return;
+      }
+      
+      // Create headers with authentication
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
+      };
+      
+      // Call delete endpoint
+      const response = await fetch(`${apiUrl}/sessions/${session.sessionId}`, {
+        method: 'DELETE',
+        headers
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || 'Failed to delete session');
+      }
+      
+      const data = await response.json();
+      
+      // Show success message
+      const summary = data.details?.deletionSummary;
+      const message = `Session deleted successfully!\n\nDeleted:\n- ${summary.deletedAttendance} attendance records\n- ${summary.deletedChains} chains\n- ${summary.deletedTokens} tokens\n- ${summary.deletedScanLogs} scan logs`;
+      alert(message);
+      
+      // Reload sessions list
+      loadSessions();
+      
+    } catch (err) {
+      setError((err as Error).message || 'Failed to delete session');
     }
   };
 
@@ -855,49 +910,86 @@ export default function TeacherPage() {
                   </div>
 
                   <div style={{ marginBottom: '1.5rem', paddingRight: '120px' }}>
+                    {/* Class Title */}
                     <h3 style={{ 
-                      margin: '0 0 1rem 0',
-                      fontSize: '1.5rem',
+                      margin: '0 0 0.5rem 0',
+                      fontSize: '1.4rem',
                       color: '#2d3748',
                       fontWeight: '700'
                     }}>
                       {session.classId}
                     </h3>
+                    
+                    {/* Session Details */}
                     <div style={{ 
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '0.5rem'
+                      gap: '0.75rem'
                     }}>
+                      {/* Start Time */}
                       <p style={{ 
                         margin: 0, 
                         fontSize: '0.9rem', 
-                        color: '#718096',
+                        color: '#2d3748',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem'
+                        gap: '0.5rem',
+                        fontWeight: '500'
                       }}>
-                        <span>🆔</span>
-                        <span style={{ 
-                          fontFamily: 'monospace',
-                          backgroundColor: '#f7fafc',
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.85rem'
-                        }}>
-                          {session.sessionId.substring(0, 8)}...
-                        </span>
+                        <span>📅</span>
+                        <span>{new Date(session.startAt).toLocaleDateString()}</span>
                       </p>
+
+                      {/* Start & End Time */}
                       <p style={{ 
                         margin: 0, 
                         fontSize: '0.9rem', 
-                        color: '#718096',
+                        color: '#2d3748',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem'
+                        gap: '0.5rem',
+                        fontWeight: '500'
                       }}>
                         <span>🕐</span>
-                        <strong>{new Date(session.startAt).toLocaleString()}</strong>
+                        <span>
+                          {new Date(session.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {session.endAt && (
+                          <>
+                            <span style={{ color: '#a0aec0' }}>→</span>
+                            <span>
+                              {new Date(session.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </>
+                        )}
                       </p>
+
+                      {/* Duration */}
+                      {session.endAt && (
+                        <p style={{ 
+                          margin: 0, 
+                          fontSize: '0.85rem', 
+                          color: '#667eea',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontWeight: '600'
+                        }}>
+                          <span>⏱️</span>
+                          <span>
+                            {(() => {
+                              const start = new Date(session.startAt).getTime();
+                              const end = new Date(session.endAt!).getTime();
+                              const minutes = Math.round((end - start) / 60000);
+                              const hours = Math.floor(minutes / 60);
+                              const mins = minutes % 60;
+                              return hours > 0 
+                                ? `${hours}h ${mins}min` 
+                                : `${mins}min`;
+                            })()}
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </div>
                   
@@ -988,6 +1080,34 @@ export default function TeacherPage() {
                       }}
                     >
                       📤 Exit QR
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteSession(session)}
+                      style={{
+                        flex: '1',
+                        minWidth: '120px',
+                        padding: '0.875rem 1.25rem',
+                        backgroundColor: '#e53e3e',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        fontSize: '0.95rem',
+                        fontWeight: '600',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(229, 62, 62, 0.3)'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.02)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(229, 62, 62, 0.4)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(229, 62, 62, 0.3)';
+                      }}
+                    >
+                      🗑️ Delete
                     </button>
                   </div>
                 </div>

@@ -11,10 +11,13 @@ interface Session {
   partitionKey: string;
   rowKey: string;
   teacherId: string;
-  courseName: string;
+  classId?: string;        // New field name
+  courseName?: string;     // Legacy field name
   status: 'ACTIVE' | 'ENDED';
-  startTime: number;
-  endTime?: number;
+  startAt?: string;        // New field name
+  startTime?: number;      // Legacy field name
+  endAt?: string;          // New field name
+  endTime?: number;        // Legacy field name
   timestamp?: Date;
   etag?: string;
 }
@@ -172,7 +175,11 @@ export async function getTeacherSessions(
     }
 
     // Sort by start time (most recent first)
-    sessions.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
+    sessions.sort((a, b) => {
+      const aTime = a.startTime || (a.startAt ? new Date(a.startAt).getTime() / 1000 : 0);
+      const bTime = b.startTime || (b.startAt ? new Date(b.startAt).getTime() / 1000 : 0);
+      return bTime - aTime;
+    });
 
     // Helper to safely convert timestamp to ISO string
     const toISOString = (timestamp: number | undefined): string | undefined => {
@@ -188,11 +195,11 @@ export async function getTeacherSessions(
     const response = {
       sessions: sessions.map(s => ({
         sessionId: s.rowKey,
-        classId: s.courseName,
+        classId: s.classId || s.courseName,  // Support both field names for backward compatibility
         teacherId: s.teacherId,
         status: s.status,
-        startAt: toISOString(s.startTime) || new Date().toISOString(),
-        endAt: toISOString(s.endTime)
+        startAt: s.startAt || toISOString(s.startTime) || new Date().toISOString(),
+        endAt: s.endAt || toISOString(s.endTime)
       }))
     };
 

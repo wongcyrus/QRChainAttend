@@ -180,6 +180,14 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
       }
       
       const data: CreateSessionResponse = await response.json();
+      
+      // If callback provided, call it immediately and skip success view
+      if (onSessionCreated) {
+        onSessionCreated(data.sessionId);
+        return;
+      }
+      
+      // Otherwise, show success view
       setCreatedSession(data);
       
       const qrDataUrl = await QRCode.toDataURL(data.sessionQR, {

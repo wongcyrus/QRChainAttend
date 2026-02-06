@@ -559,6 +559,44 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
 
   return (
     <div>
+      {/* Session Title and Times Header */}
+      <div style={{
+        backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '2rem',
+        borderRadius: '12px',
+        marginBottom: '1.5rem',
+        color: 'white',
+        boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)'
+      }}>
+        <h1 style={{
+          margin: '0 0 1rem 0',
+          fontSize: '2rem',
+          fontWeight: '700'
+        }}>
+          {session.classId}
+        </h1>
+        <div style={{
+          display: 'flex',
+          gap: '2rem',
+          flexWrap: 'wrap',
+          fontSize: '1rem',
+          opacity: 0.95
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>📅</span>
+            <span>{new Date(session.startAt).toLocaleDateString()}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>🕐</span>
+            <span>
+              {new Date(session.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {' → '}
+              {new Date(session.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Session Status Header */}
       <div style={{
         backgroundColor: 'white',
