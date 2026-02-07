@@ -750,7 +750,11 @@ export default function TeacherPage() {
             </p>
           </div>
           <button 
-            onClick={() => router.push('/')}
+            onClick={() => {
+              setShowCreateForm(false);
+              setShowEditForm(false);
+              setSelectedSessionForEdit(null);
+            }}
             style={{
               padding: '0.75rem 1.5rem',
               backgroundColor: 'white',
@@ -854,7 +858,8 @@ export default function TeacherPage() {
           )}
         </div>
 
-        {/* Active Sessions List */}
+        {/* Active Sessions List - Hidden when creating/editing */}
+        {!showCreateForm && !showEditForm && (
         <div>
           <h2 style={{ 
             color: 'white',
@@ -1201,6 +1206,7 @@ export default function TeacherPage() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* QR Code Modal */}
