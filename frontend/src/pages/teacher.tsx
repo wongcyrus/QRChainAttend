@@ -368,6 +368,7 @@ export default function TeacherPage() {
     }
   };
 
+
   const handleDeleteSession = async (session: Session) => {
     // Check if this is a recurring session
     const isRecurring = (session as any).isRecurring || (session as any).parentSessionId;

@@ -146,7 +146,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
           lineHeight: '1.6'
         }}>
           {type === 'ENTRY' 
-            ? 'Students scan this QR code to mark their entry' 
+            ? 'Students scan this QR code to mark their entry'
             : 'Students scan this QR code to mark their exit'}
         </p>
         <button
