@@ -224,8 +224,8 @@ export default function TeacherPage() {
       }
     };
     
-    // Refresh every 30 seconds
-    const interval = setInterval(refreshQR, 30000);
+    // Refresh every 10 seconds for faster token refresh
+    const interval = setInterval(refreshQR, 10000);
     
     return () => clearInterval(interval);
   }, [showQRModal, qrCodeData?.sessionId, qrCodeData?.type]);

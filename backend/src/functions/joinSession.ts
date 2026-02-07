@@ -139,7 +139,7 @@ export async function joinSession(
           };
         }
         
-        // Check if token is expired (60 seconds validity)
+        // Check if token is expired (20 seconds validity)
         const now = Math.floor(Date.now() / 1000);
         if (tokenData.expiresAt < now) {
           return {

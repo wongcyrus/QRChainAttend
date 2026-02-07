@@ -120,13 +120,13 @@ export async function getEntryQR(
       };
     }
 
-    // Create encrypted token with timestamp (valid for 60 seconds)
+    // Create encrypted token with timestamp (valid for 20 seconds)
     const now = Math.floor(Date.now() / 1000);
     const tokenData = {
       sessionId,
       type: 'ENTRY',
       timestamp: now,
-      expiresAt: now + 60 // 60 seconds validity
+      expiresAt: now + 20 // 20 seconds validity
     };
     
     const encryptedToken = encryptToken(tokenData);
@@ -138,7 +138,7 @@ export async function getEntryQR(
         type: 'ENTRY',
         token: encryptedToken,
         expiresAt: tokenData.expiresAt,
-        refreshInterval: 30000 // Refresh every 30 seconds
+        refreshInterval: 10000 // Refresh every 10 seconds
       }
     };
 
