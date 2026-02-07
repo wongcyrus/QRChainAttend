@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface Session {
   sessionId: string;
@@ -32,18 +32,64 @@ export const SessionsList: React.FC<SessionsListProps> = ({
   onEdit,
   onDelete
 }) => {
+  const [showPastSessions, setShowPastSessions] = useState(false);
+
+  const now = new Date();
+  
+  const upcomingSessions = sessions.filter(session => {
+    const sessionStart = new Date(session.startAt);
+    return sessionStart >= now;
+  });
+
+  const pastSessions = sessions.filter(session => {
+    const sessionStart = new Date(session.startAt);
+    return sessionStart < now;
+  });
+
+  const displaySessions = showPastSessions ? pastSessions : upcomingSessions;
+  const hasUpcoming = upcomingSessions.length > 0;
+  const hasPast = pastSessions.length > 0;
   return (
     <div>
-      <h2 style={{ 
-        color: 'white',
-        fontSize: '1.75rem',
-        marginBottom: '1.5rem',
-        fontWeight: '700',
-        textShadow: '0 2px 8px rgba(0,0,0,0.2)'
-      }}>
-        📋 Your Sessions
-      </h2>
-      {sessions.length === 0 ? (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h2 style={{ 
+          color: 'white',
+          fontSize: '1.75rem',
+          margin: 0,
+          fontWeight: '700',
+          textShadow: '0 2px 8px rgba(0,0,0,0.2)'
+        }}>
+          {showPastSessions ? '📋 Past Sessions' : '📋 Upcoming Sessions'}
+        </h2>
+        {hasPast && (
+          <button
+            onClick={() => setShowPastSessions(!showPastSessions)}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: showPastSessions ? '#667eea' : 'white',
+              color: showPastSessions ? 'white' : '#667eea',
+              border: '2px solid #667eea',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: '600',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'scale(1.02)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.2)';
+            }}
+          >
+            {showPastSessions ? '← Back to Upcoming' : 'Show Past Sessions'}
+          </button>
+        )}
+      </div>
+      {displaySessions.length === 0 ? (
         <div style={{
           padding: '4rem 2rem',
           textAlign: 'center',
@@ -57,14 +103,14 @@ export const SessionsList: React.FC<SessionsListProps> = ({
             fontSize: '1.5rem',
             marginBottom: '0.5rem'
           }}>
-            No sessions yet
+            {showPastSessions ? 'No past sessions' : 'No upcoming sessions'}
           </h3>
           <p style={{ 
             color: '#718096',
             fontSize: '1.1rem',
             margin: 0
           }}>
-            Create your first session to get started!
+            {showPastSessions ? 'All sessions have been completed or cancelled.' : 'Create your first session to get started!'}
           </p>
         </div>
       ) : (
@@ -73,7 +119,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
           gap: '1.5rem',
           gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))'
         }}>
-          {sessions.map(session => (
+          {displaySessions.map(session => (
             <div
               key={session.sessionId}
               style={{
