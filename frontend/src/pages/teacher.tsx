@@ -238,6 +238,7 @@ export default function TeacherPage() {
     const interval = setInterval(refreshQR, 10000);
     
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showQRModal, qrCodeData?.sessionId, qrCodeData?.type]);
 
   const handleShowEntryQR = async (session: Session) => {

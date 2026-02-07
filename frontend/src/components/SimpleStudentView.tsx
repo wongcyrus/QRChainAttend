@@ -43,6 +43,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
   const [scanMessage, setScanMessage] = useState<string | null>(null);
 
   // Check URL parameters for scan simulation (when clicking QR URL in dev mode)
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const chainId = urlParams.get('chainId');
@@ -207,11 +208,13 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
   };
 
   // Initial load
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchData();
   }, [sessionId, studentId]);
 
   // Setup SignalR connection
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
     
@@ -383,6 +386,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
   }, [status.isHolder, status.holderTokenUrl]);
 
   // Countdown timer for token expiration
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (!status.isHolder || !status.tokenExpiresAt) {
       setTimeRemaining(0);
@@ -623,6 +627,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
               backgroundColor: 'white',
               borderRadius: '8px'
             }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qrCodeUrl} alt="Your chain QR code" />
             </div>
           )}

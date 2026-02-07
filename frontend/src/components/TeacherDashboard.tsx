@@ -341,6 +341,22 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
   }, []);
 
   /**
+   * Register event handlers with SignalR connection
+   * Deregisters old handlers and registers new ones to avoid stale closures
+   */
+  const registerEventHandlers = useCallback((connection: signalR.HubConnection) => {
+    // Deregister old handlers first
+    connection.off('attendanceUpdate');
+    connection.off('chainUpdate');
+    connection.off('stallAlert');
+    
+    // Register new handlers
+    connection.on('attendanceUpdate', handleAttendanceUpdate);
+    connection.on('chainUpdate', handleChainUpdate);
+    connection.on('stallAlert', handleStallAlert);
+  }, [handleAttendanceUpdate, handleChainUpdate, handleStallAlert]);
+
+  /**
    * Establish SignalR connection
    * Requirements: 12.1, 12.2, 12.3, 12.6
    */
@@ -385,9 +401,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
         .build();
       
       // Register event handlers
-      connection.on('attendanceUpdate', handleAttendanceUpdate);
-      connection.on('chainUpdate', handleChainUpdate);
-      connection.on('stallAlert', handleStallAlert);
+      registerEventHandlers(connection);
       
       // Handle reconnection events
       connection.onreconnecting(() => {
@@ -396,6 +410,8 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       
       connection.onreconnected(() => {
         setConnectionStatus('connected');
+        // Re-register handlers after reconnection to ensure latest closures
+        registerEventHandlers(connection);
         // Refresh data after reconnection
         fetchSessionData();
       });
@@ -422,7 +438,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
         onError(errorMessage);
       }
     }
-  }, [sessionId, handleAttendanceUpdate, handleChainUpdate, handleStallAlert, fetchSessionData, onError]);
+  }, [sessionId, registerEventHandlers, fetchSessionData, onError]);
 
   /**
    * Initialize dashboard
@@ -455,7 +471,19 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       isConnectingRef.current = false;
       clearInterval(pollInterval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]); // ONLY depend on sessionId - nothing else!
+
+  /**
+   * Re-register handlers when they change to avoid stale closures
+   * This ensures SignalR always calls handlers with current state
+   */
+  useEffect(() => {
+    if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
+      // Re-register handlers with fresh closures
+      registerEventHandlers(connectionRef.current);
+    }
+  }, [handleAttendanceUpdate, handleChainUpdate, handleStallAlert, registerEventHandlers]);
 
   /**
    * Format timestamp for display

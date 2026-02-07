@@ -6,6 +6,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { TableClient } from '@azure/data-tables';
 import * as crypto from 'crypto';
+import { broadcastAttendanceUpdate } from '../utils/signalrBroadcast';
 
 // Inline helper functions
 function parseUserPrincipal(header: string): any {
@@ -189,6 +190,12 @@ export async function markExit(
       };
       
       await attendanceTable.updateEntity(updatedEntity, 'Merge');
+      
+      // Broadcast exit verification update
+      await broadcastAttendanceUpdate(sessionId, {
+        studentId: studentId,
+        exitVerified: true
+      }, context);
       
       return {
         status: 200,

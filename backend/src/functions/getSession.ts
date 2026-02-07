@@ -218,6 +218,7 @@ export async function getSession(
         entryAt: a.entryTime,
         exitVerified: a.exitVerified || false,
         exitVerifiedAt: a.exitTime,
+        joinedAt: (a as any).joinedAt, // Include join timestamp
         isOnline: (a as any).isOnline || false,
         isHolder: activeHolders.has(a.studentId || a.rowKey) // Check if student is a current holder
       })),

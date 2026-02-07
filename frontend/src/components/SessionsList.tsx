@@ -32,62 +32,136 @@ export const SessionsList: React.FC<SessionsListProps> = ({
   onEdit,
   onDelete
 }) => {
-  const [showPastSessions, setShowPastSessions] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'upcoming' | 'ongoing' | 'past'>('ongoing');
 
   const now = new Date();
   
+  // Upcoming: sessions that haven't started yet
   const upcomingSessions = sessions.filter(session => {
     const sessionStart = new Date(session.startAt);
-    return sessionStart >= now;
+    return sessionStart > now;
   });
 
-  const pastSessions = sessions.filter(session => {
+  // Ongoing: sessions that have started but not ended
+  const ongoingSessions = sessions.filter(session => {
     const sessionStart = new Date(session.startAt);
-    return sessionStart < now;
+    const sessionEnd = session.endAt ? new Date(session.endAt) : null;
+    return sessionStart <= now && (!sessionEnd || sessionEnd > now);
   });
 
-  const displaySessions = showPastSessions ? pastSessions : upcomingSessions;
+  // Past: sessions that have ended
+  const pastSessions = sessions.filter(session => {
+    const sessionEnd = session.endAt ? new Date(session.endAt) : null;
+    return sessionEnd && sessionEnd <= now;
+  });
+
+  const displaySessions = 
+    selectedTab === 'upcoming' ? upcomingSessions :
+    selectedTab === 'ongoing' ? ongoingSessions :
+    pastSessions; 
   const hasUpcoming = upcomingSessions.length > 0;
+  const hasOngoing = ongoingSessions.length > 0;
   const hasPast = pastSessions.length > 0;
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ 
           color: 'white',
           fontSize: '1.75rem',
-          margin: 0,
+          marginBottom: '1rem',
           fontWeight: '700',
           textShadow: '0 2px 8px rgba(0,0,0,0.2)'
         }}>
-          {showPastSessions ? '📋 Past Sessions' : '📋 Upcoming Sessions'}
+          📋 Sessions
         </h2>
-        {hasPast && (
-          <button
-            onClick={() => setShowPastSessions(!showPastSessions)}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: showPastSessions ? '#667eea' : 'white',
-              color: showPastSessions ? 'white' : '#667eea',
-              border: '2px solid #667eea',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '0.95rem',
-              fontWeight: '600',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'scale(1.02)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.2)';
-            }}
-          >
-            {showPastSessions ? '← Back to Upcoming' : 'Show Past Sessions'}
-          </button>
-        )}
+        {/* Tab buttons */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {hasUpcoming && (
+            <button
+              onClick={() => setSelectedTab('upcoming')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                backgroundColor: selectedTab === 'upcoming' ? '#667eea' : 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: selectedTab === 'upcoming' ? 'none' : '2px solid rgba(255,255,255,0.3)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => {
+                if (selectedTab !== 'upcoming') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (selectedTab !== 'upcoming') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                }
+              }}
+            >
+              ⏱️ Upcoming {upcomingSessions.length > 0 && `(${upcomingSessions.length})`}
+            </button>
+          )}
+          {hasOngoing && (
+            <button
+              onClick={() => setSelectedTab('ongoing')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                backgroundColor: selectedTab === 'ongoing' ? '#48bb78' : 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: selectedTab === 'ongoing' ? 'none' : '2px solid rgba(255,255,255,0.3)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => {
+                if (selectedTab !== 'ongoing') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (selectedTab !== 'ongoing') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                }
+              }}
+            >
+              🔴 Ongoing {ongoingSessions.length > 0 && `(${ongoingSessions.length})`}
+            </button>
+          )}
+          {hasPast && (
+            <button
+              onClick={() => setSelectedTab('past')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                backgroundColor: selectedTab === 'past' ? '#ed8936' : 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: selectedTab === 'past' ? 'none' : '2px solid rgba(255,255,255,0.3)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => {
+                if (selectedTab !== 'past') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (selectedTab !== 'past') {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                }
+              }}
+            >
+              ✅ Past {pastSessions.length > 0 && `(${pastSessions.length})`}
+            </button>
+          )}
+        </div>
       </div>
       {displaySessions.length === 0 ? (
         <div style={{
@@ -103,14 +177,18 @@ export const SessionsList: React.FC<SessionsListProps> = ({
             fontSize: '1.5rem',
             marginBottom: '0.5rem'
           }}>
-            {showPastSessions ? 'No past sessions' : 'No upcoming sessions'}
+            {selectedTab === 'upcoming' && 'No upcoming sessions'}
+            {selectedTab === 'ongoing' && 'No sessions happening now'}
+            {selectedTab === 'past' && 'No past sessions'}
           </h3>
           <p style={{ 
             color: '#718096',
             fontSize: '1.1rem',
             margin: 0
           }}>
-            {showPastSessions ? 'All sessions have been completed or cancelled.' : 'Create your first session to get started!'}
+            {selectedTab === 'upcoming' && 'Create your first session to get started!'}
+            {selectedTab === 'ongoing' && 'Check upcoming or past sessions.'}
+            {selectedTab === 'past' && 'No sessions have been completed yet.'}
           </p>
         </div>
       ) : (

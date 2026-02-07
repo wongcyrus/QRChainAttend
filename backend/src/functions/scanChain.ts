@@ -5,6 +5,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { TableClient } from '@azure/data-tables';
 import { randomUUID } from 'crypto';
+import { broadcastAttendanceUpdate, broadcastChainUpdate } from '../utils/signalrBroadcast';
 
 function parseUserPrincipal(header: string): any {
   try {
@@ -109,8 +110,10 @@ export async function scanChain(
 
     // Verify token exists and is valid
     let token;
+    let chainData;
     try {
       token = await tokensTable.getEntity(sessionId, tokenId);
+      chainData = await chainsTable.getEntity(sessionId, chainId);
       
       // Check if token has expired
       if (token.expiresAt && (token.expiresAt as number) < now) {
@@ -168,6 +171,12 @@ export async function scanChain(
         }, 'Merge');
         
         context.log(`Marked ${previousHolder} as ${entryStatus}`);
+        
+        // Broadcast attendance update for previous holder
+        await broadcastAttendanceUpdate(sessionId, {
+          studentId: previousHolder,
+          entryStatus: entryStatus,
+        }, context);
       }
     } catch (error: any) {
       context.log(`Warning: Could not update attendance for previous holder: ${error.message}`);
@@ -203,6 +212,15 @@ export async function scanChain(
     }, 'Merge');
 
     context.log(`Chain ${chainId} passed from ${previousHolder} to ${studentEmail}, seq ${newSeq}`);
+
+    // Broadcast chain update
+    await broadcastChainUpdate(sessionId, {
+      chainId,
+      phase: chainData.phase,
+      lastHolder: studentEmail,
+      lastSeq: newSeq,
+      state: chainData.state
+    }, context);
 
     return {
       status: 200,

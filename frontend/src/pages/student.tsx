@@ -75,6 +75,7 @@ export default function StudentPage() {
   }, [router]);
 
   // Separate effect for auto-join to avoid infinite loop
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (user && sessionId && typeof sessionId === 'string' && !hasAutoJoined && !joining) {
       setHasAutoJoined(true);
