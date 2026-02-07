@@ -53,7 +53,7 @@ export default function TeacherPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [qrCodeData, setQrCodeData] = useState<{ sessionId: string; classId: string; type: 'ENTRY' | 'EXIT'; qrDataUrl: string } | null>(null);
+  const [qrCodeData, setQrCodeData] = useState<{ sessionId: string; classId: string; type: 'ENTRY' | 'EXIT'; qrDataUrl: string; studentUrl?: string } | null>(null);
   const [qrRefreshKey, setQrRefreshKey] = useState(0); // For triggering QR refresh
   
   // For delete confirmation dialog
@@ -203,9 +203,18 @@ export default function TeacherPage() {
         const endpoint = qrCodeData.type === 'ENTRY' ? 'entry-qr' : 'exit-qr';
         const response = await fetch(`${apiUrl}/sessions/${qrCodeData.sessionId}/${endpoint}`, { headers });
         
-        if (!response.ok) return;
+        if (!response.ok) {
+          console.error(`Failed to refresh ${endpoint}:`, response.status);
+          return;
+        }
         
         const data = await response.json();
+        
+        if (!data.token) {
+          console.error('No token in refresh response:', data);
+          return;
+        }
+        
         const baseUrl = window.location.origin;
         const studentUrl = `${baseUrl}/student?sessionId=${qrCodeData.sessionId}&type=${qrCodeData.type}&token=${data.token}`;
         
@@ -218,13 +227,14 @@ export default function TeacherPage() {
           }
         });
         
-        setQrCodeData(prev => prev ? { ...prev, qrDataUrl } : null);
+        setQrCodeData(prev => prev ? { ...prev, qrDataUrl, studentUrl } : null);
       } catch (err) {
         console.error('Failed to refresh QR code:', err);
       }
     };
     
-    // Refresh every 10 seconds for faster token refresh
+    // Refresh immediately first, then every 10 seconds
+    refreshQR();
     const interval = setInterval(refreshQR, 10000);
     
     return () => clearInterval(interval);
@@ -255,10 +265,17 @@ export default function TeacherPage() {
       const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/entry-qr`, { headers });
       
       if (!response.ok) {
-        throw new Error('Failed to get entry QR code');
+        const error = await response.text();
+        console.error('Entry QR API error:', response.status, error);
+        throw new Error(`Failed to get entry QR code: ${response.status}`);
       }
       
       const data = await response.json();
+      
+      if (!data.token) {
+        console.error('No token in response:', data);
+        throw new Error('Server did not return a token');
+      }
       
       // Create URL for students to scan
       const baseUrl = window.location.origin;
@@ -278,7 +295,8 @@ export default function TeacherPage() {
         sessionId: session.sessionId,
         classId: session.classId,
         type: 'ENTRY',
-        qrDataUrl
+        qrDataUrl,
+        studentUrl
       });
       setShowQRModal(true);
     } catch (err) {
@@ -311,10 +329,17 @@ export default function TeacherPage() {
       const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/exit-qr`, { headers });
       
       if (!response.ok) {
-        throw new Error('Failed to get exit QR code');
+        const error = await response.text();
+        console.error('Exit QR API error:', response.status, error);
+        throw new Error(`Failed to get exit QR code: ${response.status}`);
       }
       
       const data = await response.json();
+      
+      if (!data.token) {
+        console.error('No token in response:', data);
+        throw new Error('Server did not return a token');
+      }
       
       // Create URL for students to scan
       const baseUrl = window.location.origin;
@@ -334,7 +359,8 @@ export default function TeacherPage() {
         sessionId: session.sessionId,
         classId: session.classId,
         type: 'EXIT',
-        qrDataUrl
+        qrDataUrl,
+        studentUrl
       });
       setShowQRModal(true);
     } catch (err) {
@@ -603,6 +629,7 @@ export default function TeacherPage() {
             classId={qrCodeData.classId}
             type={qrCodeData.type}
             qrDataUrl={qrCodeData.qrDataUrl}
+            studentUrl={qrCodeData.studentUrl}
             onClose={handleCloseQRModal}
           />
         )}
@@ -723,6 +750,7 @@ export default function TeacherPage() {
           classId={qrCodeData.classId}
           type={qrCodeData.type}
           qrDataUrl={qrCodeData.qrDataUrl}
+          studentUrl={qrCodeData.studentUrl}
           onClose={handleCloseQRModal}
         />
       )}

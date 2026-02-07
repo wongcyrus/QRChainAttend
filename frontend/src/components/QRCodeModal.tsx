@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface QRCodeModalProps {
   sessionId: string;
   classId: string;
   type: 'ENTRY' | 'EXIT';
   qrDataUrl: string;
+  studentUrl?: string; // URL to copy
   onClose: () => void;
 }
 
@@ -13,8 +14,24 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   classId,
   type,
   qrDataUrl,
+  studentUrl,
   onClose
 }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!studentUrl) return;
+    
+    try {
+      // Copy the student URL to clipboard
+      await navigator.clipboard.writeText(studentUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   return (
     <div
       style={{
@@ -61,23 +78,11 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
         <h3 style={{ 
           color: '#4a5568',
           marginTop: 0,
-          marginBottom: '0.5rem',
+          marginBottom: '1rem',
           fontSize: '1.25rem'
         }}>
           {classId}
         </h3>
-        <p style={{ 
-          fontSize: '0.875rem', 
-          color: '#718096', 
-          marginBottom: '1rem',
-          fontFamily: 'monospace',
-          backgroundColor: '#f7fafc',
-          padding: '0.5rem',
-          borderRadius: '6px',
-          wordBreak: 'break-all'
-        }}>
-          Session: {sessionId.substring(0, 8)}...
-        </p>
         
         <div style={{
           display: 'inline-block',
@@ -92,6 +97,48 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             borderRadius: '8px'
           }} />
         </div>
+        
+        {/* Copy Button - Below QR Code */}
+        {studentUrl && (
+          <div style={{ display: 'block', marginBottom: '1.5rem' }}>
+            <button
+              onClick={handleCopy}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: copied ? '#28a745' : 'white',
+                border: '2px solid #4a5568',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                transition: 'all 0.2s',
+                color: copied ? 'white' : '#2d3748',
+                margin: '0 auto'
+              }}
+              onMouseOver={(e) => {
+                if (!copied) {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.backgroundColor = type === 'ENTRY' ? '#48bb78' : '#ed8936';
+                  e.currentTarget.style.color = 'white';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!copied) {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.backgroundColor = 'white';
+                  e.currentTarget.style.color = '#2d3748';
+                }
+              }}
+              title={copied ? 'Copied to clipboard!' : 'Copy student URL to clipboard'}
+            >
+              {copied ? '✓ Copied' : '📋 Copy URL'}
+            </button>
+          </div>
+        )}
         <p style={{ 
           fontSize: '0.95rem', 
           color: '#4a5568', 
