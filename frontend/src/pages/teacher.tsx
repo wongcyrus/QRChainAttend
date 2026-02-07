@@ -20,6 +20,11 @@ interface Session {
   startAt: string;
   endAt?: string;
   status: string;
+  isRecurring?: boolean;
+  recurrencePattern?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  recurrenceEndDate?: string;
+  parentSessionId?: string;
+  occurrenceNumber?: number;
 }
 
 function getRolesFromEmail(email: string): string[] {
@@ -46,6 +51,15 @@ export default function TeacherPage() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<{ sessionId: string; classId: string; type: 'ENTRY' | 'EXIT'; qrDataUrl: string } | null>(null);
   const [qrRefreshKey, setQrRefreshKey] = useState(0); // For triggering QR refresh
+  
+  // For delete confirmation dialog
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [selectedSessionForDelete, setSelectedSessionForDelete] = useState<Session | null>(null);
+  const [deleteScope, setDeleteScope] = useState<'this' | 'future' | 'all'>('this');
+  
+  // For edit dialog
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [selectedSessionForEdit, setSelectedSessionForEdit] = useState<Session | null>(null);
 
   useEffect(() => {
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
@@ -325,13 +339,27 @@ export default function TeacherPage() {
   };
 
   const handleDeleteSession = async (session: Session) => {
-    // Show confirmation dialog
-    const message = `Are you sure you want to delete "${session.classId}"?\n\nThis will delete:\n- ${session.status === 'ENDED' ? 'Historical' : 'Active'} attendance records\n- Session chains\n- Tokens\n- Scan logs\n\nThis action cannot be undone.`;
+    // Check if this is a recurring session
+    const isRecurring = (session as any).isRecurring || (session as any).parentSessionId;
     
-    if (!window.confirm(message)) {
-      return;
+    if (isRecurring) {
+      // Show scope selection dialog for recurring sessions
+      setSelectedSessionForDelete(session);
+      setDeleteScope('this');
+      setShowDeleteConfirm(true);
+    } else {
+      // Direct confirmation for non-recurring sessions
+      const message = `Are you sure you want to delete "${session.classId}"?\n\nThis will delete:\n- ${session.status === 'ENDED' ? 'Historical' : 'Active'} attendance records\n- Session chains\n- Tokens\n- Scan logs\n\nThis action cannot be undone.`;
+      
+      if (!window.confirm(message)) {
+        return;
+      }
+      
+      await performDeleteSession(session.sessionId, 'this');
     }
+  };
 
+  const performDeleteSession = async (sessionId: string, scope: string = 'this') => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
@@ -352,8 +380,11 @@ export default function TeacherPage() {
         'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
       };
       
-      // Call delete endpoint
-      const response = await fetch(`${apiUrl}/sessions/${session.sessionId}`, {
+      // Call delete endpoint with scope parameter
+      const url = new URL(`${apiUrl}/sessions/${sessionId}`, window.location.origin);
+      url.searchParams.set('scope', scope);
+      
+      const response = await fetch(url.toString(), {
         method: 'DELETE',
         headers
       });
@@ -367,15 +398,54 @@ export default function TeacherPage() {
       
       // Show success message
       const summary = data.details?.deletionSummary;
-      const message = `Session deleted successfully!\n\nDeleted:\n- ${summary.deletedAttendance} attendance records\n- ${summary.deletedChains} chains\n- ${summary.deletedTokens} tokens\n- ${summary.deletedScanLogs} scan logs`;
+      const sessionsDeleted = data.details?.sessionsDeleted || 1;
+      const message = `${sessionsDeleted} session${sessionsDeleted > 1 ? 's' : ''} deleted successfully!\n\nDeleted:\n- ${summary.deletedAttendance} attendance records\n- ${summary.deletedChains} chains\n- ${summary.deletedTokens} tokens\n- ${summary.deletedScanLogs} scan logs`;
       alert(message);
+      
+      // Close confirmation dialog
+      setShowDeleteConfirm(false);
+      setSelectedSessionForDelete(null);
       
       // Reload sessions list
       loadSessions();
       
     } catch (err) {
       setError((err as Error).message || 'Failed to delete session');
+      setShowDeleteConfirm(false);
     }
+  };
+
+  const handleEditSession = (session: Session) => {
+    let recurrenceEndDate = '';
+    const parentId = session.parentSessionId || session.sessionId;
+    const isRecurring = !!(session.isRecurring || session.parentSessionId);
+
+    if (isRecurring) {
+      const series = sessions.filter((s) => s.sessionId === parentId || s.parentSessionId === parentId);
+      if (series.length > 0) {
+        const last = series.reduce((latest, current) =>
+          new Date(current.startAt).getTime() > new Date(latest.startAt).getTime() ? current : latest
+        , series[0]);
+        recurrenceEndDate = last.startAt.slice(0, 10);
+      }
+    }
+
+    setSelectedSessionForEdit({
+      ...session,
+      recurrenceEndDate
+    });
+    setShowEditForm(true);
+  };
+
+  const handleEditComplete = () => {
+    setShowEditForm(false);
+    setSelectedSessionForEdit(null);
+    loadSessions(); // Reload the sessions list
+  };
+
+  const handleEditCancel = () => {
+    setShowEditForm(false);
+    setSelectedSessionForEdit(null);
   };
 
   const handleCloseQRModal = () => {
@@ -732,9 +802,9 @@ export default function TeacherPage() {
           </div>
         )}
 
-        {/* Create Session Section */}
+        {/* Create/Edit Session Section */}
         <div style={{ marginBottom: '2rem' }}>
-          {!showCreateForm ? (
+          {!showCreateForm && !showEditForm ? (
             <button
               onClick={() => setShowCreateForm(true)}
               style={{
@@ -772,48 +842,13 @@ export default function TeacherPage() {
               border: '2px solid #e2e8f0',
               boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
             }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                marginBottom: '1.5rem',
-                paddingBottom: '1rem',
-                borderBottom: '2px solid #e2e8f0'
-              }}>
-                <h2 style={{ 
-                  margin: 0,
-                  fontSize: '1.5rem',
-                  color: '#2d3748'
-                }}>
-                  ✨ Create New Session
-                </h2>
-                <button
-                  onClick={() => setShowCreateForm(false)}
-                  style={{
-                    padding: '0.5rem 1.25rem',
-                    backgroundColor: '#e2e8f0',
-                    color: '#4a5568',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.95rem',
-                    fontWeight: '600',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = '#cbd5e0';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = '#e2e8f0';
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
               <SessionCreationForm
                 teacherId={user.userId}
                 teacherEmail={user.userDetails}
-                onSessionCreated={handleSessionCreated}
+                onSessionCreated={showEditForm ? handleEditComplete : handleSessionCreated}
+                mode={showEditForm ? 'edit' : 'create'}
+                sessionToEdit={showEditForm && selectedSessionForEdit ? selectedSessionForEdit : undefined}
+                onCancel={showEditForm ? handleEditCancel : () => setShowCreateForm(false)}
               />
             </div>
           )}
@@ -888,7 +923,11 @@ export default function TeacherPage() {
                   <div style={{
                     position: 'absolute',
                     top: '1rem',
-                    right: '1rem'
+                    right: '1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                    alignItems: 'flex-end'
                   }}>
                     <span
                       style={{
@@ -907,6 +946,25 @@ export default function TeacherPage() {
                     >
                       {session.status === 'ACTIVE' ? '🟢 Active' : '⚫ Ended'}
                     </span>
+                    
+                    {/* Recurring Badge */}
+                    {(session.isRecurring || session.parentSessionId) && (
+                      <span
+                        style={{
+                          padding: '0.5rem 1rem',
+                          backgroundColor: '#667eea',
+                          color: 'white',
+                          borderRadius: '20px',
+                          fontSize: '0.85rem',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+                        }}
+                      >
+                        🔄 Recurring{session.occurrenceNumber ? ` #${session.occurrenceNumber}` : ''}
+                      </span>
+                    )}
                   </div>
 
                   <div style={{ marginBottom: '1.5rem', paddingRight: '120px' }}>
@@ -1083,6 +1141,34 @@ export default function TeacherPage() {
                     </button>
 
                     <button
+                      onClick={() => handleEditSession(session)}
+                      style={{
+                        flex: '1',
+                        minWidth: '120px',
+                        padding: '0.875rem 1.25rem',
+                        backgroundColor: '#3182ce',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        fontSize: '0.95rem',
+                        fontWeight: '600',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(49, 130, 206, 0.3)'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.02)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(49, 130, 206, 0.4)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(49, 130, 206, 0.3)';
+                      }}
+                    >
+                      ✏️ Edit
+                    </button>
+
+                    <button
                       onClick={() => handleDeleteSession(session)}
                       style={{
                         flex: '1',
@@ -1230,6 +1316,204 @@ export default function TeacherPage() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal for Recurring Sessions */}
+      {showDeleteConfirm && selectedSessionForDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001,
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              padding: '2.5rem',
+              borderRadius: '20px',
+              maxWidth: '500px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center' }}>🗑️</div>
+            <h2 style={{ 
+              color: '#2d3748',
+              marginTop: 0,
+              marginBottom: '1rem',
+              fontSize: '1.5rem',
+              textAlign: 'center'
+            }}>
+              Delete "{selectedSessionForDelete.classId}"?
+            </h2>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              {((selectedSessionForDelete as any).isRecurring || (selectedSessionForDelete as any).parentSessionId) ? (
+                <>
+                  <p style={{ 
+                    color: '#4a5568',
+                    fontSize: '0.95rem',
+                    marginBottom: '1rem',
+                    textAlign: 'center'
+                  }}>
+                    This is a recurring session. How would you like to delete it?
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <label style={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.875rem',
+                      backgroundColor: deleteScope === 'this' ? '#edf2f7' : '#f7fafc',
+                      border: `2px solid ${deleteScope === 'this' ? '#667eea' : '#e2e8f0'}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}>
+                      <input
+                        type="radio"
+                        name="deleteScope"
+                        value="this"
+                        checked={deleteScope === 'this'}
+                        onChange={() => setDeleteScope('this')}
+                        style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <strong>This session only</strong>
+                        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#718096' }}>
+                          Delete only this occurrence
+                        </p>
+                      </div>
+                    </label>
+                    
+                    <label style={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.875rem',
+                      backgroundColor: deleteScope === 'future' ? '#edf2f7' : '#f7fafc',
+                      border: `2px solid ${deleteScope === 'future' ? '#667eea' : '#e2e8f0'}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}>
+                      <input
+                        type="radio"
+                        name="deleteScope"
+                        value="future"
+                        checked={deleteScope === 'future'}
+                        onChange={() => setDeleteScope('future')}
+                        style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <strong>This & future sessions</strong>
+                        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#718096' }}>
+                          Delete this and all future occurrences
+                        </p>
+                      </div>
+                    </label>
+                    
+                    <label style={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.875rem',
+                      backgroundColor: deleteScope === 'all' ? '#edf2f7' : '#f7fafc',
+                      border: `2px solid ${deleteScope === 'all' ? '#667eea' : '#e2e8f0'}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}>
+                      <input
+                        type="radio"
+                        name="deleteScope"
+                        value="all"
+                        checked={deleteScope === 'all'}
+                        onChange={() => setDeleteScope('all')}
+                        style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <strong>All sessions</strong>
+                        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#718096' }}>
+                          Delete all occurrences in this recurring series
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <p style={{ 
+                  color: '#4a5568',
+                  fontSize: '0.95rem',
+                  marginBottom: '1rem'
+                }}>
+                  This will delete:<br/>
+                  • Attendance records<br/>
+                  • Chains<br/>
+                  • Tokens<br/>
+                  • Scan logs<br/><br/>
+                  <strong>This action cannot be undone.</strong>
+                </p>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  padding: '0.875rem 1.5rem',
+                  backgroundColor: '#e2e8f0',
+                  color: '#4a5568',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#cbd5e0'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => performDeleteSession(selectedSessionForDelete.sessionId, deleteScope)}
+                style={{
+                  padding: '0.875rem 1.5rem',
+                  backgroundColor: '#e53e3e',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: '600',
+                  boxShadow: '0 4px 12px rgba(229, 62, 62, 0.3)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(229, 62, 62, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(229, 62, 62, 0.3)';
+                }}
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

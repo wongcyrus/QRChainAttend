@@ -15,11 +15,16 @@ interface CreateSessionRequest {
   lateCutoffMinutes: number;
   exitWindowMinutes?: number;
   constraints?: any;
+  isRecurring?: boolean;
+  recurrencePattern?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  recurrenceEndDate?: string;
 }
 
 interface CreateSessionResponse {
-  sessionId: string;
-  sessionQR: string;
+  sessionIds: string[];
+  count: number;
+  parentSessionId?: string;
+  sessionQR?: string;
 }
 
 // Inline helper functions
@@ -64,6 +69,55 @@ function getTableClient(tableName: string): TableClient {
   return TableClient.fromConnectionString(connectionString, tableName, { allowInsecureConnection: isLocal });
 }
 
+// Calculate recurring session dates
+function calculateRecurrenceDates(
+  startAt: string,
+  endAt: string,
+  pattern: 'DAILY' | 'WEEKLY' | 'MONTHLY',
+  endDate: string
+): Array<{ startAt: string; endAt: string }> {
+  const dates: Array<{ startAt: string; endAt: string }> = [];
+  const recurrenceEnd = new Date(endDate);
+  
+  let current = new Date(startAt);
+  const startTime = new Date(startAt);
+  const endTime = new Date(endAt);
+  const baseDuration = endTime.getTime() - startTime.getTime();
+  
+  // Add first occurrence
+  dates.push({
+    startAt: startAt,
+    endAt: endAt
+  });
+  
+  // Generate subsequent occurrences
+  while (true) {
+    switch (pattern) {
+      case 'DAILY':
+        current = new Date(current.getTime() + 24 * 60 * 60 * 1000);
+        break;
+      case 'WEEKLY':
+        current = new Date(current.getTime() + 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'MONTHLY':
+        const nextMonth = new Date(current);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        current = nextMonth;
+        break;
+    }
+    
+    if (current > recurrenceEnd) break;
+    
+    const occurrenceEnd = new Date(current.getTime() + baseDuration);
+    dates.push({
+      startAt: current.toISOString(),
+      endAt: occurrenceEnd.toISOString()
+    });
+  }
+  
+  return dates;
+}
+
 export async function createSession(
   request: HttpRequest,
   context: InvocationContext
@@ -101,40 +155,77 @@ export async function createSession(
       };
     }
 
-    // Generate session ID
-    const sessionId = randomUUID();
+    // Validate recurring fields if isRecurring is true
+    if (body.isRecurring && (!body.recurrencePattern || !body.recurrenceEndDate)) {
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'recurrencePattern and recurrenceEndDate required for recurring sessions', timestamp: Date.now() } }
+      };
+    }
+
     const teacherId = getUserId(principal);
     const now = new Date().toISOString();
-
-    // Create session entity
     const sessionsTable = getTableClient('Sessions');
-    const entity = {
-      partitionKey: 'SESSION',
-      rowKey: sessionId,
-      classId: body.classId,
-      teacherId,
-      startAt: body.startAt,
-      endAt: body.endAt,
-      lateCutoffMinutes: body.lateCutoffMinutes,
-      exitWindowMinutes: body.exitWindowMinutes ?? 10,
-      status: 'ACTIVE',
-      ownerTransfer: true,
-      constraints: body.constraints ? JSON.stringify(body.constraints) : undefined,
-      lateEntryActive: false,
-      earlyLeaveActive: false,
-      createdAt: now
-    };
+    
+    const createdSessionIds: string[] = [];
+    let parentSessionId: string | undefined;
 
-    await sessionsTable.createEntity(entity);
+    // Calculate recurring dates if needed
+    let sessionDates: Array<{ startAt: string; endAt: string }> = [
+      { startAt: body.startAt, endAt: body.endAt }
+    ];
 
-    // Generate Session QR as URL
-    // In production, this would be your actual domain
-    // For now, we'll use a placeholder that can be configured
+    if (body.isRecurring && body.recurrencePattern && body.recurrenceEndDate) {
+      sessionDates = calculateRecurrenceDates(
+        body.startAt,
+        body.endAt,
+        body.recurrencePattern,
+        body.recurrenceEndDate
+      );
+      parentSessionId = randomUUID();
+    }
+
+    // Create session entities (single or multiple for recurring)
+    for (let i = 0; i < sessionDates.length; i++) {
+      const sessionId = randomUUID();
+      
+      if (i === 0) {
+        parentSessionId = sessionId;
+      }
+
+      const entity = {
+        partitionKey: 'SESSION',
+        rowKey: sessionId,
+        classId: body.classId,
+        teacherId,
+        startAt: sessionDates[i].startAt,
+        endAt: sessionDates[i].endAt,
+        lateCutoffMinutes: body.lateCutoffMinutes,
+        exitWindowMinutes: body.exitWindowMinutes ?? 10,
+        status: 'ACTIVE',
+        ownerTransfer: true,
+        constraints: body.constraints ? JSON.stringify(body.constraints) : undefined,
+        lateEntryActive: false,
+        earlyLeaveActive: false,
+        isRecurring: body.isRecurring ?? false,
+        recurrencePattern: body.recurrencePattern,
+        parentSessionId: body.isRecurring ? parentSessionId : undefined,
+        occurrenceNumber: body.isRecurring ? i + 1 : undefined,
+        createdAt: now
+      };
+
+      await sessionsTable.createEntity(entity);
+      createdSessionIds.push(sessionId);
+    }
+
+    // Generate Session QR for first session
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
-    const sessionQR = `${baseUrl}/student?sessionId=${sessionId}`;
+    const sessionQR = `${baseUrl}/student?sessionId=${createdSessionIds[0]}`;
 
     const response: CreateSessionResponse = {
-      sessionId,
+      sessionIds: createdSessionIds,
+      count: createdSessionIds.length,
+      parentSessionId: body.isRecurring ? parentSessionId : undefined,
       sessionQR
     };
 
