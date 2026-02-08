@@ -6,7 +6,7 @@ A React component for scanning QR codes in the QR Chain Attendance System. Suppo
 
 - **Camera Access**: Automatically requests and manages camera permissions
 - **QR Code Scanning**: Uses `react-qr-reader` for reliable QR code detection
-- **Type Discrimination**: Parses and validates different QR code types (Session, Chain, Exit Chain, Late Entry, Early Leave)
+- **Type Discrimination**: Parses and validates different QR code types (Session, Chain)
 - **API Integration**: Automatically calls the appropriate scan API endpoint based on QR type
 - **Error Handling**: Provides user-friendly error messages for common failure scenarios
 - **Scan Cooldown**: Prevents duplicate scans and rapid retry attempts
@@ -128,52 +128,6 @@ Entry chain verification for on-time attendance.
 
 **API Endpoint**: `POST /api/scan/chain`
 
-### 3. Exit Chain QR
-Exit chain verification for end-of-class presence.
-
-```json
-{
-  "type": "EXIT_CHAIN",
-  "sessionId": "session-123",
-  "tokenId": "token-123",
-  "etag": "etag-123",
-  "holderId": "student-1",
-  "exp": 1234567890
-}
-```
-
-**API Endpoint**: `POST /api/scan/exit-chain`
-
-### 4. Late Entry QR
-Rotating QR code for late arrivals.
-
-```json
-{
-  "type": "LATE_ENTRY",
-  "sessionId": "session-123",
-  "tokenId": "token-123",
-  "etag": "etag-123",
-  "exp": 1234567890
-}
-```
-
-**API Endpoint**: `POST /api/scan/late-entry`
-
-### 5. Early Leave QR
-Rotating QR code for early departures.
-
-```json
-{
-  "type": "EARLY_LEAVE",
-  "sessionId": "session-123",
-  "tokenId": "token-123",
-  "etag": "etag-123",
-  "exp": 1234567890
-}
-```
-
-**API Endpoint**: `POST /api/scan/early-leave`
-
 ## Error Handling
 
 The component provides user-friendly error messages for common scenarios:
@@ -225,8 +179,7 @@ The component includes comprehensive unit tests covering:
 
 - Rendering and activation
 - Session QR scanning
-- Chain QR scanning (entry and exit)
-- Late entry and early leave scanning
+- Chain QR scanning
 - Error handling (camera, API, validation)
 - Scan cooldown behavior
 - Metadata collection

@@ -188,8 +188,6 @@ All at http://localhost:7071/api:
 **Student Actions**
 - `POST /sessions/{id}/join` - Join session
 - `POST /scanChain` - Scan entry QR
-- `POST /scanLateEntry` - Scan late QR
-- `POST /scanEarlyLeave` - Scan early leave QR
 
 **Real-time**
 - `POST /negotiate` - SignalR negotiation

@@ -93,6 +93,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   const [latitude, setLatitude] = useState<number>(0);
   const [longitude, setLongitude] = useState<number>(0);
   const [radiusMeters, setRadiusMeters] = useState<number>(100);
+    const [enforceGeofence, setEnforceGeofence] = useState(false);
   
   // Wi-Fi constraints
   const [useWifi, setUseWifi] = useState(false);
@@ -256,21 +257,6 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
         return;
       }
       
-      // Prepare constraints
-      const constraints: SessionConstraints | undefined = 
-        (useGeofence || useWifi) ? {} : undefined;
-      
-      if (useGeofence && constraints) {
-        constraints.geofence = { latitude, longitude, radiusMeters };
-      }
-      
-      if (useWifi && constraints) {
-        constraints.wifiAllowlist = wifiSSIDs
-          .split(',')
-          .map(ssid => ssid.trim())
-          .filter(ssid => ssid.length > 0);
-      }
-      
       // Create the new session(s)
       const request: CreateSessionRequest = {
         classId: classId.trim(),
@@ -280,12 +266,28 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
       };
       
       if (useExitWindow) request.exitWindowMinutes = exitWindowMinutes;
+
+      // Add geolocation fields to request
+      if (useGeofence) {
+        (request as any).location = { latitude, longitude };
+        (request as any).geofenceRadius = radiusMeters;
+        (request as any).enforceGeofence = enforceGeofence;
+      }
+
+      // Prepare constraints (for backward compatibility with Wi-Fi)
+      const constraints: SessionConstraints | undefined = useWifi ? {} : undefined;
+      if (useWifi && constraints) {
+        constraints.wifiAllowlist = wifiSSIDs
+          .split(',')
+          .map(ssid => ssid.trim())
+          .filter(ssid => ssid.length > 0);
+      }
       if (isRecurring) {
         (request as any).isRecurring = true;
         (request as any).recurrencePattern = recurrencePattern;
         (request as any).recurrenceEndDate = recurrenceEndDate;
       }
-      if (constraints && (constraints.geofence || constraints.wifiAllowlist)) {
+      if (constraints && constraints.wifiAllowlist) {
         request.constraints = constraints;
       }
       
@@ -1008,7 +1010,30 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
                     onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
                   />
                   <small style={{ color: '#718096', fontSize: '0.875rem', marginTop: '0.5rem', display: 'block' }}>
-                    Students must be within this radius to scan QR codes
+                    Students outside this radius will be flagged or blocked
+                
+                                  <div style={{ marginTop: '1rem' }}>
+                                    <label style={{ 
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.75rem',
+                                      cursor: 'pointer',
+                                      fontWeight: '500',
+                                      color: '#2d3748'
+                                    }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={enforceGeofence}
+                                        onChange={(e) => setEnforceGeofence(e.target.checked)}
+                                        disabled={loading}
+                                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                      />
+                                      Enforce Geofence (Block access if outside)
+                                    </label>
+                                    <small style={{ color: '#718096', fontSize: '0.875rem', marginTop: '0.5rem', marginLeft: '2rem', display: 'block' }}>
+                                      If unchecked, students outside the geofence can still join but will be flagged with a warning
+                                    </small>
+                                  </div>
                   </small>
                 </div>
               </div>

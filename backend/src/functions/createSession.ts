@@ -18,6 +18,13 @@ interface CreateSessionRequest {
   isRecurring?: boolean;
   recurrencePattern?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
   recurrenceEndDate?: string;
+  // Geolocation fields
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  geofenceRadius?: number;
+  enforceGeofence?: boolean;
 }
 
 interface CreateSessionResponse {
@@ -211,7 +218,11 @@ export async function createSession(
         recurrencePattern: body.recurrencePattern,
         parentSessionId: body.isRecurring ? parentSessionId : undefined,
         occurrenceNumber: body.isRecurring ? i + 1 : undefined,
-        createdAt: now
+        createdAt: now,
+        // Geolocation fields
+        location: body.location ? JSON.stringify(body.location) : undefined,
+        geofenceRadius: body.geofenceRadius,
+        enforceGeofence: body.enforceGeofence ?? false
       };
 
       await sessionsTable.createEntity(entity);

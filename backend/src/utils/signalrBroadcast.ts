@@ -12,6 +12,7 @@ export async function broadcastAttendanceUpdate(
     exitVerified?: boolean;
     earlyLeaveAt?: number;
     isOnline?: boolean;
+    locationWarning?: string;
   },
   context: InvocationContext
 ): Promise<void> {

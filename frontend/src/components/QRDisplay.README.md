@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `QRDisplay` component displays a holder's QR code with a countdown timer for the QR Chain Attendance System. It supports both chain tokens (entry/exit verification) and rotating tokens (late entry/early leave).
+The `QRDisplay` component displays a holder's QR code with a countdown timer for the QR Chain Attendance System. It supports chain tokens for holder verification.
 
 **Feature**: qr-chain-attendance  
 **Requirements**: 13.2, 13.3
@@ -46,7 +46,7 @@ function StudentView() {
 
 ```tsx
 const chainToken: ChainQRData = {
-  type: 'CHAIN', // or 'EXIT_CHAIN'
+  type: 'CHAIN',
   sessionId: 'session-123',
   tokenId: 'token-abc',
   etag: 'etag-xyz',
@@ -55,20 +55,6 @@ const chainToken: ChainQRData = {
 };
 
 <QRDisplay qrData={chainToken} />
-```
-
-### Rotating Token (Late Entry/Early Leave)
-
-```tsx
-const lateEntryToken: RotatingQRData = {
-  type: 'LATE_ENTRY', // or 'EARLY_LEAVE'
-  sessionId: 'session-123',
-  tokenId: 'token-abc',
-  etag: 'etag-xyz',
-  exp: Math.floor(Date.now() / 1000) + 60, // 60 seconds from now
-};
-
-<QRDisplay qrData={lateEntryToken} />
 ```
 
 ### Custom Size and Styling
@@ -86,7 +72,7 @@ const lateEntryToken: RotatingQRData = {
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `qrData` | `ChainQRData \| RotatingQRData \| null` | - | **Required.** The token data to display as QR code |
+| `qrData` | `ChainQRData \| null` | - | **Required.** The token data to display as QR code |
 | `onExpire` | `() => void` | - | Callback function called when token expires |
 | `className` | `string` | `''` | Additional CSS class names |
 | `size` | `number` | `300` | Size of the QR code in pixels |
@@ -95,16 +81,8 @@ const lateEntryToken: RotatingQRData = {
 ## Token Types
 
 ### Chain Tokens (20s TTL)
-- `CHAIN`: Entry chain verification
-- `EXIT_CHAIN`: Exit chain verification
+- `CHAIN`: Chain verification
 - Shows holder information by default
-- Critical warning at ≤5 seconds
-- Warning state at ≤10 seconds
-
-### Rotating Tokens (60s TTL)
-- `LATE_ENTRY`: Late arrival verification
-- `EARLY_LEAVE`: Early departure verification
-- No holder information displayed
 - Critical warning at ≤5 seconds
 - Warning state at ≤10 seconds
 
@@ -187,43 +165,6 @@ function HolderView({ sessionId }: { sessionId: string }) {
 ```
 
 ### Teacher Rotating QR Display
-
-```tsx
-import { useState, useEffect } from 'react';
-import { QRDisplay } from '@/components/QRDisplay';
-
-function TeacherLateEntryView({ sessionId }: { sessionId: string }) {
-  const [token, setToken] = useState<RotatingQRData | null>(null);
-
-  // Fetch current late entry token
-  const fetchToken = async () => {
-    const response = await fetch(`/api/sessions/${sessionId}/late-qr`);
-    const data = await response.json();
-    setToken(data.token);
-  };
-
-  useEffect(() => {
-    fetchToken();
-  }, [sessionId]);
-
-  const handleExpire = () => {
-    // Token expired, fetch new rotating token
-    fetchToken();
-  };
-
-  return (
-    <div>
-      <h2>Late Entry QR Code</h2>
-      <p>Students arriving late should scan this code</p>
-      <QRDisplay 
-        qrData={token} 
-        onExpire={handleExpire}
-        showHolderInfo={false}
-      />
-    </div>
-  );
-}
-```
 
 ## Styling
 

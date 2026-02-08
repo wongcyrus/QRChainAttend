@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import * as signalR from '@microsoft/signalr';
+import { getCurrentLocation } from '../utils/geolocation';
 
 interface SimpleStudentViewProps {
   sessionId: string;
@@ -61,6 +62,9 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
 
   const handleScan = async (chainId: string, tokenId: string) => {
     try {
+        // Get user's location
+        const location = await getCurrentLocation();
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
       const headers: HeadersInit = {
@@ -89,17 +93,21 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       const response = await fetch(`${apiUrl}/sessions/${sessionId}/chains/${chainId}/scan`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ tokenId })
+        body: JSON.stringify({ tokenId, location })
       });
 
       if (response.ok) {
         const data = await response.json();
-        setScanMessage(`✓ Scan successful! You are now the chain holder (seq ${data.seq})`);
+        let message = `✓ Scan successful! You are now the chain holder (seq ${data.seq})`;
+        if (data.locationWarning) {
+          message += `\n⚠️ ${data.locationWarning}`;
+        }
+        setScanMessage(message);
         // Refresh data to show updated status
         setTimeout(() => {
           fetchData();
           setScanMessage(null);
-        }, 2000);
+        }, 3000);
       } else {
         const errorData = await response.json();
         setScanMessage(`✗ Scan failed: ${errorData.error?.message || 'Unknown error'}`);

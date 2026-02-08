@@ -87,6 +87,8 @@ interface AttendanceRecord {
   earlyLeaveAt?: number;
   finalStatus?: FinalStatus;
   joinedAt?: number;
+  locationWarning?: string;
+  locationDistance?: number;
 }
 
 interface Chain {
@@ -120,6 +122,7 @@ interface AttendanceUpdate {
   studentId: string;
   entryStatus?: EntryStatus;
   exitVerified?: boolean;
+  locationWarning?: string;
   earlyLeaveAt?: number;
 }
 
@@ -156,6 +159,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [stalledChains, setStalledChains] = useState<string[]>([]);
+  const [showGpsMissingOnly, setShowGpsMissingOnly] = useState(false);
 
   // SignalR connection ref
   const connectionRef = useRef<signalR.HubConnection | null>(null);
@@ -246,6 +250,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           entryStatus: update.entryStatus,
           exitVerified: update.exitVerified ?? false,
           earlyLeaveAt: update.earlyLeaveAt,
+          locationWarning: update.locationWarning,
         };
         // Add isOnline if provided
         if ('isOnline' in update) {
@@ -260,6 +265,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           ...(update.entryStatus && { entryStatus: update.entryStatus }),
           ...(update.exitVerified !== undefined && { exitVerified: update.exitVerified }),
           ...(update.earlyLeaveAt !== undefined && { earlyLeaveAt: update.earlyLeaveAt }),
+          ...(update.locationWarning !== undefined && { locationWarning: update.locationWarning }),
           ...('isOnline' in update && { isOnline: update.isOnline }),
         };
         return updated;
@@ -323,6 +329,12 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       }
     });
   }, [sessionId]);
+
+  const isGpsMissing = (record: AttendanceRecord) => record.locationWarning === 'Location not provided';
+  const gpsMissingCount = attendance.filter(isGpsMissing).length;
+  const filteredAttendance = showGpsMissingOnly
+    ? attendance.filter(isGpsMissing)
+    : attendance;
 
   /**
    * Handle stall alert from SignalR
@@ -856,16 +868,48 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
         boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
         marginTop: '2rem'
       }}>
-        <h2 style={{ 
-          color: '#2d3748',
-          fontSize: '1.5rem',
-          marginBottom: '1.5rem',
-          fontWeight: '700'
-        }}>
-          👥 Student Attendance ({attendance.length})
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem' }}>
+          <h2 style={{ 
+            color: '#2d3748',
+            fontSize: '1.5rem',
+            margin: 0,
+            fontWeight: '700'
+          }}>
+            👥 Student Attendance ({filteredAttendance.length}{showGpsMissingOnly ? ` / ${attendance.length}` : ''})
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {gpsMissingCount > 0 && (
+              <span style={{
+                padding: '0.35rem 0.75rem',
+                backgroundColor: '#fff3cd',
+                color: '#856404',
+                borderRadius: '12px',
+                fontSize: '0.8rem',
+                fontWeight: '600'
+              }}>
+                ⚠️ GPS missing: {gpsMissingCount}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowGpsMissingOnly((prev) => !prev)}
+              style={{
+                padding: '0.4rem 0.75rem',
+                backgroundColor: showGpsMissingOnly ? '#2d3748' : '#edf2f7',
+                color: showGpsMissingOnly ? 'white' : '#2d3748',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                fontWeight: '600'
+              }}
+            >
+              {showGpsMissingOnly ? 'Show All' : 'Show GPS Missing'}
+            </button>
+          </div>
+        </div>
         
-        {attendance.length === 0 ? (
+        {filteredAttendance.length === 0 ? (
           <div style={{
             padding: '3rem 2rem',
             textAlign: 'center',
@@ -921,6 +965,13 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                     color: '#4a5568',
                     borderBottom: '2px solid #e2e8f0'
                   }}>Status</th>
+                                    <th style={{ 
+                                      padding: '1rem',
+                                      textAlign: 'center',
+                                      fontWeight: '600',
+                                      color: '#4a5568',
+                                      borderBottom: '2px solid #e2e8f0'
+                                    }}>Location</th>
                   <th style={{ 
                     padding: '1rem',
                     textAlign: 'left',
@@ -952,7 +1003,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {attendance.map(record => (
+                {filteredAttendance.map(record => (
                   <tr key={record.studentId} style={{
                     borderBottom: '1px solid #e2e8f0',
                     transition: 'background-color 0.2s'
@@ -1011,6 +1062,27 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                         fontWeight: '600'
                       }}>
                         {getStatusText(record)}
+                                          <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                            {record.locationWarning ? (
+                                              <span 
+                                                style={{
+                                                  padding: '0.375rem 0.75rem',
+                                                  backgroundColor: '#fff3cd',
+                                                  color: '#856404',
+                                                  borderRadius: '12px',
+                                                  fontSize: '0.75rem',
+                                                  fontWeight: '600',
+                                                  display: 'inline-block',
+                                                  cursor: 'help'
+                                                }}
+                                                title={record.locationWarning}
+                                              >
+                                                ⚠️ Out of bounds
+                                              </span>
+                                            ) : (
+                                              <span style={{ color: '#48bb78', fontSize: '0.875rem' }}>✓</span>
+                                            )}
+                                          </td>
                       </span>
                     </td>
                     <td style={{ padding: '1rem', color: '#718096' }}>
@@ -1044,5 +1116,4 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
     </div>
   );
 };
-
 export const TeacherDashboard = React.memo(TeacherDashboardComponent);

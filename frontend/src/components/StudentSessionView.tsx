@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { QRScanner } from './QRScanner';
 import { QRDisplay } from './QRDisplay';
+import { getCurrentLocation } from '../utils/geolocation';
 import type {
   Session,
   ChainQRData,
@@ -240,6 +241,8 @@ export function StudentSessionView({
   const handleSessionScanned = useCallback(
     async (sessionQRData: SessionQRData) => {
       setIsScanning(false);
+        const location = await getCurrentLocation();
+
       
       try {
         // Call join session API
@@ -248,6 +251,7 @@ export function StudentSessionView({
           headers: {
             'Content-Type': 'application/json',
           },
+                  body: JSON.stringify({ location }),
         });
 
         if (!response.ok) {
@@ -259,6 +263,9 @@ export function StudentSessionView({
         
         // Show success message
         setSuccessMessage(data.message || 'Successfully joined session!');
+        if (data.locationWarning) {
+          setSuccessMessage(`${data.message || 'Successfully joined session!'} (Location warning)`);
+        }
         
         // Refresh session data
         await fetchSession();
@@ -287,7 +294,8 @@ export function StudentSessionView({
       if (result.success) {
         // Update student status based on scan result
         if (result.holderMarked) {
-          setSuccessMessage('Scan successful! Attendance marked.');
+          const warningSuffix = result.locationWarning ? ' (Location warning)' : '';
+          setSuccessMessage(`Scan successful! Attendance marked.${warningSuffix}`);
         }
 
         if (result.newHolder === studentId && result.newToken && result.newTokenEtag) {
@@ -298,7 +306,8 @@ export function StudentSessionView({
             isHolder: true,
             holderToken: tokenData,
           }));
-          setSuccessMessage('You are now the holder! Show your QR code to another student.');
+          const warningSuffix = result.locationWarning ? ' (Location warning)' : '';
+          setSuccessMessage(`You are now the holder! Show your QR code to another student.${warningSuffix}`);
         } else {
           setStudentStatus((prev) => ({
             ...prev,

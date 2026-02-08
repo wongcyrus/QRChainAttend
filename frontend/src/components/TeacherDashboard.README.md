@@ -16,7 +16,7 @@ The Teacher Dashboard component provides a real-time interface for teachers to m
 ### Real-Time Updates
 
 The dashboard establishes a SignalR connection to receive push notifications for:
-- **Attendance Updates**: When a student's attendance status changes (entry, exit, early leave)
+- **Attendance Updates**: When a student's attendance status changes (entry, exit)
 - **Chain Updates**: When a chain scan occurs and the baton is transferred
 - **Stall Alerts**: When chains become stalled (idle > 90 seconds)
 
@@ -26,9 +26,9 @@ The dashboard shows real-time counts for:
 - Total students enrolled
 - Present entry count
 - Late entry count
-- Early leave count
 - Exit verified count
 - Not yet verified count
+ - GPS missing count (students who scanned/joined without location)
 
 ### Chain Status
 
@@ -44,11 +44,11 @@ For each active chain, the dashboard displays:
 
 A comprehensive table showing all enrolled students with:
 - Student ID
-- Current status (Present Entry, Late Entry, Early Leave, etc.)
+- Current status (Present Entry, Late Entry, etc.)
 - Entry timestamp
 - Exit verification status
 - Exit timestamp
-- Early leave timestamp
+- Location warning badge for missing GPS
 
 ## Usage
 

@@ -12,7 +12,6 @@ Main dashboard for teachers to manage attendance sessions.
 **Features:**
 - Create new sessions
 - View real-time attendance
-- Display rotating QR codes
 - Manage entry/exit chains
 - End sessions and export data
 
@@ -95,12 +94,11 @@ See `SessionEndAndExportControls.example.tsx` for complete usage examples.
 ### ChainManagementControls
 **Location:** `src/components/ChainManagementControls.tsx`
 
-Controls for managing entry/exit chains and special scenarios.
+Controls for managing entry/exit chains.
 
 **Features:**
 - Start/stop entry chains
 - Start/stop exit chains
-- Enable early leave mode
 - Reseed chains
 - Real-time chain status
 

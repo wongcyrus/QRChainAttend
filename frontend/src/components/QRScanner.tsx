@@ -5,8 +5,7 @@
  * 
  * Implements camera access and QR code scanning for students to:
  * - Scan session QR codes to join sessions
- * - Scan peer chain QR codes for entry/exit verification
- * - Scan teacher rotating QR codes for late entry/early leave
+ * - Scan peer chain QR codes for entry verification
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -14,38 +13,26 @@ import { QrReader } from 'react-qr-reader';
 import type {
   SessionQRData,
   ChainQRData,
-  RotatingQRData,
   ChainScanResponse,
   ScanMetadata,
   ErrorResponse,
 } from '../types/shared';
 
 // Additional types needed for QRScanner
-type QRData = SessionQRData | ChainQRData | RotatingQRData;
+type QRData = SessionQRData | ChainQRData;
 
 interface ChainScanRequest {
   chainId: string;
   tokenId: string;
   etag: string;
   metadata?: ScanMetadata;
+  location?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  };
 }
 
-interface LateEntryScanRequest {
-  tokenId: string;
-  metadata?: ScanMetadata;
-}
-
-interface EarlyLeaveScanRequest {
-  tokenId: string;
-  metadata?: ScanMetadata;
-}
-
-interface ExitChainScanRequest {
-  chainId: string;
-  tokenId: string;
-  etag: string;
-  metadata?: ScanMetadata;
-}
 
 export interface QRScannerProps {
   /**
@@ -181,16 +168,9 @@ function parseQRData(data: string): QRData | null {
         break;
       
       case 'CHAIN':
-      case 'EXIT_CHAIN':
+      case 'CHAIN_ENTRY':
         if (parsed.sessionId && parsed.tokenId && parsed.etag && parsed.holderId && parsed.exp) {
           return parsed as ChainQRData;
-        }
-        break;
-      
-      case 'LATE_ENTRY':
-      case 'EARLY_LEAVE':
-        if (parsed.sessionId && parsed.tokenId && parsed.etag && parsed.exp) {
-          return parsed as RotatingQRData;
         }
         break;
     }
@@ -208,49 +188,29 @@ async function callScanAPI(
   qrData: QRData,
   metadata: ScanMetadata
 ): Promise<ChainScanResponse> {
-  let endpoint: string;
-  let body: ChainScanRequest | LateEntryScanRequest | EarlyLeaveScanRequest | ExitChainScanRequest;
+  let endpoint: string | undefined;
+  let body: ChainScanRequest | undefined;
 
   switch (qrData.type) {
     case 'CHAIN_ENTRY':
+    case 'CHAIN':
       endpoint = '/api/scan/chain';
       body = {
         chainId: qrData.chainId,
         tokenId: qrData.tokenId,
         etag: qrData.etag,
         metadata,
-      };
-      break;
-
-    case 'CHAIN_EXIT':
-      endpoint = '/api/scan/exit-chain';
-      body = {
-        chainId: qrData.chainId,
-        tokenId: qrData.tokenId,
-        etag: qrData.etag,
-        metadata,
-      };
-      break;
-
-    case 'LATE_ENTRY':
-      endpoint = '/api/scan/late-entry';
-      body = {
-        tokenId: qrData.tokenId,
-        metadata,
-      };
-      break;
-
-    case 'EARLY_LEAVE':
-      endpoint = '/api/scan/early-leave';
-      body = {
-        tokenId: qrData.tokenId,
-        metadata,
+        location: metadata.gps,
       };
       break;
 
     case 'SESSION':
       // Session scans don't go through scan API
       throw new Error('Session QR should be handled separately');
+  }
+
+  if (!endpoint || !body) {
+    throw new Error('Unsupported QR code type');
   }
 
   const response = await fetch(endpoint, {

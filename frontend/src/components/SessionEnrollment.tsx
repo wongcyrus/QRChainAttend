@@ -10,6 +10,7 @@
 import { useState, useCallback } from 'react';
 import { QRScanner } from './QRScanner';
 import type { SessionQRData, JoinSessionResponse } from '../types/shared';
+import { getCurrentLocation } from '../utils/geolocation';
 
 export interface SessionEnrollmentProps {
   /**
@@ -51,12 +52,18 @@ export function SessionEnrollment({
       setSuccessMessage(null);
 
       try {
+        // Get user's location
+        const location = await getCurrentLocation();
+
         // Call join session API
         const response = await fetch(`/api/sessions/${sessionQRData.sessionId}/join`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({
+            location,
+          }),
         });
 
         if (!response.ok) {
@@ -65,6 +72,11 @@ export function SessionEnrollment({
         }
 
         const data: JoinSessionResponse = await response.json();
+
+        // Show location warning if provided
+        if (data.locationWarning) {
+          console.warn('Location warning:', data.locationWarning);
+        }
 
         // Store session ID in local storage
         localStorage.setItem('currentSessionId', sessionQRData.sessionId);

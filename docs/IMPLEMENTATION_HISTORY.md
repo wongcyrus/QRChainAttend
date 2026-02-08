@@ -106,7 +106,6 @@ This document tracks the major implementation milestones and tasks completed for
 ### Chain Validation
 - Blockchain-inspired chain validation
 - Entry and exit chain management
-- Early leave and late entry scenarios
 - Chain reseeding functionality
 - Comprehensive validation tests
 

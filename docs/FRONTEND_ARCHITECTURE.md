@@ -82,7 +82,7 @@ Form for creating new attendance sessions with validation.
 Controls for ending sessions and exporting attendance data.
 
 #### ChainManagementControls
-Controls for managing entry/exit chains and early leave scenarios.
+Controls for managing entry/exit chains.
 
 ## Real-time Updates
 

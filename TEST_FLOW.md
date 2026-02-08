@@ -172,9 +172,6 @@
 - Chain transfer (scanner becomes new holder)
 - Marking attendance (holder marked as present)
 - Token expiration handling
-- Late entry QR codes
-- Early leave QR codes
-- Exit chains
 
 ## Next Steps
 

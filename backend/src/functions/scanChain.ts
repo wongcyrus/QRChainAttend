@@ -6,6 +6,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { TableClient } from '@azure/data-tables';
 import { randomUUID } from 'crypto';
 import { broadcastAttendanceUpdate, broadcastChainUpdate } from '../utils/signalrBroadcast';
+import { validateGeolocation } from '../utils/geolocation';
 
 function parseUserPrincipal(header: string): any {
   try {
@@ -74,6 +75,7 @@ export async function scanChain(
     const chainId = request.params.chainId;
     const body = await request.json() as any;
     const tokenId = body.tokenId;
+    const scannerLocation = body.location || body.metadata?.gps; // Student's GPS location
     
     if (!sessionId || !chainId || !tokenId) {
       return {
@@ -106,6 +108,48 @@ export async function scanChain(
         };
       }
       throw error;
+    }
+
+    // Parse and validate geolocation
+    let sessionLocation: { latitude: number; longitude: number } | undefined;
+    if (session.location) {
+      try {
+        sessionLocation = typeof session.location === 'string' 
+          ? JSON.parse(session.location as string)
+          : session.location;
+      } catch {
+        // Invalid location format, ignore
+      }
+    }
+    const geofenceRadius = session.geofenceRadius as number | undefined;
+    const enforceGeofence = session.enforceGeofence as boolean | undefined;
+
+    const geoCheck = validateGeolocation(
+      sessionLocation,
+      geofenceRadius,
+      enforceGeofence,
+      scannerLocation
+    );
+
+    const missingLocationWarning = !scannerLocation ? 'Location not provided' : undefined;
+    if (missingLocationWarning) {
+      context.warn(`Scan without location: student=${studentEmail}, session=${sessionId}, chain=${chainId}`);
+    }
+    const locationWarning = geoCheck.warning || missingLocationWarning;
+
+    // Block scan if geofence is enforced and student is out of bounds
+    if (geoCheck.shouldBlock) {
+      return {
+        status: 403,
+        jsonBody: {
+          error: {
+            code: 'GEOFENCE_VIOLATION',
+            message: geoCheck.warning || 'You are outside the allowed area for this class',
+            details: geoCheck.distance ? `Distance: ${Math.round(geoCheck.distance)}m` : undefined,
+            timestamp: now
+          }
+        }
+      };
     }
 
     // Verify token exists and is valid
@@ -163,12 +207,19 @@ export async function scanChain(
         
         const entryStatus = now > lateCutoffTime ? 'LATE_ENTRY' : 'PRESENT_ENTRY';
         
-        await attendanceTable.updateEntity({
+        const updateData: any = {
           partitionKey: sessionId,
           rowKey: previousHolder,
           entryStatus,
           entryAt: now
-        }, 'Merge');
+        };
+
+        // Save scanner location if provided
+        if (scannerLocation) {
+          updateData.scanLocation = JSON.stringify(scannerLocation);
+        }
+        
+        await attendanceTable.updateEntity(updateData, 'Merge');
         
         context.log(`Marked ${previousHolder} as ${entryStatus}`);
         
@@ -180,6 +231,33 @@ export async function scanChain(
       }
     } catch (error: any) {
       context.log(`Warning: Could not update attendance for previous holder: ${error.message}`);
+    }
+
+    // Record location warning for the scanner (current student)
+    if (locationWarning || scannerLocation) {
+      try {
+        const scannerUpdate: any = {
+          partitionKey: sessionId,
+          rowKey: studentEmail
+        };
+        if (scannerLocation) {
+          scannerUpdate.scanLocation = JSON.stringify(scannerLocation);
+        }
+        if (locationWarning) {
+          scannerUpdate.locationWarning = locationWarning;
+          scannerUpdate.locationDistance = geoCheck.distance;
+        }
+        await attendanceTable.updateEntity(scannerUpdate, 'Merge');
+
+        if (locationWarning) {
+          await broadcastAttendanceUpdate(sessionId, {
+            studentId: studentEmail,
+            locationWarning
+          }, context);
+        }
+      } catch (error: any) {
+        context.log(`Warning: Could not update attendance for scanner: ${error.message}`);
+      }
     }
 
     // Delete the old token
@@ -230,7 +308,8 @@ export async function scanChain(
         seq: newSeq,
         previousHolder,
         token: newTokenId,
-        expiresAt: newExpiresAt
+        expiresAt: newExpiresAt,
+        locationWarning
       }
     };
 

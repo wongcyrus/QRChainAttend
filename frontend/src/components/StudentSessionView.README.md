@@ -193,27 +193,6 @@ Refreshes data after:
 4. If baton transfer occurs, student becomes new holder
 5. UI updates to show holder QR code
 
-### Late Entry Scan
-1. Student arrives after late cutoff
-2. Opens scanner
-3. Scans teacher's rotating late entry QR
-4. API marks student as LATE_ENTRY
-5. UI updates to show late entry status
-
-### Early Leave Scan
-1. Student needs to leave early
-2. Opens scanner
-3. Scans teacher's rotating early leave QR
-4. API records early leave timestamp
-5. UI updates to show early leave status
-
-### Exit Chain Scan
-1. Teacher starts exit chains
-2. Student scans peer's exit chain QR
-3. API marks holder's exit as verified
-4. If baton transfer occurs, student becomes exit holder
-5. UI updates accordingly
-
 ## Error Handling
 
 ### Network Errors
@@ -317,9 +296,6 @@ Refreshes data after:
 | `/api/sessions/{sessionId}` | GET | Fetch session data |
 | `/api/sessions/{sessionId}/attendance` | GET | Fetch attendance records |
 | `/api/scan/chain` | POST | Scan entry chain QR |
-| `/api/scan/exit-chain` | POST | Scan exit chain QR |
-| `/api/scan/late-entry` | POST | Scan late entry QR |
-| `/api/scan/early-leave` | POST | Scan early leave QR |
 
 ## Example Scenarios
 
@@ -331,13 +307,6 @@ Refreshes data after:
 5. Peer is marked present, student becomes holder
 6. Student shows QR to next peer
 
-### Scenario 2: Late Arrival
-1. Student joins session after late cutoff
-2. Sees "late entry" instruction
-3. Opens scanner
-4. Scans teacher's rotating late entry QR
-5. Marked as LATE_ENTRY
-6. Can participate in exit chain later
 
 ### Scenario 3: Early Departure
 1. Student needs to leave before exit chain

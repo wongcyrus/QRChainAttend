@@ -175,9 +175,6 @@ npm run dev
 2. Add sound notification when becoming holder
 3. Add chain progress visualization
 4. Add stall detection and auto-reseed
-5. Add late entry QR code generation
-6. Add early leave QR code generation
-7. Add exit chain functionality
 
 ## Files Modified
 

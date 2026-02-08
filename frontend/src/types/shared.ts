@@ -17,6 +17,13 @@ export interface Session {
   lateEntryActive: boolean;
   earlyLeaveActive: boolean;
   createdAt: string;
+  // Geolocation fields
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  geofenceRadius?: number; // in meters
+  enforceGeofence?: boolean; // true = block, false = warning only
 }
 
 export type SessionStatus = 'ACTIVE' | 'ENDED';
@@ -29,7 +36,7 @@ export interface SessionQRData {
 }
 
 export interface ChainQRData {
-  type: 'CHAIN_ENTRY' | 'CHAIN_EXIT';
+  type: 'CHAIN_ENTRY' | 'CHAIN_EXIT' | 'CHAIN';
   sessionId: string;
   chainId: string;
   holderId: string;
@@ -53,6 +60,7 @@ export interface JoinSessionResponse {
   sessionId: string;
   studentId: string;
   message: string;
+  locationWarning?: string;
 }
 
 export interface ChainScanResponse {
@@ -62,6 +70,7 @@ export interface ChainScanResponse {
   newHolder?: string;
   newToken?: string;
   newTokenEtag?: string;
+  locationWarning?: string;
 }
 
 // Scan metadata

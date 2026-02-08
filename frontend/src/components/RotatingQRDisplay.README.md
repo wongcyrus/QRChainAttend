@@ -460,11 +460,6 @@ npm test RotatingQRDisplay.test.tsx
 
 ## Requirements Validation
 
-✅ **Requirement 4.1**: Display late entry QR with auto-refresh  
-✅ **Requirement 4.2**: Automatic token rotation every 60 seconds  
-✅ **Requirement 5.1**: Display early leave QR with auto-refresh  
-✅ **Requirement 5.2**: Start/stop controls for early-leave window
-
 ## Related Components
 
 - **QRDisplay**: Displays QR codes with countdown timer

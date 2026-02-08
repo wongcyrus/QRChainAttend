@@ -28,21 +28,12 @@ Students use their phone camera (external app) to scan QR codes. The web app dis
 5. Chain passes to the scanner, previous holder is marked present
 6. Process continues until all students are marked
 
-### 4. Late Entry
-1. Teacher activates late entry QR code
-2. Late students scan with phone camera
-3. Marked as "LATE_ENTRY" instead of "PRESENT_ENTRY"
-
-### 5. Exit Chain Process
+### 4. Exit Chain Process
 1. Teacher starts exit chain (similar to entry)
 2. Students scan each other's exit QR codes
 3. Last 3 students scan teacher's exit QR code
 4. Exit verified for all participants
 
-### 6. Early Leave
-1. Teacher activates early leave QR code
-2. Students leaving early scan with phone camera
-3. Marked with early leave timestamp
 
 ## Key Components
 
@@ -59,7 +50,6 @@ Students use their phone camera (external app) to scan QR codes. The web app dis
 - **`seedEntry`**: Starts entry chain with 3 initial holders
 - **`scanChain`**: Processes chain scans and transfers holder status
 - **`startExitChain`**: Initiates exit verification
-- **`scanExitChain`**: Processes exit chain scans
 
 ## QR Code Types
 
@@ -75,17 +65,6 @@ Students use their phone camera (external app) to scan QR codes. The web app dis
 - **Scanned by**: Phone camera app
 - **Opens**: Browser, processes scan, transfers holder status
 
-### 3. Late Entry QR
-- **Format**: URL with late entry token
-- **Example**: `http://localhost:3002/student?sessionId=abc-123&lateToken=xyz`
-- **Scanned by**: Phone camera app
-- **Opens**: Browser, marks late attendance
-
-### 4. Early Leave QR
-- **Format**: URL with early leave token
-- **Example**: `http://localhost:3002/student?sessionId=abc-123&earlyLeaveToken=xyz`
-- **Scanned by**: Phone camera app
-- **Opens**: Browser, marks early departure
 
 ## Student View States
 

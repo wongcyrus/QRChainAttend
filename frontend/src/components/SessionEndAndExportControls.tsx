@@ -40,6 +40,8 @@ interface AttendanceRecord {
   earlyLeaveAt?: number;
   finalStatus?: FinalStatus;
   joinedAt?: number;
+  locationWarning?: string;
+  locationDistance?: number;
 }
 
 interface EndSessionResponse {
@@ -253,7 +255,9 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
         'Exit Verified',
         'Exit Time',
         'Early Leave Time',
-        'Final Status'
+        'Final Status',
+        'Location Warning',
+        'Location Distance (m)'
       ];
 
       const rows = data.attendance.map(record => [
@@ -264,7 +268,9 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
         record.exitVerified ? 'Yes' : 'No',
         record.exitVerifiedAt ? new Date(record.exitVerifiedAt * 1000).toLocaleString() : '',
         record.earlyLeaveAt ? new Date(record.earlyLeaveAt * 1000).toLocaleString() : '',
-        record.finalStatus || ''
+        record.finalStatus || '',
+        record.locationWarning || '',
+        record.locationDistance !== undefined ? String(Math.round(record.locationDistance)) : ''
       ]);
 
       // Build CSV string

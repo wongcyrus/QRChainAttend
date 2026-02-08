@@ -31,7 +31,7 @@ Backend functions deploy successfully to Azure and are detected by the Functions
 Other functions are deployed as stubs and return "Not Implemented":
 - startEarlyLeave, getLateQR, getEarlyQR
 - seedEntry, reseedEntry, reseedExit, startExitChain
-- scanChain, scanLateEntry, scanEarlyLeave, scanExitChain
+- scanChain
 - negotiate (SignalR)
 
 ## Infrastructure
@@ -75,7 +75,7 @@ Other functions are deployed as stubs and return "Not Implemented":
 ### What's Next
 
 **Implement stub functions as needed:**
-- Scanning functions (scanChain, scanLateEntry, scanEarlyLeave, scanExitChain)
+- Scanning functions (scanChain)
 - Chain management (seedEntry, reseedEntry, reseedExit, startExitChain)
 - Token utilities (startEarlyLeave, getLateQR, getEarlyQR)
 - SignalR negotiation
