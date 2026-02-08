@@ -42,10 +42,12 @@ ls -lh out/
 
 - [ ] All API calls fetch auth from `/.auth/me` in production
 - [ ] All API calls include `x-ms-client-principal` header
-- [ ] Role checking uses email domains (not Azure AD roles)
+- [ ] Role checking uses email domains (not Azure AD app roles)
 - [ ] Email domain logic is correct:
-  - `@vtc.edu.hk` (not `@stu.vtc.edu.hk`) → Teacher
+  - `@vtc.edu.hk` (excluding `@stu.vtc.edu.hk`) → Teacher
   - `@stu.vtc.edu.hk` → Student
+- [ ] Frontend uses `getRolesFromEmail()` function
+- [ ] Backend uses `hasRole()` function with email domain checks
 
 **Files to Check**:
 - `SessionCreationForm.tsx`
@@ -105,11 +107,14 @@ az functionapp list-functions \
 
 ### 1. Authentication Flow
 
-- [ ] Login with teacher account (`@vtc.edu.hk`)
+- [ ] Login with teacher account (`@vtc.edu.hk`, not `@stu.vtc.edu.hk`)
+- [ ] Verify teacher role is assigned automatically
 - [ ] Verify redirected to teacher dashboard
 - [ ] Login with student account (`@stu.vtc.edu.hk`)
+- [ ] Verify student role is assigned automatically
 - [ ] Verify redirected to student view
 - [ ] Test "Switch Account" functionality
+- [ ] Verify roles display correctly on home page
 
 ### 2. Teacher Functionality
 
@@ -167,8 +172,14 @@ See [DEPLOYMENT_HISTORY.md](DEPLOYMENT_HISTORY.md) for detailed solutions.
    - Redeploy backend
 
 5. **Infinite redirect loop**
-   - Role computation using Azure AD roles instead of email
-   - Update to use `getRolesFromEmail()`
+   - Check if `.env.local` was included in production build
+   - Redeploy frontend using `./deploy-frontend-only.sh`
+
+6. **Wrong role assigned**
+   - Verify email domain matches expected pattern
+   - Teachers: `@vtc.edu.hk` (excluding `@stu.vtc.edu.hk`)
+   - Students: `@stu.vtc.edu.hk`
+   - Clear browser cache and re-login
 
 ## Rollback Procedure
 

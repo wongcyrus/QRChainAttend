@@ -74,8 +74,8 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 
 - **Production**: Azure AD authentication via Static Web Apps
 - **Local Dev**: Mock authentication for testing
-- **Roles**: Determined by email domain
-  - `@vtc.edu.hk` → Teacher
+- **Roles**: Automatically assigned based on email domain
+  - `@vtc.edu.hk` (excluding `@stu.vtc.edu.hk`) → Teacher
   - `@stu.vtc.edu.hk` → Student
 
 ## 📊 Features by Role

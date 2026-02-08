@@ -24,34 +24,23 @@ Once logged in, you'll see:
   - **Students**: "Student View" button
 - A logout button
 
-## Checking Your Role Assignment
+## How Roles Are Assigned
 
-Run this script to check your current role:
-```bash
-./check-and-assign-role.sh
-```
+Roles are **automatically assigned based on your email domain**:
 
-## Assigning Roles to Users
+- **Teachers**: Email addresses ending with `@vtc.edu.hk` (but NOT `@stu.vtc.edu.hk`)
+- **Students**: Email addresses ending with `@stu.vtc.edu.hk`
 
-### For Teachers:
-```bash
-./scripts/assign-user-roles.sh user@example.com teacher
-```
-
-### For Students:
-```bash
-./scripts/assign-user-roles.sh user@example.com student
-```
-
-**Note:** Role values are now lowercase (`teacher` and `student`) to match Azure Static Web Apps requirements.
+**No manual role assignment is needed.** The system automatically determines your role when you log in.
 
 ## Troubleshooting
 
 ### "No roles assigned" message after login
-This means your user account doesn't have a teacher or student role assigned. Contact your administrator or run:
-```bash
-./scripts/assign-user-roles.sh your-email@example.com teacher
-```
+This means your email address doesn't match the expected domain patterns:
+- Teachers must use `@vtc.edu.hk` email addresses (not `@stu.vtc.edu.hk`)
+- Students must use `@stu.vtc.edu.hk` email addresses
+
+Contact your administrator if you believe your email should grant you access.
 
 ### Login button doesn't redirect
 1. Check browser console for errors
@@ -65,12 +54,12 @@ This means your user account doesn't have a teacher or student role assigned. Co
    ```
 
 ### Roles not showing after login
-1. Clear browser cache and cookies
-2. Log out and log back in (roles are cached in the token)
-3. Verify optional claims are configured:
-   ```bash
-   az ad app show --id dc482c34-ebaa-4239-aca3-2810a4f51728 --query "optionalClaims"
-   ```
+1. Verify your email address matches the expected domain:
+   - Teachers: `@vtc.edu.hk` (not `@stu.vtc.edu.hk`)
+   - Students: `@stu.vtc.edu.hk`
+2. Clear browser cache and cookies
+3. Log out and log back in
+4. Check browser console for any errors
 
 ## Configuration Details
 
@@ -79,14 +68,14 @@ This means your user account doesn't have a teacher or student role assigned. Co
 - **Tenant ID:** `8ff7db19-435d-4c3c-83d3-ca0a46234f51`
 - **Redirect URI:** `https://red-grass-0f8bc910f.4.azurestaticapps.net/.auth/login/aad/callback`
 
-### App Roles
-- **teacher** (Display Name: Teacher) - Can create sessions and view attendance
-- **student** (Display Name: Student) - Can join sessions and scan QR codes
+### Role Assignment
+Roles are automatically determined by email domain:
+- **teacher** - Users with `@vtc.edu.hk` email (excluding `@stu.vtc.edu.hk`)
+  - Can create sessions and view attendance
+- **student** - Users with `@stu.vtc.edu.hk` email
+  - Can join sessions and scan QR codes
 
-### Token Claims
-The Azure AD app is configured to include:
-- `groups` claim emitted as roles in ID token
-- `groups` claim emitted as roles in access token
+**Note:** Azure AD app roles are NOT used. Role assignment is handled by the application based on email domain.
 
 ## Testing Authentication
 
@@ -107,16 +96,18 @@ After deployment completes, test the authentication flow:
      "clientPrincipal": {
        "userId": "...",
        "userDetails": "your-email@example.com",
-       "userRoles": ["teacher"]
+       "userRoles": ["authenticated"]
      }
    }
    ```
+   
+   **Note:** The `userRoles` array from Azure AD is not used. The application computes roles from your email domain.
 
 3. **Test Protected Route:**
    Try accessing: `https://red-grass-0f8bc910f.4.azurestaticapps.net/api/sessions`
    - Without login: Should redirect to login
-   - With login and teacher role: Should work
-   - With login but no role: Should return 403
+   - With login and `@vtc.edu.hk` email: Should work (teacher access)
+   - With login but wrong email domain: Should return 403
 
 ## Next Steps
 

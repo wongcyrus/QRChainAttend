@@ -29,6 +29,7 @@ Start here if you're new to the project:
 ### User Guides
 
 - **[Login Guide](LOGIN_GUIDE.md)** - How to log in and switch accounts
+- **[Role Assignment](ROLE_ASSIGNMENT.md)** - How email-based role assignment works
 - **[QR Chain Flow](QR_CHAIN_FLOW.md)** - How the QR chain system works
 - **[Test Flow](TEST_FLOW.md)** - Testing guide for the system
 
@@ -95,6 +96,8 @@ All documents listed above are current and actively maintained.
 **Last Update**: February 6, 2026
 
 **Recent Changes**:
+- Added role assignment documentation (email domain-based)
+- Updated authentication documentation to reflect current implementation
 - Removed outdated history and fix documents
 - Streamlined to current, useful documentation only
 - Added deployment scripts guide
@@ -124,6 +127,7 @@ All documents listed above are current and actively maintained.
 
 ### Users
 - [Login Guide](LOGIN_GUIDE.md)
+- [Role Assignment](ROLE_ASSIGNMENT.md)
 - [QR Chain Flow](QR_CHAIN_FLOW.md)
 - [Test Flow](TEST_FLOW.md)
 

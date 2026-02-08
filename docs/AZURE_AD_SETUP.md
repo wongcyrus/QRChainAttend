@@ -118,7 +118,7 @@ az ad app permission admin-consent --id <app-id>
    - **Supported account types**: `Accounts in this organizational directory only`
 4. Click **Save**
 
-## Step 6: Configure Token Configuration (Optional)
+## Step 7: Configure Optional Claims (Optional)
 
 Add optional claims to include additional user information in tokens.
 
@@ -135,134 +135,7 @@ Add optional claims to include additional user information in tokens.
 5. Click **Add**
 6. If prompted, check **Turn on the Microsoft Graph email, profile permission**
 
-## Step 7: Configure App Roles (For Role-Based Access)
-
-Define teacher and student roles for the application.
-
-### Using Azure CLI
-
-```bash
-# Create a roles manifest file (note: no quotes around EOF to allow variable expansion)
-cat > roles.json << EOF
-{
-  "appRoles": [
-    {
-      "allowedMemberTypes": ["User"],
-      "description": "Teachers can create sessions and view attendance",
-      "displayName": "Teacher",
-      "id": "$(uuidgen)",
-      "isEnabled": true,
-      "value": "Teacher"
-    },
-    {
-      "allowedMemberTypes": ["User"],
-      "description": "Students can join sessions and scan QR codes",
-      "displayName": "Student",
-      "id": "$(uuidgen)",
-      "isEnabled": true,
-      "value": "Student"
-    }
-  ]
-}
-EOF
-
-# Update the app registration
-az ad app update --id <app-id> --app-roles @roles.json
-```
-
-### Using Azure Portal
-
-1. In your app registration, go to **App roles**
-2. Click **+ Create app role**
-3. For the **Teacher** role:
-   - **Display name**: `Teacher`
-   - **Allowed member types**: `Users/Groups`
-   - **Value**: `Teacher`
-   - **Description**: `Teachers can create sessions and view attendance`
-   - **Enable this app role**: ✅
-4. Click **Apply**
-5. Repeat for the **Student** role:
-   - **Display name**: `Student`
-   - **Allowed member types**: `Users/Groups`
-   - **Value**: `Student`
-   - **Description**: `Students can join sessions and scan QR codes`
-   - **Enable this app role**: ✅
-6. Click **Apply**
-
-## Step 8: Assign Users to Roles
-
-### Using Azure Portal
-
-1. Go to **Azure Active Directory** > **Enterprise applications**
-2. Find and select **QR Chain Attendance System**
-3. Go to **Users and groups**
-4. Click **+ Add user/group**
-5. Select users and assign them to either **Teacher** or **Student** role
-6. Click **Assign**
-
-### Using Azure CLI
-
-First, you need to create the service principal (enterprise application):
-
-```bash
-# Create service principal from the app registration
-az ad sp create --id <app-id>
-```
-
-Then find the user's object ID:
-
-```bash
-# List all users to find the object ID
-az ad user list --query "[].{DisplayName:displayName, UserPrincipalName:userPrincipalName, ObjectId:id}" -o table
-
-# Or search for a specific user
-az ad user show --id "user@domain.com" --query "id" -o tsv
-```
-
-Now assign the user to a role:
-
-```bash
-# Get the service principal ID
-SP_ID=$(az ad sp list --display-name "QR Chain Attendance System" --query "[0].id" -o tsv)
-
-# Get role IDs
-TEACHER_ROLE_ID=$(az ad sp show --id $SP_ID --query "appRoles[?value=='Teacher'].id" -o tsv)
-STUDENT_ROLE_ID=$(az ad sp show --id $SP_ID --query "appRoles[?value=='Student'].id" -o tsv)
-
-# Get user object ID
-USER_ID=$(az ad user show --id "user@domain.com" --query "id" -o tsv)
-
-# Assign user to Teacher role
-az rest --method POST \
-  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$SP_ID/appRoleAssignedTo" \
-  --headers "Content-Type=application/json" \
-  --body "{
-    \"principalId\": \"$USER_ID\",
-    \"resourceId\": \"$SP_ID\",
-    \"appRoleId\": \"$TEACHER_ROLE_ID\"
-  }"
-
-# Or assign to Student role
-az rest --method POST \
-  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$SP_ID/appRoleAssignedTo" \
-  --headers "Content-Type=application/json" \
-  --body "{
-    \"principalId\": \"$USER_ID\",
-    \"resourceId\": \"$SP_ID\",
-    \"appRoleId\": \"$STUDENT_ROLE_ID\"
-  }"
-```
-
-Verify the assignment:
-
-```bash
-# List all role assignments
-az rest --method GET \
-  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$SP_ID/appRoleAssignedTo" \
-  --query "value[].{User:principalDisplayName, RoleId:appRoleId}" -o table
-```
-
-## Step 9: Update Redirect URIs After Deployment
+**Note:** The application determines user roles based on email domain, not Azure AD app roles.
 
 After deploying your Static Web App, you'll get the actual URL. Update the redirect URI:
 
@@ -285,7 +158,7 @@ az ad app update \
    - `http://localhost:3000/.auth/login/aad/callback` (for local development)
 3. Click **Save**
 
-## Step 10: Use Values in Deployment
+## Step 9: Use Values in Deployment
 
 Now use the values you collected in your infrastructure deployment:
 
@@ -313,15 +186,19 @@ export AAD_TENANT_ID="<your-tenant-id>"
 2. You should be redirected to Microsoft login
 3. Sign in with your organizational account
 4. After successful login, you should be redirected back to the app
-5. Verify your role (Teacher or Student) is correctly assigned
+5. Verify your role is correctly assigned based on your email domain:
+   - `@vtc.edu.hk` (not `@stu.vtc.edu.hk`) → Teacher
+   - `@stu.vtc.edu.hk` → Student
 
 ### Check Token Claims
 
 Use a tool like [jwt.ms](https://jwt.ms) to decode your ID token and verify:
 - `aud` (audience) matches your Client ID
 - `tid` (tenant ID) matches your Tenant ID
-- `roles` claim includes your assigned role (Teacher or Student)
-- Optional claims (email, name, etc.) are present
+- `email` claim contains your email address
+- Optional claims (name, upn, etc.) are present
+
+**Note:** The `roles` claim in the token is not used. The application determines roles from the email domain.
 
 ## Security Best Practices
 
@@ -345,16 +222,18 @@ Use a tool like [jwt.ms](https://jwt.ms) to decode your ID token and verify:
 ### Users Can't Sign In
 
 **Solution**: 
-- Verify users are assigned to the app in Enterprise Applications
-- Check that users have appropriate roles assigned
+- Verify users have valid organizational email addresses
+- Check that email domains match expected patterns (`@vtc.edu.hk` or `@stu.vtc.edu.hk`)
 - Ensure the app is not restricted to specific users/groups
 
-### Roles Not Appearing in Token
+### Roles Not Working Correctly
 
 **Solution**:
-- Verify app roles are defined in the app registration
-- Ensure users are assigned to roles in Enterprise Applications
-- Check that the app is requesting the correct scopes
+- Verify email address matches expected domain patterns
+- Teachers: `@vtc.edu.hk` (excluding `@stu.vtc.edu.hk`)
+- Students: `@stu.vtc.edu.hk`
+- Check browser console for any errors
+- Clear browser cache and try again
 
 ## Additional Resources
 
@@ -370,7 +249,7 @@ After completing Azure AD setup:
 1. ✅ Deploy infrastructure with Azure AD credentials
 2. ✅ Configure Static Web App authentication
 3. ✅ Test authentication flow
-4. ✅ Assign users to appropriate roles
+4. ✅ Verify email-based role assignment works correctly
 5. ✅ Deploy application code
 6. ✅ Verify role-based access control
 
