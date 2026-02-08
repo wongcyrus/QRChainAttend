@@ -115,6 +115,8 @@ export function StudentSessionView({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
+  const [isEnablingLocation, setIsEnablingLocation] = useState(false);
 
   /**
    * Fetch session data
@@ -194,6 +196,9 @@ export function StudentSessionView({
             exitVerified: myAttendance.exitVerified || false,
             earlyLeaveMarked: !!myAttendance.earlyLeaveAt,
           }));
+          if (myAttendance.locationWarning) {
+            setLocationWarning(myAttendance.locationWarning);
+          }
         }
       }
 
@@ -203,6 +208,47 @@ export function StudentSessionView({
       console.error('Failed to fetch student status:', err);
     }
   }, [sessionId, studentId]);
+
+  const handleEnableLocation = useCallback(async () => {
+    setIsEnablingLocation(true);
+    setError(null);
+
+    try {
+      const location = await getCurrentLocation();
+      if (!location) {
+        setError('Location permission is still disabled. Please enable it in browser settings.');
+        return;
+      }
+
+      const response = await fetch(`/api/sessions/${sessionId}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ location }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to update location');
+      }
+
+      const data = await response.json();
+      if (data.locationWarning) {
+        setLocationWarning(data.locationWarning);
+      } else {
+        setLocationWarning(null);
+      }
+      setSuccessMessage('Location enabled successfully.');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update location';
+      setError(errorMessage);
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsEnablingLocation(false);
+    }
+  }, [sessionId]);
 
   /**
    * Initial load
@@ -612,7 +658,6 @@ export function StudentSessionView({
             <li>Wait for the teacher to start the entry chain</li>
             <li>When a peer becomes a holder, scan their QR code</li>
             <li>If you become the holder, show your QR code to another student</li>
-            <li>If you arrive late, scan the teacher's late entry QR code</li>
           </ol>
         </div>
       )}
@@ -801,6 +846,16 @@ export function StudentSessionView({
           background: #ffebee;
           border-left: 4px solid #f44336;
           color: #b71c1c;
+        }
+
+        .status-message.warning {
+          background: #fff8e1;
+          border-left: 4px solid #f6ad55;
+          color: #8a6d1d;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
         }
 
         .status-message p {

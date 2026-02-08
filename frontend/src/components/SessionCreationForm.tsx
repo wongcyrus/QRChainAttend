@@ -88,12 +88,12 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   );
   const [useExitWindow, setUseExitWindow] = useState(!!sessionToEdit?.exitWindowMinutes);
   
-  // Geofence constraints
-  const [useGeofence, setUseGeofence] = useState(false);
+  // Geofence constraints (required)
+  const useGeofence = true;
   const [latitude, setLatitude] = useState<number>(0);
   const [longitude, setLongitude] = useState<number>(0);
   const [radiusMeters, setRadiusMeters] = useState<number>(100);
-    const [enforceGeofence, setEnforceGeofence] = useState(false);
+  const [enforceGeofence, setEnforceGeofence] = useState(false);
   
   // Wi-Fi constraints
   const [useWifi, setUseWifi] = useState(false);
@@ -267,12 +267,10 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
       
       if (useExitWindow) request.exitWindowMinutes = exitWindowMinutes;
 
-      // Add geolocation fields to request
-      if (useGeofence) {
-        (request as any).location = { latitude, longitude };
-        (request as any).geofenceRadius = radiusMeters;
-        (request as any).enforceGeofence = enforceGeofence;
-      }
+      // Add geolocation fields to request (required)
+      (request as any).location = { latitude, longitude };
+      (request as any).geofenceRadius = radiusMeters;
+      (request as any).enforceGeofence = enforceGeofence;
 
       // Prepare constraints (for backward compatibility with Wi-Fi)
       const constraints: SessionConstraints | undefined = useWifi ? {} : undefined;
@@ -338,7 +336,6 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
     setRecurrencePattern('WEEKLY');
     setRecurrenceEndDate('');
     setEstimatedSessionCount(1);
-    setUseGeofence(false);
     setUseWifi(false);
     setWifiSSIDs('');
     setError(null);
@@ -914,7 +911,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
             <span>📍</span> Location Constraints
           </h3>
           
-          {/* Geofence */}
+          {/* Geofence (Required) */}
           <div style={{
             backgroundColor: '#f7fafc',
             padding: '1.25rem',
@@ -922,122 +919,116 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
             border: '2px solid #e2e8f0',
             marginBottom: '1rem'
           }}>
-            <label style={{ 
+            <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.75rem',
-              cursor: 'pointer',
-              fontWeight: '600',
-              color: '#2d3748'
+              justifyContent: 'space-between',
+              gap: '1rem',
+              marginBottom: '1rem'
             }}>
-              <input
-                type="checkbox"
-                checked={useGeofence}
-                onChange={(e) => setUseGeofence(e.target.checked)}
-                disabled={loading}
-                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-              />
-              Enable Geofence
-            </label>
-            
-            {useGeofence && (
-              <div style={{ marginTop: '1rem', paddingLeft: '2rem' }}>
-                <button
-                  type="button"
-                  onClick={getCurrentLocation}
-                  disabled={loading}
-                  style={{
-                    padding: '0.625rem 1.25rem',
-                    backgroundColor: '#667eea',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    marginBottom: '1rem',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5568d3'}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#667eea'}
-                >
-                  📍 Use Current Location
-                </button>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                  <div>
-                    <label htmlFor="latitude" style={labelStyle}>Latitude</label>
-                    <input
-                      id="latitude"
-                      type="number"
-                      step="any"
-                      value={latitude}
-                      onChange={(e) => setLatitude(parseFloat(e.target.value))}
-                      disabled={loading}
-                      style={inputStyle}
-                      onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
-                      onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="longitude" style={labelStyle}>Longitude</label>
-                    <input
-                      id="longitude"
-                      type="number"
-                      step="any"
-                      value={longitude}
-                      onChange={(e) => setLongitude(parseFloat(e.target.value))}
-                      disabled={loading}
-                      style={inputStyle}
-                      onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
-                      onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label htmlFor="radiusMeters" style={labelStyle}>Radius (meters)</label>
-                  <input
-                    id="radiusMeters"
-                    type="number"
-                    min="1"
-                    value={radiusMeters}
-                    onChange={(e) => setRadiusMeters(parseInt(e.target.value, 10) || 0)}
-                    disabled={loading}
-                    style={inputStyle}
-                    onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
-                    onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-                  />
-                  <small style={{ color: '#718096', fontSize: '0.875rem', marginTop: '0.5rem', display: 'block' }}>
-                    Students outside this radius will be flagged or blocked
-                
-                                  <div style={{ marginTop: '1rem' }}>
-                                    <label style={{ 
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '0.75rem',
-                                      cursor: 'pointer',
-                                      fontWeight: '500',
-                                      color: '#2d3748'
-                                    }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={enforceGeofence}
-                                        onChange={(e) => setEnforceGeofence(e.target.checked)}
-                                        disabled={loading}
-                                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                                      />
-                                      Enforce Geofence (Block access if outside)
-                                    </label>
-                                    <small style={{ color: '#718096', fontSize: '0.875rem', marginTop: '0.5rem', marginLeft: '2rem', display: 'block' }}>
-                                      If unchecked, students outside the geofence can still join but will be flagged with a warning
-                                    </small>
-                                  </div>
-                  </small>
-                </div>
+              <div style={{
+                fontWeight: '600',
+                color: '#2d3748'
+              }}>
+                Geolocation (Required)
               </div>
-            )}
+              <button
+                type="button"
+                onClick={getCurrentLocation}
+                disabled={loading}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5568d3'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#667eea'}
+              >
+                📍 Use Current Location
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label htmlFor="latitude" style={labelStyle}>Latitude</label>
+                <input
+                  id="latitude"
+                  type="number"
+                  step="any"
+                  value={latitude}
+                  onChange={(e) => setLatitude(parseFloat(e.target.value))}
+                  disabled={loading}
+                  style={inputStyle}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="longitude" style={labelStyle}>Longitude</label>
+                <input
+                  id="longitude"
+                  type="number"
+                  step="any"
+                  value={longitude}
+                  onChange={(e) => setLongitude(parseFloat(e.target.value))}
+                  disabled={loading}
+                  style={inputStyle}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="radiusMeters" style={labelStyle}>Radius (meters)</label>
+              <input
+                id="radiusMeters"
+                type="number"
+                min="1"
+                value={radiusMeters}
+                onChange={(e) => setRadiusMeters(parseInt(e.target.value, 10) || 0)}
+                disabled={loading}
+                style={inputStyle}
+                onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
+                onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+                required
+              />
+              <small style={{ color: '#718096', fontSize: '0.875rem', marginTop: '0.5rem', display: 'block' }}>
+                Students outside this radius will be flagged or blocked
+              </small>
+            </div>
+
+            <div style={{ marginTop: '1rem' }}>
+              <label style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                fontWeight: '500',
+                color: '#2d3748'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={enforceGeofence}
+                  onChange={(e) => setEnforceGeofence(e.target.checked)}
+                  disabled={loading}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                Enforce Geofence (Block access if outside)
+              </label>
+              <small style={{ color: '#718096', fontSize: '0.875rem', marginTop: '0.5rem', marginLeft: '2rem', display: 'block' }}>
+                If unchecked, students outside the geofence can still join but will be flagged with a warning
+              </small>
+            </div>
           </div>
           
           {/* Wi-Fi */}
