@@ -17,6 +17,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { ChainManagementControls } from './ChainManagementControls';
 import { SessionEndAndExportControls } from './SessionEndAndExportControls';
+import { SnapshotManager } from './SnapshotManager';
 
 // Type definitions
 enum EntryStatus {
@@ -807,6 +808,19 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           chains={chains}
           stalledChains={stalledChains}
           onChainsUpdated={fetchSessionData}
+          onError={(error) => {
+            setError(error);
+            if (onError) {
+              onError(error);
+            }
+          }}
+        />
+      </div>
+
+      {/* Snapshot Manager */}
+      <div style={{ marginBottom: '2rem' }}>
+        <SnapshotManager
+          sessionId={sessionId}
           onError={(error) => {
             setError(error);
             if (onError) {

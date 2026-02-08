@@ -91,3 +91,59 @@ export interface ErrorResponse {
     timestamp: number;
   };
 }
+
+// Snapshot types
+export interface Snapshot {
+  snapshotId: string;
+  sessionId: string;
+  snapshotType: 'ENTRY' | 'EXIT';
+  snapshotIndex: number;
+  capturedAt: number;
+  chainsCreated: number;
+  studentsCaptured: number;
+  notes?: string;
+  createdAt: number;
+}
+
+export interface ChainTransfer {
+  seq: number;
+  holder: string;
+  timestamp: number;
+  nextHolder?: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface ChainTraceData {
+  chainId: string;
+  phase: 'ENTRY' | 'EXIT';
+  snapshotId: string;
+  createdAt: number;
+  transfers: ChainTransfer[];
+  totalTransfers: number;
+  successfulTransfers: number;
+  failedTransfers: number;
+  lastUpdate: number;
+  state: 'ACTIVE' | 'STALLED' | 'COMPLETED';
+}
+
+export interface SnapshotComparison {
+  snapshot1: {
+    snapshotId: string;
+    capturedAt: number;
+    totalScans: number;
+    studentsAppeared: string[];
+  };
+  snapshot2: {
+    snapshotId: string;
+    capturedAt: number;
+    totalScans: number;
+    studentsAppeared: string[];
+  };
+  differences: {
+    newStudents: string[];
+    absentStudents: string[];
+    duplicateScans: string[];
+    timeDifference: number;
+  };
+}

@@ -33,6 +33,7 @@ This script:
 - Chains
 - Tokens
 - ScanLogs
+- AttendanceSnapshots
 
 ---
 
@@ -66,6 +67,7 @@ This script:
 - Chains
 - Tokens
 - ScanLogs
+- AttendanceSnapshots
 
 ---
 
@@ -251,4 +253,4 @@ NEXT_PUBLIC_AAD_TENANT_ID=8ff7db19-435d-4c3c-83d3-ca0a46234f51
 
 ---
 
-**Last Updated:** February 6, 2026
+**Last Updated:** February 8, 2026

@@ -27,7 +27,7 @@ fi
 echo ""
 echo "🗑️  Deleting tables..."
 
-TABLES=("Sessions" "Attendance" "Chains" "Tokens" "ScanLogs")
+TABLES=("Sessions" "Attendance" "Chains" "Tokens" "ScanLogs" "AttendanceSnapshots")
 
 for table in "${TABLES[@]}"; do
     echo -n "  Deleting $table... "
