@@ -7,12 +7,17 @@ Quick guide to get the QR Chain Attendance System running locally.
 - **Node.js 20+**: [Download](https://nodejs.org/)
 - **Azure Functions Core Tools**: `npm install -g azure-functions-core-tools@4`
 - **Azurite**: For local storage emulation
+- **Git**: For version control
 
 ## Installation
 
 ### 1. Clone and Install
 
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd QRChainAttend
+
 # Install all dependencies
 npm run install:all
 ```
@@ -47,6 +52,8 @@ This creates the required tables:
 - Chains
 - Tokens
 - ScanLogs
+- AttendanceSnapshots
+- DeletionLog
 
 ### 4. Start Development Servers
 
@@ -69,8 +76,8 @@ Frontend runs on: http://localhost:3000
 1. Visit http://localhost:3000
 2. Click "Login" (uses mock authentication in local dev)
 3. Choose a role:
-   - Teacher: Create and manage sessions
-   - Student: Join sessions and scan QR codes
+   - Teacher: Use `teacher@vtc.edu.hk` email
+   - Student: Use `student@stu.vtc.edu.hk` email
 
 ## Configuration
 
@@ -86,7 +93,8 @@ NEXT_PUBLIC_ENVIRONMENT=local
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "SIGNALR_CONNECTION_STRING": "dummy",
-    "CHAIN_TOKEN_TTL_SECONDS": "20"
+    "CHAIN_TOKEN_TTL_SECONDS": "20",
+    "QR_ENCRYPTION_KEY": "your-32-byte-hex-key"
   }
 }
 ```
@@ -95,18 +103,58 @@ NEXT_PUBLIC_ENVIRONMENT=local
 
 ### As a Teacher
 
-1. Login and go to Teacher Dashboard
-2. Click "Create New Session"
-3. Fill in session details
-4. Click "Seed Entry Chains" to start
-5. Students can now join
+1. Login with `teacher@vtc.edu.hk`
+2. Go to Teacher Dashboard
+3. Click "Create New Session"
+4. Fill in session details:
+   - Class ID (e.g., "CS101")
+   - Start/end times
+   - Late cutoff minutes (default: 15)
+   - Optional: Enable geofence
+   - Optional: Enable recurring sessions
+5. Click "Create Session"
+6. View session in dashboard
+7. Click "Show Entry QR" to generate entry QR code
+8. Students can scan this QR code to join
 
 ### As a Student
 
-1. Login (use a different browser/incognito)
+1. Login with `student@stu.vtc.edu.hk` (use different browser/incognito)
 2. Go to Student View
-3. Navigate to `/student?sessionId=<session-id>` (or scan teacher's QR code in production)
-4. Scan QR codes when you become the chain holder
+3. Scan teacher's session QR code (or navigate to URL manually)
+4. View session information and attendance status
+5. When you become a chain holder, your QR code will display
+6. Other students can scan your QR code to pass the chain
+
+### Testing Recurring Sessions
+
+1. Create a session with recurring enabled
+2. Select pattern (DAILY, WEEKLY, MONTHLY)
+3. Set recurrence end date
+4. View estimated session count
+5. After creation, see all generated sessions in list
+6. Edit one session and choose scope (this, future, all)
+7. Delete one session and choose scope
+
+### Testing Geolocation
+
+1. Create a session with geofence enabled
+2. Click "Use Current Location" to set coordinates
+3. Set radius (e.g., 100 meters)
+4. Toggle "Enforce Geofence" for strict mode
+5. Students outside radius will see warning or be blocked
+6. View location warnings in teacher dashboard
+
+### Testing Snapshots
+
+1. Open a session dashboard
+2. Click "Take Snapshot"
+3. Select type (ENTRY or EXIT)
+4. Set chain count (1-20)
+5. Add optional notes
+6. View snapshot in list
+7. Click "View Trace" to see chain transfers
+8. Take another snapshot and click "Compare"
 
 ## Common Issues
 
@@ -125,9 +173,24 @@ NEXT_PUBLIC_ENVIRONMENT=local
 - **Frontend**: Change port in `package.json` dev script
 - **Backend**: Change port in `backend/local.settings.json`
 
+### QR codes not generating
+- **Check**: Is QR_ENCRYPTION_KEY set in local.settings.json?
+- **Fix**: Generate a key: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+
+### Geolocation not working
+- **Check**: Browser permissions for location
+- **Fix**: Allow location access in browser settings
+- **Note**: HTTPS required in production (localhost works)
+
+### SignalR not connecting
+- **Check**: Is SIGNALR_CONNECTION_STRING set?
+- **Fix**: Use "dummy" for local development
+
 ## Next Steps
 
 - [QR Chain Flow](QR_CHAIN_FLOW.md) - Understand how the system works
+- [Geolocation Feature](GEOLOCATION_FEATURE.md) - Learn about location tracking
+- [Snapshot Deployment](SNAPSHOT_DEPLOYMENT.md) - Understand snapshots
 - [Test Flow](TEST_FLOW.md) - Testing guide
 - [Deployment Guide](DEPLOYMENT_GUIDE.md) - Deploy to Azure
 - [Quick Reference](QUICK_REFERENCE.md) - Common commands
@@ -160,8 +223,64 @@ npm test
 
 # Lint code
 npm run lint
+
+# Build for production
+npm run build
 ```
+
+## Feature Testing Checklist
+
+### Authentication
+- [ ] Login with teacher email
+- [ ] Login with student email
+- [ ] Logout
+- [ ] Switch account
+- [ ] Verify role assignment
+
+### Session Management
+- [ ] Create single session
+- [ ] Create recurring session
+- [ ] Edit session
+- [ ] Delete session
+- [ ] View session list
+
+### Geolocation
+- [ ] Enable geofence
+- [ ] Use current location
+- [ ] Test warning mode
+- [ ] Test enforce mode
+- [ ] View location warnings
+
+### QR Codes
+- [ ] Generate entry QR
+- [ ] Generate exit QR
+- [ ] Auto-refresh QR codes
+- [ ] Scan QR with phone camera
+
+### Attendance
+- [ ] Join session
+- [ ] Seed entry chains
+- [ ] Scan chain QR codes
+- [ ] Mark exit
+- [ ] View attendance status
+
+### Snapshots
+- [ ] Create snapshot
+- [ ] View chain trace
+- [ ] Compare snapshots
+- [ ] Add notes to snapshot
+
+### Export
+- [ ] Export as CSV
+- [ ] Export as JSON
+- [ ] Verify data completeness
+
+### Real-time Updates
+- [ ] Teacher dashboard updates
+- [ ] Student view updates
+- [ ] Online/offline status
+- [ ] Chain holder updates
 
 ---
 
-**Need help?** Check the [docs/](docs/) folder for detailed documentation.
+**Need help?** Check the [docs/](docs/) folder for detailed documentation or see [DOCS_INDEX.md](DOCS_INDEX.md) for complete documentation index.

@@ -1,9 +1,5 @@
 # Deployment Checklist
 
-Complete checklist for deploying the QR Chain Attendance System to Azure.
-
-> **Note**: For detailed deployment history and all fixes, see [DEPLOYMENT_HISTORY.md](DEPLOYMENT_HISTORY.md)
-
 ## Pre-Deployment Checks
 
 ### 1. Backend Verification
@@ -151,8 +147,6 @@ Test key endpoints:
 
 ## Common Issues & Solutions
 
-See [DEPLOYMENT_HISTORY.md](DEPLOYMENT_HISTORY.md) for detailed solutions.
-
 **Quick Fixes**:
 
 1. **401 Unauthorized**
@@ -235,4 +229,8 @@ After deployment, monitor:
 
 ---
 
-For detailed deployment history and all fixes, see [DEPLOYMENT_HISTORY.md](DEPLOYMENT_HISTORY.md)
+**Deployed By**: _________________
+
+**Date**: _________________
+
+**Version/Commit**: _________________

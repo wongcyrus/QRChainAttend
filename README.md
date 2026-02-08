@@ -1,31 +1,56 @@
 # QR Chain Attendance System
 
-A secure, real-time attendance tracking system using QR code chains and Azure services.
+A comprehensive, real-time attendance tracking system using QR code chains, geolocation, and Azure services.
 
 ## 🚀 Quick Start
 
 **Production URL**: https://red-grass-0f8bc910f.4.azurestaticapps.net
 
 **Login**:
-- Teachers: `@vtc.edu.hk` email addresses
+- Teachers: `@vtc.edu.hk` email addresses (excluding `@stu.vtc.edu.hk`)
 - Students: `@stu.vtc.edu.hk` email addresses
 
 ## 📚 Documentation
 
-- **[Getting Started](GETTING_STARTED.md)** - Setup and first steps
-- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - How to deploy to Azure
-- **[Deployment History](DEPLOYMENT_HISTORY.md)** - All fixes and features
+### Getting Started
+- **[Getting Started](GETTING_STARTED.md)** - Local development setup
+- **[Login Guide](LOGIN_GUIDE.md)** - How to login and switch accounts
 - **[Quick Reference](QUICK_REFERENCE.md)** - Common commands and tasks
-- **[Full Documentation](DOCS_INDEX.md)** - Complete documentation index
+
+### Features
+- **[QR Chain Flow](QR_CHAIN_FLOW.md)** - How the QR chain system works
+- **[Geolocation Feature](GEOLOCATION_FEATURE.md)** - Location-based attendance
+- **[Role Assignment](ROLE_ASSIGNMENT.md)** - Email domain-based roles
+- **[Snapshot Deployment](SNAPSHOT_DEPLOYMENT.md)** - Attendance snapshots
+
+### Deployment
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - How to deploy to Azure
+- **[Deployment Scripts Guide](DEPLOYMENT_SCRIPTS_GUIDE.md)** - All deployment scripts
+- **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Pre-deployment verification
+
+### Complete Documentation
+- **[Full Documentation Index](DOCS_INDEX.md)** - All documentation
 
 ## 🎯 Key Features
 
+### Core Features
 - **QR Chain Technology**: Secure token passing prevents cheating
+- **Entry/Exit QR Codes**: Separate QR codes for entry and exit verification
 - **Real-time Updates**: SignalR for live attendance monitoring
-- **Role-Based Access**: Email domain-based authentication
-- **CSV Export**: Download attendance records for analysis
-- **Offline Support**: PWA with offline capabilities
-- **Mobile-First**: Optimized for smartphones
+- **Role-Based Access**: Automatic email domain-based authentication
+
+### Advanced Features
+- **Recurring Sessions**: Create daily, weekly, or monthly recurring sessions
+- **Geolocation Tracking**: Location-based attendance with warning/enforce modes
+- **Attendance Snapshots**: On-demand snapshots with chain trace visualization
+- **Snapshot Comparison**: Compare snapshots to see attendance changes
+- **Export Functionality**: Download attendance as CSV or JSON
+
+### User Experience
+- **Progressive Web App**: Installable on mobile devices
+- **Offline Support**: Works offline with service worker caching
+- **Mobile-First Design**: Optimized for smartphones
+- **Account Switching**: Easy switching between multiple accounts
 
 ## 🛠️ Tech Stack
 
@@ -81,26 +106,125 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 ## 📊 Features by Role
 
 ### Teachers
-- Create and manage sessions
-- Monitor real-time attendance
-- Control QR chain flow
-- Export attendance (CSV/JSON)
-- View student online status
+- **Session Management**
+  - Create single or recurring sessions (daily, weekly, monthly)
+  - Edit sessions with scope control (this, future, all)
+  - Delete sessions with cascade cleanup
+  - Configure geofence and constraints
+  
+- **Attendance Monitoring**
+  - Real-time attendance dashboard
+  - View student online/offline status
+  - Track entry/exit verification
+  - Monitor location warnings
+  - See active chain holders
+  
+- **QR Code Management**
+  - Generate entry QR codes (auto-refresh every 10s)
+  - Generate exit QR codes (auto-refresh every 10s)
+  - Seed and reseed chains
+  - Control chain flow
+  
+- **Snapshots & Analysis**
+  - Take on-demand attendance snapshots
+  - View chain transfer traces
+  - Compare snapshots to see changes
+  - Add notes to snapshots
+  
+- **Export & Reporting**
+  - Export attendance as CSV
+  - Export attendance as JSON
+  - Include location data
+  - Include chain trace data
 
 ### Students
-- Join sessions via QR code
-- Scan QR chains for entry/exit
-- View personal attendance status
-- Offline support for scanning
+- **Session Participation**
+  - Join sessions via QR code scan
+  - Scan entry chain QR codes
+  - Scan exit chain QR codes
+  - View personal attendance status
+  
+- **Real-time Updates**
+  - See current holder status
+  - Display own QR code when holder
+  - Receive attendance updates
+  - View session information
+  
+- **Mobile Experience**
+  - Offline support for scanning
+  - PWA installation
+  - Mobile-optimized interface
+  - Camera-based QR scanning
+
+## 🏗️ Architecture
+
+### Backend (36 Functions)
+- **Authentication**: Role assignment, user info
+- **Session Management**: CRUD operations with recurring support
+- **QR Code Generation**: Entry, exit, early leave QR codes
+- **Chain Management**: Seed, reseed, scan operations
+- **Attendance**: Tracking, verification, export
+- **Snapshots**: Create, list, trace, compare
+- **SignalR**: Real-time connections for teacher and student
+- **Utilities**: Token rotation, session checks
+
+### Frontend (22+ Components)
+- **Pages**: Home, teacher dashboard, student view
+- **Session Management**: Creation, editing, listing
+- **QR Components**: Display, scanner, modal
+- **Dashboard**: Real-time attendance monitoring
+- **Snapshots**: Manager, trace viewer, comparison
+- **Utilities**: Offline indicator, error display
+
+### Database (8 Tables)
+- **Sessions**: Session metadata with recurring support
+- **Attendance**: Student attendance records with location
+- **Chains**: QR chain state and holders
+- **Tokens**: Chain tokens with expiration
+- **ScanLogs**: Chain scan history
+- **AttendanceSnapshots**: Snapshot metadata
+- **DeletionLog**: Audit trail for deletions
+- **SignalRConnections**: Real-time connection tracking
+
+## 🔒 Security
+
+- **Authentication**: Azure AD with email domain-based roles
+- **Authorization**: Role-based access control (RBAC)
+- **Data Protection**: Encrypted QR tokens with expiration
+- **Audit Trail**: Deletion logs, scan logs, location tracking
+- **Secure Storage**: Azure Table Storage with managed identities
+- **No Secrets in Code**: All credentials in Azure Key Vault
 
 ## 🐛 Troubleshooting
 
-See [Deployment History](DEPLOYMENT_HISTORY.md) for common issues and solutions.
-
-**Quick Fixes**:
+**Authentication Issues**:
+- Wrong role assigned → Verify email domain matches expected pattern
+- Can't login → Check Azure AD configuration
 - 401 Errors → Check authentication headers
-- 403 Errors → Verify email domain
-- 404 Errors → Check API URL configuration
+
+**Session Issues**:
+- Can't create session → Verify teacher role
+- Geofence not working → Check location permissions
+- QR codes not refreshing → Check browser console for errors
+
+**Attendance Issues**:
+- Location warnings → Increase geofence radius or use warning mode
+- Chain not passing → Check if student is holder
+- Exit not verified → Ensure exit chain is started
+
+See [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) for complete troubleshooting guide.
+
+## 📈 Project Status
+
+**Current Version**: 2.0  
+**Status**: ✅ Production Ready  
+**Features**: 12 major features fully implemented  
+**Backend Functions**: 36 functions operational  
+**Frontend Components**: 22+ components working  
+**Documentation**: 75% complete  
+**Testing**: Manual testing (automated tests planned)
+
+See [Project Status](PROJECT_STATUS.md) for detailed information.
 
 ## 📝 License
 
@@ -108,8 +232,16 @@ MIT License - See LICENSE file for details
 
 ## 👥 Support
 
-For issues or questions, check the documentation or contact the development team.
+For issues or questions:
+1. Check the [Documentation Index](DOCS_INDEX.md)
+2. Review the [Deployment Checklist](DEPLOYMENT_CHECKLIST.md)
+3. Contact the development team
+
+## 🙏 Acknowledgments
+
+Built with Azure services and modern web technologies.
 
 ---
 
-**Last Updated**: February 6, 2026
+**Last Updated**: February 8, 2026  
+**Version**: 2.0
