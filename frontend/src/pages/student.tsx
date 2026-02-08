@@ -30,7 +30,6 @@ export default function StudentPage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [manualSessionId, setManualSessionId] = useState('');
   const [hasAutoJoined, setHasAutoJoined] = useState(false);
   const { sessionId, type, token } = router.query;
 
@@ -234,57 +233,25 @@ export default function StudentPage() {
       }}>
         <h2 style={{ marginTop: 0 }}>Join a Session</h2>
         
-        <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-          Scan the teacher's session QR code with your phone camera, or enter the session ID manually below.
-        </p>
-        
-        {/* Manual Entry */}
-        <div>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '0.5rem',
-            fontWeight: 'bold'
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem 1rem'
+        }}>
+          <div style={{
+            fontSize: '4rem',
+            marginBottom: '1rem'
           }}>
-            Session ID
-          </label>
-          <input
-            type="text"
-            value={manualSessionId}
-            onChange={(e) => setManualSessionId(e.target.value)}
-            placeholder="Enter session ID"
-            disabled={joining}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              fontSize: '1rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              marginBottom: '1rem',
-              boxSizing: 'border-box'
-            }}
-          />
-          <button
-            onClick={() => {
-              if (manualSessionId.trim()) {
-                handleJoinSession(manualSessionId.trim());
-              }
-            }}
-            disabled={joining || !manualSessionId.trim()}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: '#107c10',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: (joining || !manualSessionId.trim()) ? 'not-allowed' : 'pointer',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              width: '100%',
-              opacity: (joining || !manualSessionId.trim()) ? 0.6 : 1
-            }}
-          >
-            {joining ? 'Joining...' : 'Join Session'}
-          </button>
+            📱
+          </div>
+          <h3 style={{ margin: '0 0 1rem 0', color: '#333' }}>
+            Scan QR Code to Join
+          </h3>
+          <p style={{ color: '#666', lineHeight: '1.6', maxWidth: '400px', margin: '0 auto' }}>
+            Use your phone camera to scan the session QR code displayed by your teacher.
+          </p>
+          <p style={{ color: '#666', lineHeight: '1.6', maxWidth: '400px', margin: '1rem auto 0' }}>
+            The QR code will automatically redirect you to the session.
+          </p>
         </div>
       </div>
 

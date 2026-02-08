@@ -34,30 +34,27 @@
 2. Email: `student1@stu.vtc.edu.hk`
 3. Click "Login"
 4. Click "Student View"
-5. Enter the session ID
-6. Click "Join Session"
-7. ✅ Should see: Session info, "How to Mark Attendance" instructions
-8. ❌ Should NOT see: QR code yet (teacher hasn't seeded chains)
+5. Navigate to `/student?sessionId=<session-id>` or scan teacher's QR code
+6. ✅ Should see: Session info, "How to Mark Attendance" instructions
+7. ❌ Should NOT see: QR code yet (teacher hasn't seeded chains)
 
 **Tab 3 - Student 2**
 1. Go to: `http://localhost:3000/dev-config`
 2. Email: `student2@stu.vtc.edu.hk`
 3. Click "Login"
 4. Click "Student View"
-5. Enter the session ID
-6. Click "Join Session"
-7. ✅ Should see: Session info, instructions
-8. ❌ Should NOT see: QR code yet
+5. Navigate to `/student?sessionId=<session-id>` or scan teacher's QR code
+6. ✅ Should see: Session info, instructions
+7. ❌ Should NOT see: QR code yet
 
 **Tab 4 - Student 3**
 1. Go to: `http://localhost:3000/dev-config`
 2. Email: `student3@stu.vtc.edu.hk`
 3. Click "Login"
 4. Click "Student View"
-5. Enter the session ID
-6. Click "Join Session"
-7. ✅ Should see: Session info, instructions
-8. ❌ Should NOT see: QR code yet
+5. Navigate to `/student?sessionId=<session-id>` or scan teacher's QR code
+6. ✅ Should see: Session info, instructions
+7. ❌ Should NOT see: QR code yet
 
 ### 3. Teacher: Check Dashboard
 

@@ -56,8 +56,7 @@
 # → http://localhost:3002/dev-config
 # → Login: student1@stu.vtc.edu.hk (etc.)
 # → Student View
-# → Enter session ID
-# → Join Session
+# → Navigate to /student?sessionId=<session-id> (or scan teacher's QR code)
 
 # 4. Teacher (Tab 1)
 # → Scroll to "Chain Management"

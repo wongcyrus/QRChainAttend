@@ -11,18 +11,14 @@ Students use their phone camera (external app) to scan QR codes. The web app dis
 - Teacher can view QR code from session list or dashboard
 
 ### 2. Student Joins Session
-**Via QR Code (Primary Method):**
+**Via QR Code (Only Method):**
 1. Student uses phone camera app to scan teacher's session QR code
 2. Phone opens URL in browser: `http://localhost:3002/student?sessionId=xxx`
 3. If not logged in, redirects to `/dev-config` (local) or `/.auth/login/aad` (production)
 4. After login, automatically joins the session
 5. Shows `SimpleStudentView` with session info and status
 
-**Via Manual Entry (Backup Method):**
-1. Student navigates to `/student` page
-2. Enters session ID manually
-3. Clicks "Join Session"
-4. Shows `SimpleStudentView`
+**Note:** Manual session ID entry has been removed. Students must scan the encrypted QR code provided by the teacher.
 
 ### 3. Entry Chain Process
 1. Teacher starts entry chain (seeds 3 chains)
@@ -95,8 +91,8 @@ Students use their phone camera (external app) to scan QR codes. The web app dis
 
 ### Not Joined
 - Shows join interface
-- Manual session ID entry
-- Instructions to scan teacher's QR code
+- Instructions to scan teacher's session QR code with phone camera
+- QR code scanning is the only way to join sessions
 
 ### Joined - Not Holder
 - Session information (class, time, status)

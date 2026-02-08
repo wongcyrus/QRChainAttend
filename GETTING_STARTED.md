@@ -105,7 +105,7 @@ NEXT_PUBLIC_ENVIRONMENT=local
 
 1. Login (use a different browser/incognito)
 2. Go to Student View
-3. Enter the session ID
+3. Navigate to `/student?sessionId=<session-id>` (or scan teacher's QR code in production)
 4. Scan QR codes when you become the chain holder
 
 ## Common Issues
