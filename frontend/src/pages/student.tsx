@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { SimpleStudentView } from '../components/SimpleStudentView';
+import { getCurrentLocationWithError } from '../utils/geolocation';
 
 interface UserInfo {
   userId: string;
@@ -30,6 +31,7 @@ export default function StudentPage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [hasAutoJoined, setHasAutoJoined] = useState(false);
   const { sessionId, type, token } = router.query;
 
@@ -89,9 +91,24 @@ export default function StudentPage() {
     
     setJoining(true);
     setError(null);
+    setLocationWarning(null);
     
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Try to get location with detailed error
+      const { location, error: locationError, errorCode } = await getCurrentLocationWithError();
+      
+      // Show location warning if location is not available
+      if (!location && locationError) {
+        setLocationWarning(locationError);
+        
+        // If permission denied, show a more prominent warning
+        if (errorCode === 'PERMISSION_DENIED') {
+          // Continue with join but warn user
+          console.warn('Location permission denied, continuing without location');
+        }
+      }
       
       // Create headers with authentication
       const headers: HeadersInit = {
@@ -124,7 +141,10 @@ export default function StudentPage() {
         const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ token: qrToken })
+          body: JSON.stringify({ 
+            token: qrToken,
+            location // Include location if available
+          })
         });
         
         if (!response.ok) {
@@ -140,7 +160,10 @@ export default function StudentPage() {
         const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/exit`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ token: qrToken })
+          body: JSON.stringify({ 
+            token: qrToken,
+            location // Include location if available
+          })
         });
         
         if (!response.ok) {
@@ -156,7 +179,8 @@ export default function StudentPage() {
         // No type specified - just join the session (backward compatibility)
         const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, {
           method: 'POST',
-          headers
+          headers,
+          body: JSON.stringify({ location }) // Include location if available
         });
         
         if (!response.ok) {
@@ -239,6 +263,68 @@ export default function StudentPage() {
         <h1 style={{ margin: '0 0 0.5rem 0' }}>Student View</h1>
         <p style={{ margin: 0, color: '#666' }}>Welcome, {user.userDetails}</p>
       </div>
+
+      {locationWarning && (
+        <div style={{
+          padding: '1.5rem',
+          backgroundColor: '#fff5e6',
+          border: '2px solid #ff9800',
+          borderRadius: '8px',
+          marginBottom: '1.5rem',
+          color: '#e65100'
+        }}>
+          <div style={{ 
+            fontSize: '2rem', 
+            marginBottom: '0.5rem',
+            textAlign: 'center'
+          }}>
+            📍
+          </div>
+          <div style={{ 
+            fontSize: '1.1rem', 
+            fontWeight: 'bold',
+            marginBottom: '0.5rem',
+            textAlign: 'center'
+          }}>
+            Location Access Required
+          </div>
+          <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+            {locationWarning}
+          </div>
+          <div style={{
+            padding: '1rem',
+            backgroundColor: '#fff',
+            border: '1px solid #ff9800',
+            borderRadius: '4px',
+            fontSize: '0.9rem',
+            lineHeight: '1.6'
+          }}>
+            <strong>How to enable location:</strong>
+            <ol style={{ margin: '0.5rem 0 0 0', paddingLeft: '1.5rem' }}>
+              <li>Click the location icon in your browser's address bar</li>
+              <li>Select "Allow" or "Always allow"</li>
+              <li>Refresh this page and try again</li>
+            </ol>
+          </div>
+          <button
+            onClick={() => setLocationWarning(null)}
+            style={{
+              marginTop: '1rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: '#ff9800',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              width: '100%',
+              fontSize: '0.95rem',
+              fontWeight: '600'
+            }}
+          >
+            I Understand
+          </button>
+        </div>
+      )}
 
       {error && (
         <div style={{
