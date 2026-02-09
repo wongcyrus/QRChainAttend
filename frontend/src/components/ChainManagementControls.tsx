@@ -55,6 +55,7 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
   const [startingExit, setStartingExit] = useState(false);
   const [reseedingEntry, setReseedingEntry] = useState(false);
   const [reseedingExit, setReseedingExit] = useState(false);
+  const [closingChain, setClosingChain] = useState<string | null>(null);
   
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -147,6 +148,48 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
   const formatTimestamp = (timestamp?: number): string => {
     if (!timestamp) return 'N/A';
     return new Date(timestamp * 1000).toLocaleTimeString();
+  };
+
+  const handleCloseChain = async (chainId: string) => {
+    if (!confirm('Close this chain and mark the final holder as present?')) {
+      return;
+    }
+
+    setClosingChain(chainId);
+    setSuccessMessage(null);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        const mockPrincipal = {
+          userId: 'local-dev-teacher',
+          userDetails: 'teacher@vtc.edu.hk',
+          userRoles: ['authenticated', 'teacher'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+      
+      const response = await fetch(
+        `${apiUrl}/sessions/${sessionId}/chains/${chainId}/close`,
+        { method: 'POST', headers }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Failed to close chain: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setSuccessMessage(`Chain closed. ${data.finalHolder} marked present.`);
+      onChainsUpdated?.();
+    } catch (err) {
+      onError?.(err instanceof Error ? err.message : 'Failed to close chain');
+    } finally {
+      setClosingChain(null);
+    }
   };
 
   const entryChains = chains.filter(c => c.phase === ChainPhase.ENTRY);
@@ -332,7 +375,8 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
                     gap: '1rem',
                     fontSize: '0.875rem',
                     color: '#718096',
-                    flexWrap: 'wrap'
+                    flexWrap: 'wrap',
+                    alignItems: 'center'
                   }}>
                     <span>
                       Holder: <strong style={{ color: '#2d3748' }}>{chain.lastHolder || 'None'}</strong>
@@ -343,6 +387,35 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
                     <span>
                       Last: {formatTimestamp(chain.lastAt)}
                     </span>
+                    {chain.lastHolder && (
+                      <button
+                        onClick={() => handleCloseChain(chain.chainId)}
+                        disabled={closingChain === chain.chainId}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          backgroundColor: closingChain === chain.chainId ? '#ccc' : '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: closingChain === chain.chainId ? 'not-allowed' : 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => {
+                          if (closingChain !== chain.chainId) {
+                            e.currentTarget.style.backgroundColor = '#c82333';
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          if (closingChain !== chain.chainId) {
+                            e.currentTarget.style.backgroundColor = '#dc3545';
+                          }
+                        }}
+                      >
+                        {closingChain === chain.chainId ? '⏳ Closing...' : '🔒 Close Chain'}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

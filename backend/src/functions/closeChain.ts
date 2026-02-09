@@ -1,0 +1,212 @@
+/**
+ * Close Chain API Endpoint
+ * Marks the final holder as present and closes the chain
+ */
+
+import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { TableClient } from '@azure/data-tables';
+import { broadcastAttendanceUpdate, broadcastChainUpdate } from '../utils/signalrBroadcast';
+
+function parseUserPrincipal(header: string): any {
+  try {
+    const decoded = Buffer.from(header, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    throw new Error('Invalid authentication header');
+  }
+}
+
+function hasRole(principal: any, role: string): boolean {
+  const email = principal.userDetails || '';
+  const emailLower = email.toLowerCase();
+  
+  if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
+    return true;
+  }
+  
+  const roles = principal.userRoles || [];
+  return roles.some((r: string) => r.toLowerCase() === role.toLowerCase());
+}
+
+function getTableClient(tableName: string): TableClient {
+  const connectionString = process.env.AzureWebJobsStorage;
+  if (!connectionString) {
+    throw new Error('AzureWebJobsStorage not configured');
+  }
+  const isLocal = connectionString.includes("127.0.0.1") || connectionString.includes("localhost");
+  return TableClient.fromConnectionString(connectionString, tableName, { allowInsecureConnection: isLocal });
+}
+
+export async function closeChain(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  context.log('Processing POST /api/sessions/{sessionId}/chains/{chainId}/close request');
+
+  try {
+    // Parse authentication
+    const principalHeader = request.headers.get('x-ms-client-principal');
+    if (!principalHeader) {
+      return {
+        status: 401,
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
+      };
+    }
+
+    const principal = parseUserPrincipal(principalHeader);
+    
+    // Require Teacher role
+    if (!hasRole(principal, 'Teacher')) {
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+      };
+    }
+
+    const sessionId = request.params.sessionId;
+    const chainId = request.params.chainId;
+    
+    if (!sessionId || !chainId) {
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId or chainId', timestamp: Date.now() } }
+      };
+    }
+
+    const now = Date.now();
+    const chainsTable = getTableClient('Chains');
+    const attendanceTable = getTableClient('Attendance');
+    const sessionsTable = getTableClient('Sessions');
+    const tokensTable = getTableClient('Tokens');
+
+    // Verify session exists
+    let session;
+    try {
+      session = await sessionsTable.getEntity('SESSION', sessionId);
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        return {
+          status: 404,
+          jsonBody: { error: { code: 'NOT_FOUND', message: 'Session not found', timestamp: now } }
+        };
+      }
+      throw error;
+    }
+
+    // Get chain
+    let chain;
+    try {
+      chain = await chainsTable.getEntity(sessionId, chainId);
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        return {
+          status: 404,
+          jsonBody: { error: { code: 'NOT_FOUND', message: 'Chain not found', timestamp: now } }
+        };
+      }
+      throw error;
+    }
+
+    const lastHolder = chain.lastHolder as string;
+    
+    if (!lastHolder) {
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'NO_HOLDER', message: 'Chain has no current holder', timestamp: now } }
+      };
+    }
+
+    // Mark final holder as present
+    try {
+      const attendance = await attendanceTable.getEntity(sessionId, lastHolder);
+      
+      if (!attendance.entryStatus) {
+        // Determine if late or present based on session start time
+        const sessionStartTime = session.startTime as number;
+        const lateCutoffMinutes = 15;
+        const lateCutoffTime = sessionStartTime + (lateCutoffMinutes * 60);
+        
+        const entryStatus = now > lateCutoffTime ? 'LATE_ENTRY' : 'PRESENT_ENTRY';
+        
+        await attendanceTable.updateEntity({
+          partitionKey: sessionId,
+          rowKey: lastHolder,
+          entryStatus,
+          entryAt: now
+        }, 'Merge');
+        
+        context.log(`Marked final holder ${lastHolder} as ${entryStatus}`);
+        
+        // Broadcast attendance update
+        await broadcastAttendanceUpdate(sessionId, {
+          studentId: lastHolder,
+          entryStatus: entryStatus,
+        }, context);
+      }
+    } catch (error: any) {
+      context.log(`Warning: Could not update attendance for final holder: ${error.message}`);
+    }
+
+    // Mark chain as completed
+    await chainsTable.updateEntity({
+      partitionKey: sessionId,
+      rowKey: chainId,
+      state: 'COMPLETED',
+      completedAt: now
+    }, 'Merge');
+
+    // Delete any remaining tokens for this chain
+    const tokens = tokensTable.listEntities({
+      queryOptions: {
+        filter: `PartitionKey eq '${sessionId}' and chainId eq '${chainId}'`
+      }
+    });
+
+    for await (const token of tokens) {
+      await tokensTable.deleteEntity(sessionId, token.rowKey as string);
+    }
+
+    context.log(`Chain ${chainId} closed, final holder ${lastHolder} marked present`);
+
+    // Broadcast chain update
+    await broadcastChainUpdate(sessionId, {
+      chainId,
+      phase: chain.phase,
+      lastHolder,
+      lastSeq: chain.lastSeq,
+      state: 'COMPLETED'
+    }, context);
+
+    return {
+      status: 200,
+      jsonBody: {
+        success: true,
+        chainId,
+        finalHolder: lastHolder,
+        markedPresent: true
+      }
+    };
+
+  } catch (error: any) {
+    context.error('Error closing chain:', error);
+    
+    return {
+      status: 500,
+      jsonBody: {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to close chain',
+          details: error.message,
+          timestamp: Date.now()
+        }
+      }
+    };
+  }
+}
+
+app.http('closeChain', {
+  methods: ['POST'],
+  route: 'sessions/{sessionId}/chains/{chainId}/close',
+  authLevel: 'anonymous',
+  handler: closeChain
+});
