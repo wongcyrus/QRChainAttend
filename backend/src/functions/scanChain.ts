@@ -76,21 +76,12 @@ export async function scanChain(
     const chainId = request.params.chainId;
     const body = await request.json() as any;
     const tokenId = body.tokenId;
-    const challengeCode = body.challengeCode; // NEW: Challenge code entered by holder
     const scannerLocation = body.location || body.metadata?.gps; // Student's GPS location
     
     if (!sessionId || !chainId || !tokenId) {
       return {
         status: 400,
         jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId, chainId, or tokenId', timestamp: Date.now() } }
-      };
-    }
-
-    // NEW: Require challenge code
-    if (!challengeCode) {
-      return {
-        status: 400,
-        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing challengeCode. Holder must enter the challenge code shown to scanner.', timestamp: Date.now() } }
       };
     }
 
@@ -177,70 +168,6 @@ export async function scanChain(
         };
       }
       
-      // NEW: Validate challenge code
-      if (!token.pendingChallenge || !token.challengeCode || !token.challengeExpiresAt) {
-        return {
-          status: 400,
-          jsonBody: { 
-            error: { 
-              code: 'NO_PENDING_CHALLENGE', 
-              message: 'No pending challenge. Scanner must request challenge first by scanning the QR code.', 
-              timestamp: now 
-            } 
-          }
-        };
-      }
-      
-      // Check if challenge expired
-      if ((token.challengeExpiresAt as number) < now) {
-        return {
-          status: 400,
-          jsonBody: { 
-            error: { 
-              code: 'CHALLENGE_EXPIRED', 
-              message: 'Challenge code has expired. Scanner must scan QR code again to get a new code.', 
-              timestamp: now 
-            } 
-          }
-        };
-      }
-      
-      // Validate challenge code matches
-      const enteredHash = crypto.createHash('sha256').update(challengeCode).digest('hex');
-      if (enteredHash !== token.challengeCode) {
-        context.warn(`Invalid challenge code entered for token ${tokenId}. Expected hash: ${token.challengeCode}, got: ${enteredHash}`);
-        return {
-          status: 403,
-          jsonBody: { 
-            error: { 
-              code: 'INVALID_CHALLENGE', 
-              message: 'Invalid challenge code. Please check the code and try again.', 
-              timestamp: now 
-            } 
-          }
-        };
-      }
-      
-      // Verify the current user (holder) is the one who should validate
-      // The holder is the one entering the code, not the scanner
-      const scannerId = token.pendingChallenge as string;
-      const holderId = token.holderId as string;
-      
-      if (studentEmail !== holderId) {
-        return {
-          status: 403,
-          jsonBody: { 
-            error: { 
-              code: 'NOT_HOLDER', 
-              message: 'Only the current holder can validate the challenge code.', 
-              timestamp: now 
-            } 
-          }
-        };
-      }
-      
-      context.log(`Challenge validated: holder=${holderId}, scanner=${scannerId}, code verified`);
-      
       // Verify token belongs to the correct chain
       if (token.chainId !== chainId) {
         return {
@@ -258,11 +185,10 @@ export async function scanChain(
       throw error;
     }
 
-    // Get the previous holder and the scanner from challenge
+    // Get the previous holder and the scanner
     const previousHolder = token.holderId as string;
-    const scannerId = token.pendingChallenge as string;
+    const scannerId = studentEmail; // Scanner is the one calling this endpoint
     
-    // The holder (studentEmail) is validating the scanner's challenge
     // Scanner should become the new holder
     
     // Mark previous holder's attendance if not already marked

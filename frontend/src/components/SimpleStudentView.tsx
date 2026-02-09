@@ -42,13 +42,6 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
-  
-  // NEW: Challenge code states
-  const [challengeCode, setChallengeCode] = useState<string | null>(null);
-  const [challengeHolderName, setChallengeHolderName] = useState<string | null>(null);
-  const [challengeExpiresAt, setChallengeExpiresAt] = useState<number | null>(null);
-  const [challengeInput, setChallengeInput] = useState<string>('');
-  const [isValidatingChallenge, setIsValidatingChallenge] = useState(false);
 
   // Check URL parameters for scan simulation (when clicking QR URL in dev mode)
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -94,167 +87,49 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         }
       }
 
-      // NEW: Request challenge code instead of directly scanning
-      setScanMessage('Requesting challenge code...');
+      // Direct scan without challenge code
+      setScanMessage('Processing scan...');
       
-      const challengeResponse = await fetch(
-        `${apiUrl}/sessions/${sessionId}/chains/${chainId}/request-challenge`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ tokenId })
-        }
-      );
-
-      if (!challengeResponse.ok) {
-        const errorData = await challengeResponse.json();
-        setScanMessage(`✗ ${errorData.error?.message || 'Failed to request challenge'}`);
-        setTimeout(() => setScanMessage(null), 5000);
-        return;
-      }
-
-      const challengeData = await challengeResponse.json();
-      
-      // Display challenge code to scanner
-      setChallengeCode(challengeData.challengeCode);
-      setChallengeHolderName(challengeData.holderName || challengeData.holderId);
-      setChallengeExpiresAt(challengeData.expiresAt);
-      
-      setScanMessage(
-        `✓ Challenge code received!\n\n` +
-        `Show this code to ${challengeData.holderName || challengeData.holderId}:\n` +
-        `They must enter it on their screen to confirm the scan.`
-      );
-      
-      // Poll for status updates - scanner might become holder after validation
-      const pollInterval = setInterval(() => {
-        fetchData();
-      }, 2000); // Poll every 2 seconds
-      
-      // Auto-clear after expiration
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        setChallengeCode(null);
-        setChallengeHolderName(null);
-        setChallengeExpiresAt(null);
-        setScanMessage(null);
-        // Final refresh to check if we're now the holder
-        fetchData();
-      }, challengeData.expiresIn * 1000);
-
-    } catch (err) {
-      setScanMessage(`✗ Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      setTimeout(() => setScanMessage(null), 5000);
-    }
-  };
-
-  // NEW: Handle challenge code submission by holder
-  const handleChallengeSubmit = async () => {
-    if (challengeInput.length !== 6) {
-      alert('Please enter 6-digit code');
-      return;
-    }
-    
-    setIsValidatingChallenge(true);
-    
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      if (isLocal) {
-        const mockPrincipal = {
-          userId: studentId,
-          userDetails: studentId,
-          userRoles: ['authenticated', 'student'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      } else {
-        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
-        const authData = await authResponse.json();
-        if (authData.clientPrincipal) {
-          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
-        } else {
-          throw new Error('Not authenticated');
-        }
-      }
-      
-      // Get current token info
-      const tokenResponse = await fetch(
-        `${apiUrl}/sessions/${sessionId}/tokens/${studentId}`,
-        { headers }
-      );
-      
-      if (!tokenResponse.ok) {
-        throw new Error('Not a holder');
-      }
-      
-      const tokenData = await tokenResponse.json();
-      if (!tokenData.isHolder) {
-        throw new Error('You are not a holder');
-      }
-      
-      const { token, chainId } = tokenData;
       const location = await getCurrentLocation();
       
-      // Submit challenge code to complete scan
       const scanResponse = await fetch(
         `${apiUrl}/sessions/${sessionId}/chains/${chainId}/scan`,
         {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            tokenId: token,
-            challengeCode: challengeInput,
+            tokenId,
             location
           })
         }
       );
-      
-      if (scanResponse.ok) {
-        const data = await scanResponse.json();
-        setScanMessage(
-          `✓ Scan confirmed!\n` +
-          `You (${data.previousHolder}) marked present.\n` +
-          `${data.newHolder} is now the holder.`
-        );
-        setChallengeInput('');
-        
-        // If current student is the new holder, fetch immediately
-        if (data.newHolder === studentId) {
-          setScanMessage(
-            `✓ Success! You are now the holder.\n` +
-            `Your QR code will appear in a moment...`
-          );
-          
-          // Fetch immediately, then retry after 1 second if needed
-          fetchData();
-          setTimeout(() => {
-            fetchData();
-            setScanMessage(null);
-          }, 1000);
-        } else {
-          // Not the new holder, just refresh after delay
-          setTimeout(() => {
-            fetchData();
-            setScanMessage(null);
-          }, 3000);
-        }
-      } else {
+
+      if (!scanResponse.ok) {
         const errorData = await scanResponse.json();
-        setScanMessage(`✗ ${errorData.error?.message || 'Invalid code'}`);
+        setScanMessage(`✗ ${errorData.error?.message || 'Failed to scan'}`);
         setTimeout(() => setScanMessage(null), 5000);
+        return;
       }
+
+      const data = await scanResponse.json();
+      setScanMessage(
+        `✓ Scan successful!\n` +
+        `${data.previousHolder} marked present.\n` +
+        `${data.newHolder} is now the holder.`
+      );
       
+      // Refresh data immediately
+      fetchData();
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setScanMessage(null);
+        fetchData(); // Refresh again to ensure we have latest data
+      }, 3000);
+
     } catch (err) {
-      setScanMessage(`✗ ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setScanMessage(`✗ Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setTimeout(() => setScanMessage(null), 5000);
-    } finally {
-      setIsValidatingChallenge(false);
     }
   };
 
@@ -647,80 +522,6 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         </div>
       )}
 
-      {/* NEW: Challenge Code Display for Scanner */}
-      {challengeCode && (
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          padding: '2rem',
-          backgroundColor: '#fff',
-          border: '3px solid #28a745',
-          borderRadius: '12px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-          zIndex: 1001,
-          textAlign: 'center',
-          minWidth: '300px',
-          maxWidth: '90%'
-        }}>
-          <h2 style={{ margin: '0 0 1rem 0', color: '#28a745' }}>
-            ✓ Your Challenge Code
-          </h2>
-          
-          <div style={{
-            fontSize: '3rem',
-            fontWeight: 'bold',
-            fontFamily: 'monospace',
-            letterSpacing: '0.5rem',
-            color: '#28a745',
-            padding: '1rem',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '8px',
-            marginBottom: '1rem'
-          }}>
-            {challengeCode}
-          </div>
-          
-          <p style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-            Show this code to:
-          </p>
-          <p style={{ fontSize: '1.2rem', color: '#28a745', fontWeight: 'bold', marginBottom: '1rem' }}>
-            {challengeHolderName}
-          </p>
-          
-          <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0' }}>
-            They must enter this code on their screen to confirm the scan.
-          </p>
-          
-          {challengeExpiresAt && (
-            <p style={{ fontSize: '0.8rem', color: '#dc3545', marginTop: '0.5rem' }}>
-              Expires in {Math.max(0, Math.floor((challengeExpiresAt - Date.now()) / 1000))}s
-            </p>
-          )}
-          
-          <button
-            onClick={() => {
-              setChallengeCode(null);
-              setChallengeHolderName(null);
-              setChallengeExpiresAt(null);
-            }}
-            style={{
-              marginTop: '1rem',
-              padding: '0.5rem 1.5rem',
-              backgroundColor: '#666',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.9rem'
-            }}
-          >
-            Close
-          </button>
-        </div>
-      )}
-
       {/* Header with connection status */}
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -866,66 +667,6 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qrCodeUrl} alt="Your chain QR code" />
-            </div>
-          )}
-          
-          {/* NEW: Challenge Code Input for Holder */}
-          {timeRemaining > 0 && (
-            <div style={{
-              marginTop: '1.5rem',
-              padding: '1.5rem',
-              backgroundColor: '#fff',
-              borderRadius: '8px',
-              border: '2px solid #ffc107',
-              textAlign: 'left'
-            }}>
-              <p style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#856404' }}>
-                ⚠️ When someone scans your QR:
-              </p>
-              <p style={{ fontSize: '0.9rem', marginBottom: '1rem', color: '#666' }}>
-                They will show you a 6-digit code on their screen. Enter it below to confirm:
-              </p>
-              
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                value={challengeInput}
-                onChange={(e) => setChallengeInput(e.target.value.replace(/\D/g, ''))}
-                placeholder="000000"
-                disabled={isValidatingChallenge}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  fontSize: '1.5rem',
-                  textAlign: 'center',
-                  letterSpacing: '0.5rem',
-                  border: '2px solid #ffc107',
-                  borderRadius: '4px',
-                  fontFamily: 'monospace',
-                  backgroundColor: isValidatingChallenge ? '#f5f5f5' : 'white'
-                }}
-              />
-              
-              <button
-                onClick={handleChallengeSubmit}
-                disabled={challengeInput.length !== 6 || isValidatingChallenge}
-                style={{
-                  width: '100%',
-                  marginTop: '0.75rem',
-                  padding: '0.75rem',
-                  backgroundColor: challengeInput.length === 6 && !isValidatingChallenge ? '#28a745' : '#ccc',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '1rem',
-                  fontWeight: 'bold',
-                  cursor: challengeInput.length === 6 && !isValidatingChallenge ? 'pointer' : 'not-allowed'
-                }}
-              >
-                {isValidatingChallenge ? 'Validating...' : 'Confirm Scan'}
-              </button>
             </div>
           )}
           
