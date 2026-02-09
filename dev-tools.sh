@@ -249,10 +249,17 @@ reset_database() {
     # Azurite stores data in /workspace
     AZURITE_DATA_DIR="/workspace"
     
+    # Create directory if it doesn't exist
+    if [ ! -d "$AZURITE_DATA_DIR" ]; then
+        echo "📁 Creating Azurite data directory: $AZURITE_DATA_DIR"
+        sudo mkdir -p "$AZURITE_DATA_DIR" 2>/dev/null || mkdir -p "$AZURITE_DATA_DIR" 2>/dev/null
+        sudo chmod 777 "$AZURITE_DATA_DIR" 2>/dev/null || chmod 777 "$AZURITE_DATA_DIR" 2>/dev/null
+    fi
+    
     # Check if we can access the directory
     if [ ! -d "$AZURITE_DATA_DIR" ]; then
-        echo -e "${YELLOW}⚠️  Cannot access $AZURITE_DATA_DIR${NC}"
-        echo "   Azurite data directory not found."
+        echo -e "${YELLOW}⚠️  Cannot create $AZURITE_DATA_DIR${NC}"
+        echo "   Azurite data directory not accessible."
         echo ""
         echo "   Alternative: Use Azure Storage Explorer to clear tables:"
         echo "   1. Connect to: http://127.0.0.1:10002"
