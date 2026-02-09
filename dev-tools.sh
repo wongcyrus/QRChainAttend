@@ -318,17 +318,22 @@ reset_database() {
         echo ""
         echo "Restarting Azurite..."
         sudo azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /workspace --debug /workspace/debug.log > /dev/null 2>&1 &
-        sleep 2
+        sleep 3
         echo -e "${GREEN}✅ Azurite restarted${NC}"
+        
+        # Recreate tables automatically
+        echo ""
+        echo "📋 Recreating tables..."
+        if [ -f "$SCRIPT_DIR/scripts/init-tables.sh" ]; then
+            bash "$SCRIPT_DIR/scripts/init-tables.sh"
+            echo -e "${GREEN}✅ Tables recreated${NC}"
+        else
+            echo -e "${YELLOW}⚠️  init-tables.sh not found, skipping table creation${NC}"
+        fi
     fi
     
     echo ""
     echo -e "${GREEN}✅ Database reset complete!${NC}"
-    echo ""
-    echo "📝 Next steps:"
-    echo "   1. Restart backend: ./dev-tools.sh restart"
-    echo "   2. Create new session from teacher dashboard"
-    echo "   3. Students can join the fresh session"
     echo ""
 }
 
