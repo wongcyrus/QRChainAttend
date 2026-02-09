@@ -169,8 +169,12 @@ export default function StudentPage() {
       }
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process request');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process request';
+      setError(errorMessage);
       setHasAutoJoined(false); // Allow retry
+      
+      // Clear URL parameters so user sees the error page
+      router.replace('/student', undefined, { shallow: true });
     } finally {
       setJoining(false);
     }
@@ -188,8 +192,32 @@ export default function StudentPage() {
     return null;
   }
 
+  // Show loading state when joining
+  if (joining) {
+    return (
+      <div style={{ 
+        padding: '2rem', 
+        fontFamily: 'system-ui, sans-serif',
+        maxWidth: '600px',
+        margin: '0 auto',
+        textAlign: 'center'
+      }}>
+        <div style={{ 
+          fontSize: '4rem', 
+          marginBottom: '1rem',
+          animation: 'pulse 1.5s ease-in-out infinite'
+        }}>
+          ⏳
+        </div>
+        <h2 style={{ margin: '0 0 0.5rem 0' }}>Joining Session...</h2>
+        <p style={{ color: '#666' }}>Please wait while we verify your entry.</p>
+      </div>
+    );
+  }
+
   // If sessionId in query and already joined, show session view
-  if (sessionId && typeof sessionId === 'string') {
+  // BUT: Don't show if there's an error (failed to join)
+  if (sessionId && typeof sessionId === 'string' && !error && !type && !token) {
     return (
       <SimpleStudentView 
         sessionId={sessionId}
@@ -214,14 +242,61 @@ export default function StudentPage() {
 
       {error && (
         <div style={{
-          padding: '1rem',
+          padding: '1.5rem',
           backgroundColor: '#fef0f0',
-          border: '1px solid #d13438',
-          borderRadius: '4px',
-          marginBottom: '1rem',
+          border: '2px solid #d13438',
+          borderRadius: '8px',
+          marginBottom: '1.5rem',
           color: '#d13438'
         }}>
-          {error}
+          <div style={{ 
+            fontSize: '2rem', 
+            marginBottom: '0.5rem',
+            textAlign: 'center'
+          }}>
+            ❌
+          </div>
+          <div style={{ 
+            fontSize: '1.1rem', 
+            fontWeight: 'bold',
+            marginBottom: '0.5rem',
+            textAlign: 'center'
+          }}>
+            Failed to Join Session
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            {error}
+          </div>
+          {error.includes('expired') && (
+            <div style={{
+              marginTop: '1rem',
+              padding: '1rem',
+              backgroundColor: '#fff5e6',
+              border: '1px solid #ff9800',
+              borderRadius: '4px',
+              color: '#e65100',
+              fontSize: '0.9rem'
+            }}>
+              <strong>💡 Tip:</strong> QR codes expire after 20 seconds. Ask your teacher to show the QR code again.
+            </div>
+          )}
+          <button
+            onClick={() => setError(null)}
+            style={{
+              marginTop: '1rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: '#d13438',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              width: '100%',
+              fontSize: '0.95rem',
+              fontWeight: '600'
+            }}
+          >
+            Try Again
+          </button>
         </div>
       )}
 

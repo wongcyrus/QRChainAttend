@@ -41,15 +41,19 @@ export default function DevConfig() {
     }
   }, [router]);
 
-  const handleSetUser = async () => {
+  const handleSetUser = async (userEmail?: string, userRole?: 'teacher' | 'student') => {
     setError(null);
+    
+    // Use provided values or fall back to state
+    const finalEmail = userEmail || email;
+    const finalRole = userRole || role;
     
     const mockUser = {
       clientPrincipal: {
-        userId: `local-dev-${role}-${Date.now()}`,
-        userDetails: email,
+        userId: `local-dev-${finalRole}-${Date.now()}`,
+        userDetails: finalEmail,
         identityProvider: 'aad',
-        userRoles: ['authenticated', role]
+        userRoles: ['authenticated', finalRole]
       }
     };
 
@@ -113,11 +117,7 @@ export default function DevConfig() {
             {testUsers.filter(u => u.role === 'teacher').map(user => (
               <button
                 key={user.email}
-                onClick={() => {
-                  setEmail(user.email);
-                  setRole(user.role);
-                  handleSetUser();
-                }}
+                onClick={() => handleSetUser(user.email, user.role)}
                 style={{
                   padding: '0.75rem',
                   backgroundColor: '#f0f0f0',
@@ -151,11 +151,7 @@ export default function DevConfig() {
             {testUsers.filter(u => u.role === 'student').map(user => (
               <button
                 key={user.email}
-                onClick={() => {
-                  setEmail(user.email);
-                  setRole(user.role);
-                  handleSetUser();
-                }}
+                onClick={() => handleSetUser(user.email, user.role)}
                 style={{
                   padding: '0.75rem 0.5rem',
                   backgroundColor: '#f0f0f0',
