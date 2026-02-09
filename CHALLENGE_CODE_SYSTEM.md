@@ -45,6 +45,8 @@ The QR chain attendance system now requires **bidirectional verification** betwe
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. Scanner scans Holder's QR code                           │
 │    - QR contains: sessionId, chainId, tokenId               │
+│    - ⚠️ tokenId rotates every 5-20 seconds (auto-refresh)   │
+│    - Frontend polls every 5s for new token URL              │
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐

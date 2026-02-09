@@ -507,6 +507,21 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     }
   }, [status.isHolder, status.holderTokenUrl]);
 
+  // Poll for new tokens every 5 seconds when holder
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    if (!status.isHolder) {
+      return;
+    }
+
+    // Poll every 5 seconds to get fresh token (URL will change)
+    const pollInterval = setInterval(() => {
+      fetchData();
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [status.isHolder]);
+
   // Countdown timer for token expiration
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
