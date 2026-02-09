@@ -33,7 +33,7 @@ export default function StudentPage() {
   const [error, setError] = useState<string | null>(null);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [hasAutoJoined, setHasAutoJoined] = useState(false);
-  const { sessionId, type, token } = router.query;
+  const { sessionId, type, token, chainId, tokenId } = router.query;
 
   useEffect(() => {
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
@@ -78,13 +78,17 @@ export default function StudentPage() {
   // Separate effect for auto-join to avoid infinite loop
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    if (user && sessionId && typeof sessionId === 'string' && !hasAutoJoined && !joining) {
+    // Check if this is a chain scan URL (has chainId and tokenId)
+    const isChainScan = chainId && tokenId;
+    
+    // Only auto-join for teacher's entry/exit QR codes (has type but no chainId)
+    if (user && sessionId && typeof sessionId === 'string' && !hasAutoJoined && !joining && !isChainScan) {
       setHasAutoJoined(true);
       const qrType = typeof type === 'string' ? type : undefined;
       const qrToken = typeof token === 'string' ? token : undefined;
       handleJoinSession(sessionId, qrType, qrToken);
     }
-  }, [user, sessionId, type, token, hasAutoJoined, joining]);
+  }, [user, sessionId, type, token, chainId, tokenId, hasAutoJoined, joining]);
 
   const handleJoinSession = async (sessionIdToJoin: string, qrType?: string, qrToken?: string) => {
     if (!user) return;
@@ -241,7 +245,8 @@ export default function StudentPage() {
 
   // If sessionId in query and already joined, show session view
   // BUT: Don't show if there's an error (failed to join)
-  if (sessionId && typeof sessionId === 'string' && !error && !type && !token) {
+  // ALSO: Pass through chain scan URLs (has chainId/tokenId) to SimpleStudentView
+  if (sessionId && typeof sessionId === 'string' && !error && (!type || chainId)) {
     return (
       <SimpleStudentView 
         sessionId={sessionId}
