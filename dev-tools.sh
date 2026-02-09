@@ -91,6 +91,24 @@ start_servers() {
     
     # Get the script directory
     SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    AZURITE_DATA_DIR="$SCRIPT_DIR/azurite"
+    
+    # Create Azurite directory if it doesn't exist
+    if [ ! -d "$AZURITE_DATA_DIR" ]; then
+        echo "📁 Creating Azurite data directory: $AZURITE_DATA_DIR"
+        mkdir -p "$AZURITE_DATA_DIR"
+    fi
+    
+    # Start Azurite if not running
+    if pgrep -f azurite > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ Azurite already running${NC}"
+    else
+        echo "Starting Azurite (Azure Storage Emulator)..."
+        npx azurite --silent --location "$AZURITE_DATA_DIR" --debug "$AZURITE_DATA_DIR/debug.log" > /dev/null 2>&1 &
+        AZURITE_PID=$!
+        echo -e "${GREEN}✅ Azurite starting (PID: $AZURITE_PID)${NC}"
+        sleep 2
+    fi
     
     # Check if already running
     if lsof -Pi :7071 -sTCP:LISTEN -t >/dev/null 2>&1; then
@@ -246,65 +264,53 @@ reset_database() {
     echo "============================"
     echo ""
     
-    # Azurite stores data in /workspace
-    AZURITE_DATA_DIR="/workspace"
+    # Get the script directory
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    
+    # Use local azurite directory instead of /workspace
+    AZURITE_DATA_DIR="$SCRIPT_DIR/azurite"
     
     # Create directory if it doesn't exist
     if [ ! -d "$AZURITE_DATA_DIR" ]; then
         echo "📁 Creating Azurite data directory: $AZURITE_DATA_DIR"
-        sudo mkdir -p "$AZURITE_DATA_DIR" 2>/dev/null || mkdir -p "$AZURITE_DATA_DIR" 2>/dev/null
-        sudo chmod 777 "$AZURITE_DATA_DIR" 2>/dev/null || chmod 777 "$AZURITE_DATA_DIR" 2>/dev/null
-    fi
-    
-    # Check if we can access the directory
-    if [ ! -d "$AZURITE_DATA_DIR" ]; then
-        echo -e "${YELLOW}⚠️  Cannot create $AZURITE_DATA_DIR${NC}"
-        echo "   Azurite data directory not accessible."
-        echo ""
-        echo "   Alternative: Use Azure Storage Explorer to clear tables:"
-        echo "   1. Connect to: http://127.0.0.1:10002"
-        echo "   2. Delete tables: Sessions, Attendance, Chains, Tokens, UserSessions"
-        echo ""
-        return
+        mkdir -p "$AZURITE_DATA_DIR"
     fi
     
     # Check if Azurite is running
     if pgrep -f azurite > /dev/null 2>&1; then
         echo -e "${YELLOW}⚠️  Azurite is running${NC}"
         echo "   Stopping Azurite to clear data..."
-        sudo pkill -f azurite 2>/dev/null || pkill -f azurite 2>/dev/null
+        pkill -f azurite 2>/dev/null || true
         sleep 2
         RESTART_AZURITE=true
     else
         RESTART_AZURITE=false
     fi
     
+    echo ""
+    
     # Remove Azurite data files
     echo "📁 Clearing Azurite data from: $AZURITE_DATA_DIR"
+    echo ""
     
     CLEARED=0
     
-    # Try with sudo first, then without
-    if sudo rm -f "$AZURITE_DATA_DIR/__azurite_db_table__.json" 2>/dev/null || \
-       rm -f "$AZURITE_DATA_DIR/__azurite_db_table__.json" 2>/dev/null; then
+    if rm -f "$AZURITE_DATA_DIR/__azurite_db_table__.json" 2>/dev/null; then
         echo -e "${GREEN}   ✓ Removed table storage data${NC}"
         CLEARED=1
     fi
     
-    if sudo rm -rf "$AZURITE_DATA_DIR/__blobstorage__" 2>/dev/null || \
-       rm -rf "$AZURITE_DATA_DIR/__blobstorage__" 2>/dev/null; then
+    if rm -rf "$AZURITE_DATA_DIR/__blobstorage__" 2>/dev/null; then
         echo -e "${GREEN}   ✓ Removed blob storage data${NC}"
         CLEARED=1
     fi
     
-    if sudo rm -rf "$AZURITE_DATA_DIR/__queuestorage__" 2>/dev/null || \
-       rm -rf "$AZURITE_DATA_DIR/__queuestorage__" 2>/dev/null; then
+    if rm -rf "$AZURITE_DATA_DIR/__queuestorage__" 2>/dev/null; then
         echo -e "${GREEN}   ✓ Removed queue storage data${NC}"
         CLEARED=1
     fi
     
-    if sudo rm -rf "$AZURITE_DATA_DIR/__tablestorage__" 2>/dev/null || \
-       rm -rf "$AZURITE_DATA_DIR/__tablestorage__" 2>/dev/null; then
+    if rm -rf "$AZURITE_DATA_DIR/__tablestorage__" 2>/dev/null; then
         echo -e "${GREEN}   ✓ Removed table storage directory${NC}"
         CLEARED=1
     fi
@@ -317,7 +323,7 @@ reset_database() {
     if [ "$RESTART_AZURITE" = true ]; then
         echo ""
         echo "Restarting Azurite..."
-        sudo azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /workspace --debug /workspace/debug.log > /dev/null 2>&1 &
+        npx azurite --silent --location "$AZURITE_DATA_DIR" --debug "$AZURITE_DATA_DIR/debug.log" > /dev/null 2>&1 &
         sleep 3
         echo -e "${GREEN}✅ Azurite restarted${NC}"
         

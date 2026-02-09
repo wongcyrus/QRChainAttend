@@ -56,6 +56,8 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
   const [reseedingEntry, setReseedingEntry] = useState(false);
   const [reseedingExit, setReseedingExit] = useState(false);
   const [closingChain, setClosingChain] = useState<string | null>(null);
+  const [settingHolder, setSettingHolder] = useState<string | null>(null);
+  const [manualHolderInput, setManualHolderInput] = useState<{ [chainId: string]: string }>({});
   
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -150,6 +152,108 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
     return new Date(timestamp * 1000).toLocaleTimeString();
   };
 
+  const renderChainControls = (chain: Chain) => (
+    <>
+      <span>
+        Holder: <strong style={{ color: '#2d3748' }}>{chain.lastHolder || 'None'}</strong>
+      </span>
+      <span>
+        Seq: <strong style={{ color: '#2d3748' }}>{chain.lastSeq}</strong>
+      </span>
+      <span>
+        Last: {formatTimestamp(chain.lastAt)}
+      </span>
+      
+      {/* Manual holder assignment - only show if no holder */}
+      {!chain.lastHolder && (
+        <div style={{ 
+          display: 'flex', 
+          gap: '0.5rem', 
+          alignItems: 'center',
+          padding: '0.5rem',
+          backgroundColor: '#fff3cd',
+          borderRadius: '4px',
+          border: '1px solid #ffc107'
+        }}>
+          <span style={{ fontSize: '0.75rem', color: '#856404', fontWeight: '600' }}>
+            Manually assign:
+          </span>
+          <input
+            type="text"
+            placeholder="student@stu.vtc.edu.hk"
+            value={manualHolderInput[chain.chainId] || ''}
+            onChange={(e) => setManualHolderInput({ ...manualHolderInput, [chain.chainId]: e.target.value })}
+            disabled={settingHolder === chain.chainId}
+            style={{
+              padding: '0.375rem 0.5rem',
+              fontSize: '0.75rem',
+              border: '1px solid #cbd5e0',
+              borderRadius: '4px',
+              width: '180px'
+            }}
+          />
+          <button
+            onClick={() => handleSetHolder(chain.chainId)}
+            disabled={settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim()}
+            style={{
+              padding: '0.375rem 0.75rem',
+              backgroundColor: settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim() ? '#ccc' : '#4299e1',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim() ? 'not-allowed' : 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              if (settingHolder !== chain.chainId && manualHolderInput[chain.chainId]?.trim()) {
+                e.currentTarget.style.backgroundColor = '#3182ce';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (settingHolder !== chain.chainId && manualHolderInput[chain.chainId]?.trim()) {
+                e.currentTarget.style.backgroundColor = '#4299e1';
+              }
+            }}
+          >
+            {settingHolder === chain.chainId ? '⏳' : '👤 Assign'}
+          </button>
+        </div>
+      )}
+      
+      {chain.lastHolder && (
+        <button
+          onClick={() => handleCloseChain(chain.chainId)}
+          disabled={closingChain === chain.chainId}
+          style={{
+            padding: '0.375rem 0.75rem',
+            backgroundColor: closingChain === chain.chainId ? '#ccc' : '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: closingChain === chain.chainId ? 'not-allowed' : 'pointer',
+            fontSize: '0.75rem',
+            fontWeight: '600',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => {
+            if (closingChain !== chain.chainId) {
+              e.currentTarget.style.backgroundColor = '#c82333';
+            }
+          }}
+          onMouseOut={(e) => {
+            if (closingChain !== chain.chainId) {
+              e.currentTarget.style.backgroundColor = '#dc3545';
+            }
+          }}
+        >
+          {closingChain === chain.chainId ? '⏳ Closing...' : '🔒 Close & Mark Present'}
+        </button>
+      )}
+    </>
+  );
+
   const handleCloseChain = async (chainId: string) => {
     if (!confirm('Close this chain and mark the final holder as present?')) {
       return;
@@ -192,6 +296,60 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
     }
   };
 
+  const handleSetHolder = async (chainId: string) => {
+    const studentId = manualHolderInput[chainId]?.trim();
+    
+    if (!studentId) {
+      onError?.('Please enter a student ID');
+      return;
+    }
+
+    if (!confirm(`Set ${studentId} as the holder of this chain?`)) {
+      return;
+    }
+
+    setSettingHolder(chainId);
+    setSuccessMessage(null);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
+        const mockPrincipal = {
+          userId: 'local-dev-teacher',
+          userDetails: 'teacher@vtc.edu.hk',
+          userRoles: ['authenticated', 'teacher'],
+          identityProvider: 'aad'
+        };
+        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      }
+      
+      const response = await fetch(
+        `${apiUrl}/sessions/${sessionId}/chains/${chainId}/set-holder`,
+        { 
+          method: 'POST', 
+          headers,
+          body: JSON.stringify({ studentId })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Failed to set holder: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setSuccessMessage(`${data.newHolder} is now the holder (seq ${data.sequence})`);
+      setManualHolderInput({ ...manualHolderInput, [chainId]: '' });
+      onChainsUpdated?.();
+    } catch (err) {
+      onError?.(err instanceof Error ? err.message : 'Failed to set holder');
+    } finally {
+      setSettingHolder(null);
+    }
+  };
+
   const entryChains = chains.filter(c => c.phase === ChainPhase.ENTRY);
   const exitChains = chains.filter(c => c.phase === ChainPhase.EXIT);
 
@@ -230,11 +388,35 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
       <h2 style={{ 
         color: '#2d3748',
         fontSize: '1.5rem',
-        marginBottom: '1.5rem',
+        marginBottom: '1rem',
         fontWeight: '700'
       }}>
         🔗 Chain Management
       </h2>
+
+      {/* Help Text */}
+      <div style={{
+        padding: '1rem',
+        backgroundColor: '#e3f2fd',
+        borderRadius: '8px',
+        marginBottom: '1.5rem',
+        border: '1px solid #90caf9'
+      }}>
+        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#1976d2', fontWeight: '600' }}>
+          💡 How Chain Attendance Works:
+        </p>
+        <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.875rem', color: '#0d47a1', lineHeight: '1.6' }}>
+          <li><strong>Seed Entry Chains:</strong> Click to start attendance. Random students become "holders" and see a QR code on their phone.</li>
+          <li><strong>Students scan each other:</strong> Holders show their QR code to another student, who scans it with their phone camera. The chain passes to the scanner.</li>
+          <li><strong>Chain continues:</strong> Each scan marks the previous holder as present and passes the chain to the next student.</li>
+          <li><strong>Last student problem:</strong> When the last student has the chain (no one left to pass to), you have 2 options:
+            <ul style={{ marginTop: '0.25rem' }}>
+              <li><strong>Option 1 - Manually assign:</strong> If chain shows "Holder: None", enter the last student's email and click "Assign" to give them the holder status.</li>
+              <li><strong>Option 2 - Close chain:</strong> If chain already has a holder, click "🔒 Close & Mark Present" to end the chain and mark that student as present.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
 
       {successMessage && (
         <div style={{
@@ -387,6 +569,52 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
                     <span>
                       Last: {formatTimestamp(chain.lastAt)}
                     </span>
+                    
+                    {/* Manual holder assignment */}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="Student ID"
+                        value={manualHolderInput[chain.chainId] || ''}
+                        onChange={(e) => setManualHolderInput({ ...manualHolderInput, [chain.chainId]: e.target.value })}
+                        disabled={settingHolder === chain.chainId}
+                        style={{
+                          padding: '0.375rem 0.5rem',
+                          fontSize: '0.75rem',
+                          border: '1px solid #cbd5e0',
+                          borderRadius: '4px',
+                          width: '100px'
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSetHolder(chain.chainId)}
+                        disabled={settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim()}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          backgroundColor: settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim() ? '#ccc' : '#4299e1',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim() ? 'not-allowed' : 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => {
+                          if (settingHolder !== chain.chainId && manualHolderInput[chain.chainId]?.trim()) {
+                            e.currentTarget.style.backgroundColor = '#3182ce';
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          if (settingHolder !== chain.chainId && manualHolderInput[chain.chainId]?.trim()) {
+                            e.currentTarget.style.backgroundColor = '#4299e1';
+                          }
+                        }}
+                      >
+                        {settingHolder === chain.chainId ? '⏳' : '👤 Set Holder'}
+                      </button>
+                    </div>
+                    
                     {chain.lastHolder && (
                       <button
                         onClick={() => handleCloseChain(chain.chainId)}
@@ -548,7 +776,8 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
                     gap: '1rem',
                     fontSize: '0.875rem',
                     color: '#718096',
-                    flexWrap: 'wrap'
+                    flexWrap: 'wrap',
+                    alignItems: 'center'
                   }}>
                     <span>
                       Holder: <strong style={{ color: '#2d3748' }}>{chain.lastHolder || 'None'}</strong>
@@ -559,6 +788,81 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
                     <span>
                       Last: {formatTimestamp(chain.lastAt)}
                     </span>
+                    
+                    {/* Manual holder assignment */}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="Student ID"
+                        value={manualHolderInput[chain.chainId] || ''}
+                        onChange={(e) => setManualHolderInput({ ...manualHolderInput, [chain.chainId]: e.target.value })}
+                        disabled={settingHolder === chain.chainId}
+                        style={{
+                          padding: '0.375rem 0.5rem',
+                          fontSize: '0.75rem',
+                          border: '1px solid #cbd5e0',
+                          borderRadius: '4px',
+                          width: '100px'
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSetHolder(chain.chainId)}
+                        disabled={settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim()}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          backgroundColor: settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim() ? '#ccc' : '#4299e1',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim() ? 'not-allowed' : 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => {
+                          if (settingHolder !== chain.chainId && manualHolderInput[chain.chainId]?.trim()) {
+                            e.currentTarget.style.backgroundColor = '#3182ce';
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          if (settingHolder !== chain.chainId && manualHolderInput[chain.chainId]?.trim()) {
+                            e.currentTarget.style.backgroundColor = '#4299e1';
+                          }
+                        }}
+                      >
+                        {settingHolder === chain.chainId ? '⏳' : '👤 Set Holder'}
+                      </button>
+                    </div>
+                    
+                    {chain.lastHolder && (
+                      <button
+                        onClick={() => handleCloseChain(chain.chainId)}
+                        disabled={closingChain === chain.chainId}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          backgroundColor: closingChain === chain.chainId ? '#ccc' : '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: closingChain === chain.chainId ? 'not-allowed' : 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => {
+                          if (closingChain !== chain.chainId) {
+                            e.currentTarget.style.backgroundColor = '#c82333';
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          if (closingChain !== chain.chainId) {
+                            e.currentTarget.style.backgroundColor = '#dc3545';
+                          }
+                        }}
+                      >
+                        {closingChain === chain.chainId ? '⏳ Closing...' : '🔒 Close Chain'}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

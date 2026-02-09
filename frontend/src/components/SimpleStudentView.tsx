@@ -422,6 +422,22 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     return () => clearInterval(pollInterval);
   }, [status.isHolder]);
 
+  // Poll for status changes when NOT a holder (for local dev without SignalR)
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    // Only poll if not connected via SignalR and not a holder
+    if (connectionStatus === 'connected' || status.isHolder) {
+      return;
+    }
+
+    // Poll every 3 seconds to check if student became a holder
+    const pollInterval = setInterval(() => {
+      fetchData();
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [connectionStatus, status.isHolder]);
+
   // Countdown timer for token expiration
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {

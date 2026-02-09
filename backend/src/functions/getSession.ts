@@ -34,6 +34,11 @@ interface Chain {
   rowKey: string;
   phase: string;
   currentToken: string;
+  index?: number;
+  state?: string;
+  lastHolder?: string;
+  lastSeq?: number;
+  lastAt?: number;
 }
 
 // Inline helper functions
@@ -161,6 +166,11 @@ export async function getSession(
     for await (const entity of chainsTable.listEntities({ queryOptions: { filter: `PartitionKey eq '${sessionId}'` } })) {
       chains.push(entity as unknown as Chain);
     }
+    
+    context.log(`Fetched ${chains.length} chains for session ${sessionId}`);
+    chains.forEach(c => {
+      context.log(`Chain ${c.rowKey}: lastHolder=${c.lastHolder}, lastSeq=${c.lastSeq}, state=${c.state}`);
+    });
 
     // Get active tokens to identify current holders
     const tokensTable = getTableClient('Tokens');
@@ -228,11 +238,11 @@ export async function getSession(
         sessionId,
         phase: c.phase,
         chainId: c.rowKey,
-        index: 0,
-        state: 'ACTIVE',
-        lastHolder: undefined,
-        lastSeq: 0,
-        lastAt: undefined
+        index: c.index || 0,
+        state: c.state || 'ACTIVE',
+        lastHolder: c.lastHolder,
+        lastSeq: c.lastSeq || 0,
+        lastAt: c.lastAt
       })),
       stats
     };
