@@ -18,14 +18,27 @@ npx azurite --silent --location azurite --debug azurite/debug.log
 
 **Reset Local Database:**
 ```bash
-./scripts/reset-local-db.sh
+./dev-tools.sh reset-db
 ```
+
+⚠️ **Important**: This command is **LOCAL ONLY** - it only resets Azurite, not production Azure.
 
 This script:
 1. Stops Azurite
-2. Deletes the `azurite` folder
+2. Deletes the `azurite` folder (or `/workspace` directory)
 3. Restarts Azurite
 4. Recreates all tables
+
+**What it affects**:
+- ✅ Local Azurite emulator only
+- ✅ Data in `/workspace/` directory
+- ❌ Does NOT affect production Azure
+
+**When to use**:
+- Testing with fresh database
+- Clearing test data
+- Fixing corrupted local data
+- Starting clean for development
 
 **Tables Created:**
 - Sessions
@@ -52,6 +65,27 @@ Production uses **Azure Table Storage** in the cloud.
 ```bash
 ./scripts/reset-production-db.sh
 ```
+
+⚠️ **DANGER**: This deletes ALL production data and requires confirmation.
+
+**What it does**:
+- Connects to Azure Storage Account
+- Deletes all tables
+- Recreates empty tables
+- **ALL PRODUCTION DATA IS LOST**
+
+**When to use** (RARE):
+- Initial production setup
+- Clearing old test data from production
+- Emergency data corruption fix
+- **NEVER during active use**
+
+**Safety checklist before running**:
+- [ ] Backup any important data
+- [ ] Notify all users
+- [ ] Confirm no active sessions
+- [ ] Have rollback plan ready
+- [ ] Document why you're doing this
 
 ⚠️ **WARNING:** This will delete ALL production data!
 
@@ -181,7 +215,7 @@ az storage entity query \
 - **Solution:** Check `NEXT_PUBLIC_ENVIRONMENT=local`
 
 **Problem:** Tables don't exist
-- **Solution:** Run `./scripts/reset-local-db.sh`
+- **Solution:** Run `./dev-tools.sh reset-db` or `./scripts/init-tables.sh`
 
 ### Production Issues
 
@@ -223,7 +257,7 @@ az storage entity query \
 
 | Script | Purpose | Safe? |
 |--------|---------|-------|
-| `scripts/reset-local-db.sh` | Reset local Azurite database | ✅ Yes |
+| `./dev-tools.sh reset-db` | Reset local Azurite database | ✅ Yes |
 | `scripts/reset-production-db.sh` | Reset production Azure database | ⚠️ Requires confirmation |
 | `scripts/verify-local-dev.sh` | Check local dev configuration | ✅ Yes (read-only) |
 | `scripts/init-tables.sh` | Initialize local tables | ✅ Yes |

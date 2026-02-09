@@ -106,6 +106,6 @@ The following scripts are replaced by `dev-tools.sh`:
 - `dev.sh` → Use `./dev-tools.sh start`
 - `stop-dev.sh` → Use `./dev-tools.sh stop`
 - `scripts/reset-local-db.sh` → Use `./dev-tools.sh reset-db`
-- `scripts/start-local-dev.sh` → Use `./dev-tools.sh start`
+- `scripts/start-local-dev.sh` → Use `./dev-tools.sh start` (or keep for separate terminals)
 
 Keep `scripts/setup-local-dev.sh` for initial Azure configuration.

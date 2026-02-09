@@ -55,13 +55,21 @@ Fields:
 **Schema**:
 ```
 PartitionKey: sessionId
-RowKey: tokenId
+RowKey: tokenId (UUID)
 Fields:
-  - token: string
-  - type: string
-  - expiresAt: timestamp
-  - isActive: boolean
+  - chainId: string
+  - holderId: string (email of current holder)
+  - seq: number (sequence number in chain)
+  - expiresAt: timestamp (token expiration, default 20s)
+  - createdAt: timestamp
+  
+  # Challenge Code Fields (Optional - added when scanner requests challenge)
+  - pendingChallenge: string (email of scanner who requested challenge)
+  - challengeCode: string (SHA-256 hash of 6-digit code)
+  - challengeExpiresAt: timestamp (challenge expiration, default 30s)
 ```
+
+**Note**: Challenge fields are added dynamically when a scanner requests a challenge code. They are optional and not present on newly created tokens until a scan is initiated.
 
 ### 5. UserSessions
 **Purpose**: Map users to their active sessions
@@ -227,6 +235,27 @@ az storage entity query \
 ```
 
 ## Migration Notes
+
+### Challenge Code System (February 2026)
+
+**No migration needed**:
+- Challenge fields are optional and added dynamically
+- Azure Table Storage is schema-less
+- Existing tokens continue to work
+- New tokens support challenge codes automatically
+
+**What changed**:
+- Added 3 optional fields to Tokens table:
+  - `pendingChallenge`: Scanner's email
+  - `challengeCode`: SHA-256 hash of 6-digit code
+  - `challengeExpiresAt`: Challenge expiration timestamp
+- Fields are added via `updateEntity` when scanner requests challenge
+- Old tokens without these fields still work (just can't use challenge system)
+
+**Backward compatibility**:
+- ✅ Old tokens (before deployment): Work normally
+- ✅ New tokens (after deployment): Support challenges
+- ✅ Mixed environment: Both coexist without issues
 
 ### From QRTokens to Encryption
 

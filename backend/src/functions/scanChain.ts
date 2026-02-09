@@ -5,6 +5,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { TableClient } from '@azure/data-tables';
 import { randomUUID } from 'crypto';
+import * as crypto from 'crypto';
 import { broadcastAttendanceUpdate, broadcastChainUpdate } from '../utils/signalrBroadcast';
 import { validateGeolocation } from '../utils/geolocation';
 
@@ -75,12 +76,21 @@ export async function scanChain(
     const chainId = request.params.chainId;
     const body = await request.json() as any;
     const tokenId = body.tokenId;
+    const challengeCode = body.challengeCode; // NEW: Challenge code entered by holder
     const scannerLocation = body.location || body.metadata?.gps; // Student's GPS location
     
     if (!sessionId || !chainId || !tokenId) {
       return {
         status: 400,
         jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId, chainId, or tokenId', timestamp: Date.now() } }
+      };
+    }
+
+    // NEW: Require challenge code
+    if (!challengeCode) {
+      return {
+        status: 400,
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing challengeCode. Holder must enter the challenge code shown to scanner.', timestamp: Date.now() } }
       };
     }
 
@@ -167,6 +177,70 @@ export async function scanChain(
         };
       }
       
+      // NEW: Validate challenge code
+      if (!token.pendingChallenge || !token.challengeCode || !token.challengeExpiresAt) {
+        return {
+          status: 400,
+          jsonBody: { 
+            error: { 
+              code: 'NO_PENDING_CHALLENGE', 
+              message: 'No pending challenge. Scanner must request challenge first by scanning the QR code.', 
+              timestamp: now 
+            } 
+          }
+        };
+      }
+      
+      // Check if challenge expired
+      if ((token.challengeExpiresAt as number) < now) {
+        return {
+          status: 400,
+          jsonBody: { 
+            error: { 
+              code: 'CHALLENGE_EXPIRED', 
+              message: 'Challenge code has expired. Scanner must scan QR code again to get a new code.', 
+              timestamp: now 
+            } 
+          }
+        };
+      }
+      
+      // Validate challenge code matches
+      const enteredHash = crypto.createHash('sha256').update(challengeCode).digest('hex');
+      if (enteredHash !== token.challengeCode) {
+        context.warn(`Invalid challenge code entered for token ${tokenId}. Expected hash: ${token.challengeCode}, got: ${enteredHash}`);
+        return {
+          status: 403,
+          jsonBody: { 
+            error: { 
+              code: 'INVALID_CHALLENGE', 
+              message: 'Invalid challenge code. Please check the code and try again.', 
+              timestamp: now 
+            } 
+          }
+        };
+      }
+      
+      // Verify the current user (holder) is the one who should validate
+      // The holder is the one entering the code, not the scanner
+      const scannerId = token.pendingChallenge as string;
+      const holderId = token.holderId as string;
+      
+      if (studentEmail !== holderId) {
+        return {
+          status: 403,
+          jsonBody: { 
+            error: { 
+              code: 'NOT_HOLDER', 
+              message: 'Only the current holder can validate the challenge code.', 
+              timestamp: now 
+            } 
+          }
+        };
+      }
+      
+      context.log(`Challenge validated: holder=${holderId}, scanner=${scannerId}, code verified`);
+      
       // Verify token belongs to the correct chain
       if (token.chainId !== chainId) {
         return {
@@ -184,17 +258,13 @@ export async function scanChain(
       throw error;
     }
 
-    // Get the previous holder (who had the token)
+    // Get the previous holder and the scanner from challenge
     const previousHolder = token.holderId as string;
+    const scannerId = token.pendingChallenge as string;
     
-    // Cannot scan your own QR code
-    if (previousHolder === studentEmail) {
-      return {
-        status: 400,
-        jsonBody: { error: { code: 'SELF_SCAN', message: 'Cannot scan your own QR code', timestamp: now } }
-      };
-    }
-
+    // The holder (studentEmail) is validating the scanner's challenge
+    // Scanner should become the new holder
+    
     // Mark previous holder's attendance if not already marked
     try {
       const prevAttendance = await attendanceTable.getEntity(sessionId, previousHolder);
@@ -233,12 +303,12 @@ export async function scanChain(
       context.log(`Warning: Could not update attendance for previous holder: ${error.message}`);
     }
 
-    // Record location warning for the scanner (current student)
+    // Record location warning for the scanner
     if (locationWarning || scannerLocation) {
       try {
         const scannerUpdate: any = {
           partitionKey: sessionId,
-          rowKey: studentEmail
+          rowKey: scannerId  // Update scanner, not holder
         };
         if (scannerLocation) {
           scannerUpdate.scanLocation = JSON.stringify(scannerLocation);
@@ -251,7 +321,7 @@ export async function scanChain(
 
         if (locationWarning) {
           await broadcastAttendanceUpdate(sessionId, {
-            studentId: studentEmail,
+            studentId: scannerId,
             locationWarning
           }, context);
         }
@@ -263,7 +333,7 @@ export async function scanChain(
     // Delete the old token
     await tokensTable.deleteEntity(sessionId, tokenId);
 
-    // Create new token for current scanner
+    // Create new token for scanner (who becomes new holder)
     const newTokenId = randomUUID();
     const newSeq = (token.seq as number) + 1;
     const tokenTTL = parseInt(process.env.CHAIN_TOKEN_TTL_SECONDS || '20');
@@ -273,10 +343,11 @@ export async function scanChain(
       partitionKey: sessionId,
       rowKey: newTokenId,
       chainId,
-      holderId: studentEmail,
+      holderId: scannerId,  // Scanner becomes new holder
       seq: newSeq,
       expiresAt: newExpiresAt,
       createdAt: now
+      // No challenge data yet - will be set when next scanner requests challenge
     };
     await tokensTable.createEntity(newTokenEntity);
 
@@ -284,18 +355,18 @@ export async function scanChain(
     await chainsTable.updateEntity({
       partitionKey: sessionId,
       rowKey: chainId,
-      lastHolder: studentEmail,
+      lastHolder: scannerId,  // Scanner is new holder
       lastSeq: newSeq,
       lastAt: now
     }, 'Merge');
 
-    context.log(`Chain ${chainId} passed from ${previousHolder} to ${studentEmail}, seq ${newSeq}`);
+    context.log(`Chain ${chainId} passed from ${previousHolder} to ${scannerId}, seq ${newSeq}`);
 
     // Broadcast chain update
     await broadcastChainUpdate(sessionId, {
       chainId,
       phase: chainData.phase,
-      lastHolder: studentEmail,
+      lastHolder: scannerId,  // Scanner is new holder
       lastSeq: newSeq,
       state: chainData.state
     }, context);
@@ -304,7 +375,7 @@ export async function scanChain(
       status: 200,
       jsonBody: {
         success: true,
-        newHolder: studentEmail,
+        newHolder: scannerId,  // Scanner is new holder
         seq: newSeq,
         previousHolder,
         token: newTokenId,

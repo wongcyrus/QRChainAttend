@@ -9,10 +9,14 @@ Complete guide for running the QR Chain Attendance System locally with mock auth
 Your environment is ready! Just start the servers:
 
 ```bash
-# Option 1: One command
-./dev.sh
+# Quick start - one command
+./dev-tools.sh start
 
-# Option 2: Manual (2 terminals)
+# Or with browser auto-open
+./dev-tools.sh start --open
+```
+
+**Manual start** (if you prefer separate terminals):
 # Terminal 1: cd backend && func start
 # Terminal 2: cd frontend && npm run dev
 ```
@@ -86,8 +90,10 @@ curl http://localhost:7071/api/health
 
 ## 🛑 Stop Servers
 
+**Stop servers**:
+
 ```bash
-./stop-dev.sh
+./dev-tools.sh stop
 ```
 
 Or press `Ctrl+C` in terminal windows.
@@ -169,8 +175,7 @@ backend/local.settings.json    # Backend config (Azure connections)
 frontend/.env.local            # Frontend config (API URL, Azure AD)
 frontend/src/pages/dev-config.tsx  # Role switcher page
 frontend/src/pages/api/auth/   # Mock auth endpoints
-dev.sh                         # Start servers
-stop-dev.sh                    # Stop servers
+dev-tools.sh                   # Development toolkit (start/stop/reset)
 ```
 
 ---

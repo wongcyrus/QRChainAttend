@@ -78,7 +78,7 @@ A comprehensive, real-time attendance tracking system using QR code chains, geol
 npm install
 
 # Start local development
-./dev.sh
+./dev-tools.sh start
 
 # Frontend: http://localhost:3000
 # Backend: http://localhost:7071

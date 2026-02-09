@@ -167,7 +167,7 @@ NEXT_PUBLIC_ENVIRONMENT=local
 - **Fix**: Restart backend with `npm start`
 
 ### Tables don't exist
-- **Fix**: Run `./scripts/init-tables.sh`
+- **Fix**: Run `./scripts/init-tables.sh` or `./dev-tools.sh reset-db`
 
 ### Port already in use
 - **Frontend**: Change port in `package.json` dev script
@@ -213,7 +213,7 @@ Options:
 
 ```bash
 # Reset local database
-./scripts/reset-local-db.sh
+./dev-tools.sh reset-db
 
 # View backend logs
 cd backend && npm start
