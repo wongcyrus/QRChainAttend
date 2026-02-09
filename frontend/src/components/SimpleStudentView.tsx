@@ -126,12 +126,20 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         `They must enter it on their screen to confirm the scan.`
       );
       
+      // Poll for status updates - scanner might become holder after validation
+      const pollInterval = setInterval(() => {
+        fetchData();
+      }, 2000); // Poll every 2 seconds
+      
       // Auto-clear after expiration
       setTimeout(() => {
+        clearInterval(pollInterval);
         setChallengeCode(null);
         setChallengeHolderName(null);
         setChallengeExpiresAt(null);
         setScanMessage(null);
+        // Final refresh to check if we're now the holder
+        fetchData();
       }, challengeData.expiresIn * 1000);
 
     } catch (err) {
@@ -215,10 +223,27 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
           `${data.newHolder} is now the holder.`
         );
         setChallengeInput('');
-        setTimeout(() => {
+        
+        // If current student is the new holder, fetch immediately
+        if (data.newHolder === studentId) {
+          setScanMessage(
+            `✓ Success! You are now the holder.\n` +
+            `Your QR code will appear in a moment...`
+          );
+          
+          // Fetch immediately, then retry after 1 second if needed
           fetchData();
-          setScanMessage(null);
-        }, 3000);
+          setTimeout(() => {
+            fetchData();
+            setScanMessage(null);
+          }, 1000);
+        } else {
+          // Not the new holder, just refresh after delay
+          setTimeout(() => {
+            fetchData();
+            setScanMessage(null);
+          }, 3000);
+        }
       } else {
         const errorData = await scanResponse.json();
         setScanMessage(`✗ ${errorData.error?.message || 'Invalid code'}`);
