@@ -74,6 +74,39 @@
 - Added QR_ENCRYPTION_KEY to environment variables
 - Updated last updated date to February 10, 2026
 
+### 7. Token Refresh Optimization ✅
+**Files**: 
+- `backend/src/functions/rotateTokens.ts` - **DELETED** (no longer needed)
+- `backend/src/functions/getStudentToken.ts` - Enhanced with on-demand creation
+
+**Changes**:
+- Removed server-side `rotateTokens` timer function completely
+- Enhanced `getStudentToken` to create tokens on-demand when expired
+- Eliminated redundant server-side polling (~90% reduction in function executions)
+- Updated SYSTEM_ARCHITECTURE.md with design decision #7
+- Created TOKEN_REFRESH_OPTIMIZATION.md documentation
+
+### 8. Token Expiry Bug Fix ✅
+**File**: `backend/src/functions/scanChain.ts`
+
+**Changes**:
+- Fixed token expiry calculation: removed `* 1000` multiplication
+- Changed default TTL from 20 to 10 seconds (consistent with other functions)
+- Tokens now expire in 10 seconds instead of 10,000 seconds
+- Verified all other token creation functions are correct
+- Created TOKEN_EXPIRY_FIX.md documentation
+
+### 9. Entry/Exit QR Code Clarification ✅
+**Documentation**: Created ENTRY_EXIT_QR_CLARIFICATION.md
+
+**Clarified**:
+- Entry/Exit QR codes use encryption (not database tokens)
+- Never depended on `rotateTokens` timer
+- Frontend polls every 10 seconds for fresh tokens
+- Backend generates new encrypted token on each request
+- Still work perfectly after `rotateTokens` removal
+- Completely separate system from chain tokens
+
 ---
 
 ## Key Documentation Improvements

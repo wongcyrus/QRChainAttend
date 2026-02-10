@@ -80,7 +80,7 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 - TypeScript
 - HTTP triggers (anonymous auth level)
 
-**Function Categories** (36 total):
+**Function Categories** (35 total):
 
 **Authentication** (2):
 - `getRoles` - Get user roles
@@ -128,11 +128,12 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 - `studentNegotiate` - Student view connection
 - `broadcastUpdate` - Broadcast updates
 
-**Utilities** (4):
+**Utilities** (3):
 - `healthCheck` - API health check
 - `validateGeolocation` - Validate student location
-- `encryptToken` - Token encryption
-- `decryptToken` - Token decryption
+- `encryptToken` / `decryptToken` - Token encryption/decryption
+
+**Note**: `rotateTokens` function has been removed - tokens are now created on-demand by `getStudentToken` when clients poll.
 
 ### 3. Database (Azure Table Storage)
 
@@ -344,7 +345,29 @@ Teacher clicks "Take Snapshot"
 - Token updates
 - Stall alerts
 
-### 7. Centralized Table Configuration
+### 7. Client-Driven Token Refresh
+
+**Decision**: Tokens are created on-demand by client requests, not by server timer
+
+**Rationale**:
+- Eliminates redundant server-side polling
+- Reduces Azure Function execution costs
+- Tokens created only when needed
+- Simpler architecture
+
+**Implementation**:
+- Client polls `getStudentToken` every 3-5 seconds
+- If token expired, `getStudentToken` creates new one on-demand
+- No background timer needed
+- `rotateTokens` function removed (file deleted)
+
+**Benefits**:
+- Lower costs (no timer executions)
+- Better resource utilization
+- Tokens only created for active students
+- Simpler debugging
+
+### 8. Centralized Table Configuration
 
 **Decision**: Single source of truth for table names
 

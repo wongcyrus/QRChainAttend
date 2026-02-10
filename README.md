@@ -158,7 +158,7 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 
 ## 🏗️ Architecture
 
-### Backend (36 Functions)
+### Backend (35 Functions)
 - **Authentication**: Role assignment, user info
 - **Session Management**: CRUD operations with recurring support
 - **QR Code Generation**: Entry, exit, early leave QR codes
@@ -166,7 +166,9 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 - **Attendance**: Tracking with entry/exit methods, verification, export
 - **Snapshots**: Create on-demand snapshots via chains
 - **SignalR**: Real-time connections for teacher and student
-- **Utilities**: Token rotation, session checks, geolocation validation
+- **Utilities**: Session checks, geolocation validation, token encryption
+
+**Note**: Token refresh is client-driven (on-demand) - `rotateTokens` function removed.
 
 ### Frontend (22+ Components)
 - **Pages**: Home, teacher dashboard, student view
@@ -220,7 +222,7 @@ See [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) for complete troubleshooting
 **Current Version**: 2.0  
 **Status**: ✅ Production Ready  
 **Features**: 12 major features fully implemented  
-**Backend Functions**: 36 functions operational  
+**Backend Functions**: 35 functions operational (rotateTokens removed)  
 **Frontend Components**: 22+ components working  
 **Database Tables**: 9 tables with consistent timestamps (Unix seconds)  
 **Documentation**: Updated to reflect current codebase  

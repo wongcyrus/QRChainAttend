@@ -79,16 +79,19 @@ export async function getStudentToken(
       };
     }
 
-    // Find active token for this student
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     const tokensTable = getTableClient('Tokens');
+    const chainsTable = getTableClient('Chains');
+
+    // Find active token for this student
     const tokens = tokensTable.listEntities({
       queryOptions: { 
         filter: `PartitionKey eq '${sessionId}' and holderId eq '${studentId}'` 
       }
     });
 
-    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     let activeToken = null;
+    let expiredToken = null;
 
     for await (const token of tokens) {
       // Check if token is still valid (not expired)
@@ -100,25 +103,75 @@ export async function getStudentToken(
           expiresAt: token.expiresAt
         };
         break;
+      } else if (token.expiresAt) {
+        // Keep track of most recent expired token
+        if (!expiredToken || (token.expiresAt as number) > (expiredToken.expiresAt as number)) {
+          expiredToken = token;
+        }
       }
     }
 
-    if (!activeToken) {
+    // If we have an active token, return it
+    if (activeToken) {
       return {
         status: 200,
         jsonBody: {
-          isHolder: false,
-          token: null,
-          chainId: null
+          isHolder: true,
+          ...activeToken
         }
       };
     }
 
+    // If we have an expired token, create a new one on-demand
+    if (expiredToken) {
+      const chainId = expiredToken.chainId as string;
+      
+      // Verify the chain is still active
+      try {
+        const chain = await chainsTable.getEntity(sessionId, chainId);
+        
+        if (chain.state === 'ACTIVE' && chain.lastHolder === studentId) {
+          // Create new token on-demand
+          const tokenTTL = parseInt(process.env.CHAIN_TOKEN_TTL_SECONDS || '10');
+          const newTokenId = generateTokenId();
+          const newExpiresAt = now + tokenTTL;
+
+          await tokensTable.createEntity({
+            partitionKey: sessionId,
+            rowKey: newTokenId,
+            chainId,
+            holderId: studentId,
+            seq: expiredToken.seq,
+            expiresAt: newExpiresAt,
+            createdAt: now
+          });
+
+          context.log(`Created new token on-demand for student ${studentId}, chain ${chainId}`);
+
+          return {
+            status: 200,
+            jsonBody: {
+              isHolder: true,
+              token: newTokenId,
+              chainId,
+              seq: expiredToken.seq,
+              expiresAt: newExpiresAt
+            }
+          };
+        }
+      } catch (error: any) {
+        // Chain not found or error - student is no longer holder
+        context.log(`Chain ${chainId} not found or inactive for student ${studentId}`);
+      }
+    }
+
+    // No active or expired token - student is not a holder
     return {
       status: 200,
       jsonBody: {
-        isHolder: true,
-        ...activeToken
+        isHolder: false,
+        token: null,
+        chainId: null
       }
     };
 
@@ -137,6 +190,16 @@ export async function getStudentToken(
       }
     };
   }
+}
+
+// Generate random token ID
+function generateTokenId(): string {
+  const crypto = require('crypto');
+  const bytes = crypto.randomBytes(32);
+  return bytes.toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
 }
 
 app.http('getStudentToken', {

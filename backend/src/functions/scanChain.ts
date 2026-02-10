@@ -263,8 +263,8 @@ export async function scanChain(
     // Create new token for scanner (who becomes new holder)
     const newTokenId = randomUUID();
     const newSeq = (token.seq as number) + 1;
-    const tokenTTL = parseInt(process.env.CHAIN_TOKEN_TTL_SECONDS || '20');
-    const newExpiresAt = now + (tokenTTL * 1000);
+    const tokenTTL = parseInt(process.env.CHAIN_TOKEN_TTL_SECONDS || '10');
+    const newExpiresAt = now + tokenTTL; // now is already in seconds
 
     const newTokenEntity = {
       partitionKey: sessionId,
@@ -274,7 +274,6 @@ export async function scanChain(
       seq: newSeq,
       expiresAt: newExpiresAt,
       createdAt: now
-      // No challenge data yet - will be set when next scanner requests challenge
     };
     await tokensTable.createEntity(newTokenEntity);
 
