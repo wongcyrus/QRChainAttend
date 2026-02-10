@@ -28,7 +28,6 @@
 - **DEPLOYMENT_GUIDE.md** - Full deployment instructions
 - **DEPLOYMENT_CHECKLIST.md** - Pre-deployment checklist
 - **DEPLOYMENT_SCRIPTS_GUIDE.md** - Script usage guide
-- **SNAPSHOT_DEPLOYMENT.md** - Snapshot feature deployment
 
 ---
 

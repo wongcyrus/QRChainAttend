@@ -12,7 +12,22 @@ set -e
 # Hardcoded values
 STATIC_WEB_APP_NAME="swa-qrattendance-dev2"
 RESOURCE_GROUP="rg-qr-attendance-dev"
-SWA_DEPLOYMENT_TOKEN="61c2f660e3ea5834155969e116766737bdc24fcc10f6ab6b96ebab39f20390ef04-5186aca9-76f1-482d-bf64-7298c1c482ad00f10150f8bc910f"
+
+# Static Web App Deployment Token
+# Fetch automatically from Azure (no need to set environment variable)
+echo "🔑 Fetching SWA deployment token from Azure..."
+SWA_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
+    --name "$STATIC_WEB_APP_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query 'properties.apiKey' \
+    --output tsv)
+
+if [ -z "$SWA_DEPLOYMENT_TOKEN" ]; then
+    echo "❌ Error: Failed to fetch SWA deployment token"
+    echo "Make sure you're logged in: az login"
+    exit 1
+fi
+echo "✅ Token fetched successfully"
 STATIC_WEB_APP_URL="https://red-grass-0f8bc910f.4.azurestaticapps.net"
 
 echo "🚀 Deploying Frontend Only"

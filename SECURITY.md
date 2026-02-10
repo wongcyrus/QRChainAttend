@@ -22,6 +22,39 @@ local.settings.json     # Local Azure Functions settings
 deployment.log          # May contain secrets in output
 ```
 
+### ⚠️ SWA_DEPLOYMENT_TOKEN Security
+
+**The Static Web App deployment token is automatically fetched from Azure:**
+
+```bash
+# Scripts automatically fetch the token:
+az staticwebapp secrets list \
+  --name swa-qrattendance-dev2 \
+  --resource-group rg-qr-attendance-dev \
+  --query 'properties.apiKey' -o tsv
+```
+
+**No need to set environment variables - just ensure you're logged in:**
+```bash
+az login
+```
+
+**If token is exposed (committed to Git), reset it immediately:**
+```bash
+az staticwebapp secrets reset-api-key \
+  --name swa-qrattendance-dev2 \
+  --resource-group rg-qr-attendance-dev
+```
+
+**All deployment scripts now automatically fetch fresh tokens on each run.**
+
+### ✅ Safe to Commit (Local Development Only)
+
+**These are safe because they're for local Azurite emulator only:**
+- Azurite connection strings (well-known public key: `Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==`)
+- Local development configuration templates
+- Template files with placeholder values
+
 ### ✅ Verify .gitignore
 
 Before committing, always verify these files are in `.gitignore`:

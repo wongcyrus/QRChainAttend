@@ -26,8 +26,21 @@ FUNCTION_APP_NAME="func-qrattendance-dev"
 STATIC_WEB_APP_NAME="swa-qrattendance-dev2"
 STORAGE_ACCOUNT_NAME="stqrattendancedev"
 
-# Static Web App Deployment Token (Get from: az staticwebapp secrets list)
-SWA_DEPLOYMENT_TOKEN="61c2f660e3ea5834155969e116766737bdc24fcc10f6ab6b96ebab39f20390ef04-5186aca9-76f1-482d-bf64-7298c1c482ad00f10150f8bc910f"
+# Static Web App Deployment Token
+# Fetch automatically from Azure (no need to set environment variable)
+echo "🔑 Fetching SWA deployment token from Azure..."
+SWA_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
+    --name swa-qrattendance-dev2 \
+    --resource-group rg-qr-attendance-dev \
+    --query 'properties.apiKey' \
+    --output tsv)
+
+if [ -z "$SWA_DEPLOYMENT_TOKEN" ]; then
+    echo "❌ Error: Failed to fetch SWA deployment token"
+    echo "Make sure you're logged in: az login"
+    exit 1
+fi
+echo "✅ Token fetched successfully"
 
 # URLs
 FUNCTION_APP_URL="https://func-qrattendance-dev.azurewebsites.net"
