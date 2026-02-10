@@ -181,11 +181,12 @@ export async function markExit(
     try {
       const attendanceRecord = await attendanceTable.getEntity(sessionId, studentId);
       
-      // Update with exit verification
+      // Update with exit verification (Direct QR method)
       const updatedEntity = {
         partitionKey: attendanceRecord.partitionKey,
         rowKey: attendanceRecord.rowKey,
         exitVerified: true,
+        exitMethod: 'DIRECT_QR',
         exitedAt: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
       };
       

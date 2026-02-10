@@ -225,9 +225,11 @@ export async function getSession(
         sessionId,
         studentId: a.studentId || a.rowKey, // Use rowKey (email) as fallback
         entryStatus: a.entryStatus,
+        entryMethod: (a as any).entryMethod, // DIRECT_QR or CHAIN
         entryAt: a.entryTime,
         exitVerified: a.exitVerified || false,
-        exitVerifiedAt: a.exitTime,
+        exitMethod: (a as any).exitMethod, // DIRECT_QR or CHAIN
+        exitedAt: (a as any).exitedAt, // Exit timestamp
         joinedAt: (a as any).joinedAt, // Include join timestamp
         locationWarning: (a as any).locationWarning,
         locationDistance: (a as any).locationDistance,

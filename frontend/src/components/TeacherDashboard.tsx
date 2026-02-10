@@ -82,9 +82,11 @@ interface AttendanceRecord {
   sessionId: string;
   studentId: string;
   entryStatus?: EntryStatus;
+  entryMethod?: 'DIRECT_QR' | 'CHAIN'; // How entry was verified
   entryAt?: number;
   exitVerified: boolean;
-  exitVerifiedAt?: number;
+  exitMethod?: 'DIRECT_QR' | 'CHAIN'; // How exit was verified
+  exitedAt?: number; // Exit timestamp
   earlyLeaveAt?: number;
   finalStatus?: FinalStatus;
   joinedAt?: number;
@@ -964,7 +966,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                     fontWeight: '600',
                     color: '#4a5568',
                     borderBottom: '2px solid #e2e8f0'
-                  }}>Exit Verified</th>
+                  }}>Entry Method</th>
                   <th style={{ 
                     padding: '1rem',
                     textAlign: 'left',
@@ -972,6 +974,13 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                     color: '#4a5568',
                     borderBottom: '2px solid #e2e8f0'
                   }}>Exit Time</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Exit Method</th>
                   <th style={{ 
                     padding: '1rem',
                     textAlign: 'left',
@@ -1041,46 +1050,66 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
                         fontWeight: '600'
                       }}>
                         {getStatusText(record)}
-                                          <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                            {record.locationWarning ? (
-                                              <span 
-                                                style={{
-                                                  padding: '0.375rem 0.75rem',
-                                                  backgroundColor: '#fff3cd',
-                                                  color: '#856404',
-                                                  borderRadius: '12px',
-                                                  fontSize: '0.75rem',
-                                                  fontWeight: '600',
-                                                  display: 'inline-block',
-                                                  cursor: 'help'
-                                                }}
-                                                title={record.locationWarning}
-                                              >
-                                                ⚠️ Out of bounds
-                                              </span>
-                                            ) : (
-                                              <span style={{ color: '#48bb78', fontSize: '0.875rem' }}>✓</span>
-                                            )}
-                                          </td>
                       </span>
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      {record.locationWarning ? (
+                        <span 
+                          style={{
+                            padding: '0.375rem 0.75rem',
+                            backgroundColor: '#fff3cd',
+                            color: '#856404',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            display: 'inline-block',
+                            cursor: 'help'
+                          }}
+                          title={record.locationWarning}
+                        >
+                          ⚠️ Out of bounds
+                        </span>
+                      ) : (
+                        <span style={{ color: '#48bb78', fontSize: '0.875rem' }}>✓</span>
+                      )}
                     </td>
                     <td style={{ padding: '1rem', color: '#718096' }}>
                       {formatTimestamp(record.entryAt)}
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <span style={{
-                        padding: '0.375rem 0.75rem',
-                        backgroundColor: record.exitVerified ? '#c6f6d5' : '#fed7d7',
-                        color: record.exitVerified ? '#22543d' : '#742a2a',
-                        borderRadius: '12px',
-                        fontSize: '0.875rem',
-                        fontWeight: '600'
-                      }}>
-                        {record.exitVerified ? '✓ Yes' : '✗ No'}
-                      </span>
+                      {record.entryMethod ? (
+                        <span style={{
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: record.entryMethod === 'CHAIN' ? '#e0f2fe' : '#fef3c7',
+                          color: record.entryMethod === 'CHAIN' ? '#075985' : '#92400e',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600'
+                        }}>
+                          {record.entryMethod === 'CHAIN' ? '🔗 Chain' : '📱 QR'}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#a0aec0' }}>—</span>
+                      )}
                     </td>
                     <td style={{ padding: '1rem', color: '#718096' }}>
-                      {formatTimestamp(record.exitVerifiedAt)}
+                      {formatTimestamp(record.exitedAt)}
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      {record.exitMethod ? (
+                        <span style={{
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: record.exitMethod === 'CHAIN' ? '#e0f2fe' : '#fef3c7',
+                          color: record.exitMethod === 'CHAIN' ? '#075985' : '#92400e',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600'
+                        }}>
+                          {record.exitMethod === 'CHAIN' ? '🔗 Chain' : '📱 QR'}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#a0aec0' }}>—</span>
+                      )}
                     </td>
                     <td style={{ padding: '1rem', color: '#718096' }}>
                       {record.earlyLeaveAt ? formatTimestamp(record.earlyLeaveAt) : '—'}

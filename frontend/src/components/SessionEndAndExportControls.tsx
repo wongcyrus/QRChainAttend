@@ -35,9 +35,11 @@ interface AttendanceRecord {
   sessionId: string;
   studentId: string;
   entryStatus?: EntryStatus;
+  entryMethod?: 'DIRECT_QR' | 'CHAIN';
   entryAt?: number;
   exitVerified: boolean;
-  exitVerifiedAt?: number;
+  exitMethod?: 'DIRECT_QR' | 'CHAIN';
+  exitedAt?: number;
   earlyLeaveAt?: number;
   finalStatus?: FinalStatus;
   joinedAt?: number;
@@ -253,8 +255,9 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
         'Join Time',
         'Entry Status',
         'Entry Time',
-        'Exit Verified',
+        'Entry Method',
         'Exit Time',
+        'Exit Method',
         'Early Leave Time',
         'Final Status',
         'Location Warning',
@@ -266,8 +269,9 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
         record.joinedAt ? new Date(record.joinedAt * 1000).toLocaleString() : '',
         record.entryStatus || '',
         record.entryAt ? new Date(record.entryAt * 1000).toLocaleString() : '',
-        record.exitVerified ? 'Yes' : 'No',
-        record.exitVerifiedAt ? new Date(record.exitVerifiedAt * 1000).toLocaleString() : '',
+        record.entryMethod === 'CHAIN' ? 'Chain' : record.entryMethod === 'DIRECT_QR' ? 'QR Code' : '',
+        record.exitedAt ? new Date(record.exitedAt * 1000).toLocaleString() : '',
+        record.exitMethod === 'CHAIN' ? 'Chain' : record.exitMethod === 'DIRECT_QR' ? 'QR Code' : '',
         record.earlyLeaveAt ? new Date(record.earlyLeaveAt * 1000).toLocaleString() : '',
         record.finalStatus || '',
         record.locationWarning || '',
@@ -493,7 +497,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
                         {record.exitVerified ? '✓ Yes' : '✗ No'}
                       </span>
                     </td>
-                    <td>{formatTimestamp(record.exitVerifiedAt)}</td>
+                    <td>{formatTimestamp(record.exitedAt)}</td>
                     <td>{formatTimestamp(record.earlyLeaveAt)}</td>
                   </tr>
                 ))}

@@ -116,9 +116,11 @@ export async function getAttendance(
       attendance.push({
         studentId: entity.rowKey,
         entryStatus: entity.entryStatus,
+        entryMethod: entity.entryMethod, // DIRECT_QR or CHAIN
         entryAt: entity.entryAt,
         exitVerified: entity.exitVerified,
-        exitVerifiedAt: entity.exitVerifiedAt,
+        exitMethod: entity.exitMethod, // DIRECT_QR or CHAIN
+        exitedAt: entity.exitedAt, // Exit timestamp
         earlyLeaveAt: entity.earlyLeaveAt,
         finalStatus: entity.finalStatus,
         locationWarning: entity.locationWarning,

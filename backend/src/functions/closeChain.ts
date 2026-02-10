@@ -116,32 +116,56 @@ export async function closeChain(
       };
     }
 
-    // Mark final holder as present
+    // Mark final holder based on chain phase
     try {
       const attendance = await attendanceTable.getEntity(sessionId, lastHolder);
+      const chainPhase = chain.phase as string;
       
-      if (!attendance.entryStatus) {
-        // Determine if late or present based on session start time
-        const sessionStartTime = session.startTime as number;
-        const lateCutoffMinutes = 15;
-        const lateCutoffTime = sessionStartTime + (lateCutoffMinutes * 60);
-        
-        const entryStatus = now > lateCutoffTime ? 'LATE_ENTRY' : 'PRESENT_ENTRY';
-        
-        await attendanceTable.updateEntity({
-          partitionKey: sessionId,
-          rowKey: lastHolder,
-          entryStatus,
-          entryAt: now
-        }, 'Merge');
-        
-        context.log(`Marked final holder ${lastHolder} as ${entryStatus}`);
-        
-        // Broadcast attendance update
-        await broadcastAttendanceUpdate(sessionId, {
-          studentId: lastHolder,
-          entryStatus: entryStatus,
-        }, context);
+      if (chainPhase === 'ENTRY') {
+        // Entry chain - mark entry status
+        if (!attendance.entryStatus) {
+          // Determine if late or present based on session start time
+          const sessionStartTime = session.startTime as number;
+          const lateCutoffMinutes = 15;
+          const lateCutoffTime = sessionStartTime + (lateCutoffMinutes * 60);
+          
+          const entryStatus = now > lateCutoffTime ? 'LATE_ENTRY' : 'PRESENT_ENTRY';
+          
+          await attendanceTable.updateEntity({
+            partitionKey: sessionId,
+            rowKey: lastHolder,
+            entryStatus,
+            entryMethod: 'CHAIN',
+            entryAt: now
+          }, 'Merge');
+          
+          context.log(`Marked final holder ${lastHolder} as ${entryStatus} via CHAIN`);
+          
+          // Broadcast attendance update
+          await broadcastAttendanceUpdate(sessionId, {
+            studentId: lastHolder,
+            entryStatus: entryStatus,
+          }, context);
+        }
+      } else if (chainPhase === 'EXIT') {
+        // Exit chain - mark exit verified
+        if (!attendance.exitVerified) {
+          await attendanceTable.updateEntity({
+            partitionKey: sessionId,
+            rowKey: lastHolder,
+            exitVerified: true,
+            exitMethod: 'CHAIN',
+            exitedAt: Math.floor(now / 1000) // Unix timestamp in seconds
+          }, 'Merge');
+          
+          context.log(`Marked final holder ${lastHolder} as exit verified via CHAIN`);
+          
+          // Broadcast attendance update
+          await broadcastAttendanceUpdate(sessionId, {
+            studentId: lastHolder,
+            exitVerified: true,
+          }, context);
+        }
       }
     } catch (error: any) {
       context.log(`Warning: Could not update attendance for final holder: ${error.message}`);

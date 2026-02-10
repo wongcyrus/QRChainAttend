@@ -207,6 +207,7 @@ export async function scanChain(
           partitionKey: sessionId,
           rowKey: previousHolder,
           entryStatus,
+          entryMethod: 'CHAIN',
           entryAt: now
         };
 
@@ -217,7 +218,7 @@ export async function scanChain(
         
         await attendanceTable.updateEntity(updateData, 'Merge');
         
-        context.log(`Marked ${previousHolder} as ${entryStatus}`);
+        context.log(`Marked ${previousHolder} as ${entryStatus} via CHAIN`);
         
         // Broadcast attendance update for previous holder
         await broadcastAttendanceUpdate(sessionId, {
