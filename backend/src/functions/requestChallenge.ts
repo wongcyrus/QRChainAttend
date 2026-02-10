@@ -89,7 +89,7 @@ export async function requestChallenge(
       };
     }
 
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     const tokensTable = getTableClient('Tokens');
     const chainsTable = getTableClient('Chains');
 
@@ -141,7 +141,7 @@ export async function requestChallenge(
     
     // Store challenge in token (expires in 30 seconds)
     const challengeTTL = parseInt(process.env.CHALLENGE_TTL_SECONDS || '30');
-    const challengeExpiresAt = now + (challengeTTL * 1000);
+    const challengeExpiresAt = now + challengeTTL;
     
     await tokensTable.updateEntity({
       partitionKey: sessionId,

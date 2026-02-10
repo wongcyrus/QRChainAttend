@@ -73,7 +73,7 @@ export async function closeChain(
       };
     }
 
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     const chainsTable = getTableClient('Chains');
     const attendanceTable = getTableClient('Attendance');
     const sessionsTable = getTableClient('Sessions');
@@ -155,7 +155,7 @@ export async function closeChain(
             rowKey: lastHolder,
             exitVerified: true,
             exitMethod: 'CHAIN',
-            exitedAt: Math.floor(now / 1000) // Unix timestamp in seconds
+            exitedAt: now // Already in seconds
           }, 'Merge');
           
           context.log(`Marked final holder ${lastHolder} as exit verified via CHAIN`);

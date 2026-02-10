@@ -85,7 +85,7 @@ export async function scanChain(
       };
     }
 
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     const tokensTable = getTableClient('Tokens');
     const chainsTable = getTableClient('Chains');
     const attendanceTable = getTableClient('Attendance');

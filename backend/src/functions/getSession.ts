@@ -24,9 +24,9 @@ interface AttendanceRecord {
   rowKey: string;
   studentId: string;
   entryStatus: string;
-  entryTime?: number;
+  entryAt?: number;
   exitVerified?: boolean;
-  exitTime?: number;
+  exitedAt?: number;
 }
 
 interface Chain {
@@ -141,8 +141,8 @@ export async function getSession(
     // Get attendance records
     const attendanceTable = getTableClient('Attendance');
     const attendance: AttendanceRecord[] = [];
-    const now = Date.now();
-    const onlineThreshold = 30000; // Consider online if seen in last 30 seconds
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+    const onlineThreshold = 30; // Consider online if seen in last 30 seconds
     
     for await (const entity of attendanceTable.listEntities({ queryOptions: { filter: `PartitionKey eq '${sessionId}'` } })) {
       const record = entity as any;
@@ -189,7 +189,7 @@ export async function getSession(
       onlineStudents: attendance.filter(a => (a as any).isOnline).length,
       presentEntry: attendance.filter(a => a.entryStatus === 'PRESENT_ENTRY').length,
       lateEntry: attendance.filter(a => a.entryStatus === 'LATE_ENTRY').length,
-      earlyLeave: attendance.filter(a => a.exitTime && a.exitTime < (session.endTime || 0)).length,
+      earlyLeave: attendance.filter(a => a.exitedAt && a.exitedAt < (session.endTime || 0)).length,
       exitVerified: attendance.filter(a => a.exitVerified).length,
       notYetVerified: attendance.filter(a => !a.exitVerified).length,
       activeHolders: activeHolders.size
@@ -226,7 +226,7 @@ export async function getSession(
         studentId: a.studentId || a.rowKey, // Use rowKey (email) as fallback
         entryStatus: a.entryStatus,
         entryMethod: (a as any).entryMethod, // DIRECT_QR or CHAIN
-        entryAt: a.entryTime,
+        entryAt: a.entryAt, // Use entryAt directly from database
         exitVerified: a.exitVerified || false,
         exitMethod: (a as any).exitMethod, // DIRECT_QR or CHAIN
         exitedAt: (a as any).exitedAt, // Exit timestamp

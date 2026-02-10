@@ -23,7 +23,7 @@ export async function rotateTokens(myTimer: Timer, context: InvocationContext): 
     const sessionsTable = getTableClient('Sessions');
     const tokensTable = getTableClient('Tokens');
     const chainsTable = getTableClient('Chains');
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
 
     let sessionsProcessed = 0;
     let tokensExpired = 0;
@@ -75,10 +75,10 @@ export async function rotateTokens(myTimer: Timer, context: InvocationContext): 
         // 1. No token exists at all, OR
         // 2. The most recent token has expired or will expire soon (within 5 seconds)
         // This ensures seamless QR code refresh without waiting
-        const shouldCreateToken = !mostRecentToken || (mostRecentExpiresAt <= now + 5000);
+        const shouldCreateToken = !mostRecentToken || (mostRecentExpiresAt <= now + 5);
 
         if (shouldCreateToken) {
-          const tokenTTL = parseInt(process.env.CHAIN_TOKEN_TTL_SECONDS || '10') * 1000;
+          const tokenTTL = parseInt(process.env.CHAIN_TOKEN_TTL_SECONDS || '10');
           const newTokenId = generateTokenId();
           const newExpiresAt = now + tokenTTL;
 
@@ -102,8 +102,8 @@ export async function rotateTokens(myTimer: Timer, context: InvocationContext): 
         try {
           const token = await tokensTable.getEntity(sessionId, session.currentLateTokenId as string);
           
-          // Check if expired (convert to milliseconds)
-          const tokenExp = (token.exp as number) * 1000;
+          // Check if expired (token.exp is already in seconds)
+          const tokenExp = token.exp as number;
           if (tokenExp <= now) {
             // Mark as expired
             const updatedToken: any = {
@@ -117,7 +117,7 @@ export async function rotateTokens(myTimer: Timer, context: InvocationContext): 
             
             // Create new token
             const newTokenId = generateTokenId();
-            const newExp = Math.floor(now / 1000) + 60; // 60 seconds TTL
+            const newExp = now + 60; // 60 seconds TTL
             
             await tokensTable.createEntity({
               partitionKey: sessionId,
@@ -126,7 +126,7 @@ export async function rotateTokens(myTimer: Timer, context: InvocationContext): 
               exp: newExp,
               status: 'ACTIVE',
               singleUse: true,
-              createdAt: Math.floor(now / 1000)
+              createdAt: now
             });
             
             // Update session with new token
@@ -151,8 +151,8 @@ export async function rotateTokens(myTimer: Timer, context: InvocationContext): 
         try {
           const token = await tokensTable.getEntity(sessionId, session.currentEarlyTokenId as string);
           
-          // Check if expired (convert to milliseconds)
-          const tokenExp = (token.exp as number) * 1000;
+          // Check if expired (token.exp is already in seconds)
+          const tokenExp = token.exp as number;
           if (tokenExp <= now) {
             // Mark as expired
             const updatedToken: any = {
@@ -166,7 +166,7 @@ export async function rotateTokens(myTimer: Timer, context: InvocationContext): 
             
             // Create new token
             const newTokenId = generateTokenId();
-            const newExp = Math.floor(now / 1000) + 60; // 60 seconds TTL
+            const newExp = now + 60; // 60 seconds TTL
             
             await tokensTable.createEntity({
               partitionKey: sessionId,
@@ -175,7 +175,7 @@ export async function rotateTokens(myTimer: Timer, context: InvocationContext): 
               exp: newExp,
               status: 'ACTIVE',
               singleUse: true,
-              createdAt: Math.floor(now / 1000)
+              createdAt: now
             });
             
             // Update session with new token

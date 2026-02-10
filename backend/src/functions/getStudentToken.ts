@@ -87,7 +87,7 @@ export async function getStudentToken(
       }
     });
 
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     let activeToken = null;
 
     for await (const token of tokens) {

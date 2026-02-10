@@ -33,7 +33,7 @@ export async function registerSession(
     }
 
     const sessionsTable = getTableClient('UserSessions');
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
 
     // Create or update session
     const sessionEntity = {

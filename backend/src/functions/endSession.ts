@@ -54,13 +54,15 @@ export async function endSession(
 ): Promise<HttpResponseInit> {
   context.log('Processing POST /api/sessions/{sessionId}/end request');
 
+  const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+
   try {
     // Parse authentication
     const principalHeader = request.headers.get('x-ms-client-principal');
     if (!principalHeader) {
       return {
         status: 401,
-        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: now } }
       };
     }
 
@@ -70,7 +72,7 @@ export async function endSession(
     if (!hasRole(principal, 'Teacher')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: now } }
       };
     }
 
@@ -80,7 +82,7 @@ export async function endSession(
     if (!sessionId) {
       return {
         status: 400,
-        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', timestamp: now } }
       };
     }
 
@@ -94,7 +96,7 @@ export async function endSession(
       if (error.statusCode === 404) {
         return {
           status: 404,
-          jsonBody: { error: { code: 'NOT_FOUND', message: 'Session not found', timestamp: Date.now() } }
+          jsonBody: { error: { code: 'NOT_FOUND', message: 'Session not found', timestamp: now } }
         };
       }
       throw error;
@@ -104,7 +106,7 @@ export async function endSession(
     if (session.teacherId !== teacherId) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not own this session', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not own this session', timestamp: now } }
       };
     }
 
@@ -112,12 +114,11 @@ export async function endSession(
     if (session.status === 'ENDED') {
       return {
         status: 400,
-        jsonBody: { error: { code: 'INVALID_STATE', message: 'Session already ended', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'INVALID_STATE', message: 'Session already ended', timestamp: now } }
       };
     }
 
     // Update session status
-    const now = new Date().toISOString();
     const updatedEntity = {
       ...session,
       status: 'ENDED',
@@ -163,7 +164,7 @@ export async function endSession(
           code: 'INTERNAL_ERROR',
           message: 'Failed to end session',
           details: error.message,
-          timestamp: Date.now()
+          timestamp: now
         }
       }
     };

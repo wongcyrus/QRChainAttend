@@ -33,14 +33,14 @@ export async function checkSession(
     }
 
     const sessionsTable = getTableClient('UserSessions');
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
 
     try {
       const session = await sessionsTable.getEntity('USERSESSION', email);
       
       // Check if session is still valid (less than 24 hours old)
       const sessionAge = now - (session.createdAt as number);
-      const isValid = sessionAge < 24 * 60 * 60 * 1000; // 24 hours
+      const isValid = sessionAge < 24 * 60 * 60; // 24 hours in seconds
 
       if (isValid) {
         return {

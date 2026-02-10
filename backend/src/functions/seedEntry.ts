@@ -110,8 +110,8 @@ export async function seedEntry(
     });
 
     const students: string[] = [];
-    const now = Date.now();
-    const onlineThreshold = 30000; // Consider online if seen in last 30 seconds
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+    const onlineThreshold = 30; // Consider online if seen in last 30 seconds
     
     for await (const record of attendanceRecords) {
       // Only include students who:
@@ -149,7 +149,7 @@ export async function seedEntry(
     // Create chains and tokens
     const chainsTable = getTableClient('Chains');
     const tokensTable = getTableClient('Tokens');
-    const expiresAt = now + (10 * 1000); // 10 seconds
+    const expiresAt = now + 10; // 10 seconds
 
     for (let i = 0; i < actualCount; i++) {
       const chainId = randomUUID();

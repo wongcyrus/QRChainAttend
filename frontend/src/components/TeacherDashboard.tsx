@@ -220,60 +220,9 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
    * Requirements: 12.1
    */
   const handleAttendanceUpdate = useCallback((update: AttendanceUpdate) => {
-    setAttendance(prev => {
-      const index = prev.findIndex(a => a.studentId === update.studentId);
-      
-      if (index === -1) {
-        // New student record
-        const newRecord: AttendanceRecord = {
-          sessionId,
-          studentId: update.studentId,
-          entryStatus: update.entryStatus,
-          exitVerified: update.exitVerified ?? false,
-          earlyLeaveAt: update.earlyLeaveAt,
-          locationWarning: update.locationWarning,
-        };
-        // Add isOnline if provided
-        if ('isOnline' in update) {
-          (newRecord as any).isOnline = update.isOnline;
-        }
-        return [...prev, newRecord];
-      } else {
-        // Update existing record
-        const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
-          ...(update.entryStatus && { entryStatus: update.entryStatus }),
-          ...(update.exitVerified !== undefined && { exitVerified: update.exitVerified }),
-          ...(update.earlyLeaveAt !== undefined && { earlyLeaveAt: update.earlyLeaveAt }),
-          ...(update.locationWarning !== undefined && { locationWarning: update.locationWarning }),
-          ...('isOnline' in update && { isOnline: update.isOnline }),
-        };
-        return updated;
-      }
-    });
-
-    // Recompute stats
-    setStats(prev => {
-      const newStats = { ...prev };
-      
-      if (update.entryStatus === EntryStatus.PRESENT_ENTRY) {
-        newStats.presentEntry++;
-      } else if (update.entryStatus === EntryStatus.LATE_ENTRY) {
-        newStats.lateEntry++;
-      }
-      
-      if (update.earlyLeaveAt !== undefined) {
-        newStats.earlyLeave++;
-      }
-      
-      if (update.exitVerified) {
-        newStats.exitVerified++;
-      }
-      
-      return newStats;
-    });
-  }, [sessionId]);
+    // When attendance changes, refetch full data to get all fields including methods
+    fetchSessionData();
+  }, [fetchSessionData]);
 
   /**
    * Handle chain update from SignalR

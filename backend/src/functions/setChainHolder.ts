@@ -85,7 +85,7 @@ export async function setChainHolder(
       };
     }
 
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     const chainsTable = getTableClient('Chains');
     const attendanceTable = getTableClient('Attendance');
     const sessionsTable = getTableClient('Sessions');
