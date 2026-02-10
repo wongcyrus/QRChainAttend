@@ -157,7 +157,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
               ...prev,
               isHolder: true,
               holderTokenUrl: holderUrl,
-              tokenExpiresAt: tokenData.expiresAt
+              tokenExpiresAt: tokenData.expiresAt * 1000 // Convert seconds to milliseconds
             }));
           } else {
             setStatus(prev => ({

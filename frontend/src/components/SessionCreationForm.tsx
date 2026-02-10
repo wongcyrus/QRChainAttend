@@ -93,7 +93,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   const useGeofence = true;
   const [latitude, setLatitude] = useState<number>(0);
   const [longitude, setLongitude] = useState<number>(0);
-  const [radiusMeters, setRadiusMeters] = useState<number>(100);
+  const [radiusMeters, setRadiusMeters] = useState<number>(1000);
   const [enforceGeofence, setEnforceGeofence] = useState(false);
   
   // Wi-Fi constraints

@@ -6,6 +6,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { TableClient } from '@azure/data-tables';
 import { randomUUID } from 'crypto';
+import { broadcastChainUpdate } from '../utils/signalrBroadcast';
 
 // Inline helper functions
 function parseUserPrincipal(header: string): any {
@@ -204,6 +205,15 @@ export async function startExitChain(
       await tokensTable.createEntity(tokenEntity);
 
       context.log(`Created exit chain ${chainId} with holder ${holderId}`);
+      
+      // Broadcast chain update so student knows they're a holder
+      await broadcastChainUpdate(sessionId, {
+        chainId,
+        phase: 'EXIT',
+        lastHolder: holderId,
+        lastSeq: 0,
+        state: 'ACTIVE'
+      }, context);
     }
 
     return {
