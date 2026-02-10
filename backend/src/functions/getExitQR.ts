@@ -126,7 +126,7 @@ export async function getExitQR(
       sessionId,
       type: 'EXIT',
       timestamp: now,
-      expiresAt: now + 20 // 20 seconds validity
+      expiresAt: now + 10 // 10 seconds validity
     };
     
     const encryptedToken = encryptToken(tokenData);

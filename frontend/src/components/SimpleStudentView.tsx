@@ -397,13 +397,21 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     };
   }, [sessionId, studentId]);
 
-  // Generate QR code when student becomes holder
+  // Generate QR code when student becomes holder with smooth transition
   useEffect(() => {
     if (status.isHolder && status.holderTokenUrl) {
+      // Generate new QR code
       QRCode.toDataURL(status.holderTokenUrl, {
         width: 300,
         margin: 2
-      }).then(setQrCodeUrl).catch(console.error);
+      }).then((newUrl) => {
+        // Preload the image before setting it to avoid flashing
+        const img = new Image();
+        img.onload = () => {
+          setQrCodeUrl(newUrl);
+        };
+        img.src = newUrl;
+      }).catch(console.error);
     }
   }, [status.isHolder, status.holderTokenUrl]);
 
@@ -682,7 +690,15 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
               borderRadius: '8px'
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrCodeUrl} alt="Your chain QR code" />
+              <img 
+                src={qrCodeUrl} 
+                alt="Your chain QR code"
+                style={{
+                  width: '300px',
+                  height: '300px',
+                  display: 'block'
+                }}
+              />
             </div>
           )}
           

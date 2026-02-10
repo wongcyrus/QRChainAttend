@@ -149,7 +149,7 @@ export async function seedEntry(
     // Create chains and tokens
     const chainsTable = getTableClient('Chains');
     const tokensTable = getTableClient('Tokens');
-    const expiresAt = now + (20 * 1000); // 20 seconds (reuse 'now' from above)
+    const expiresAt = now + (10 * 1000); // 10 seconds
 
     for (let i = 0; i < actualCount; i++) {
       const chainId = randomUUID();

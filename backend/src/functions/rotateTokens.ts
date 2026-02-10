@@ -78,7 +78,7 @@ export async function rotateTokens(myTimer: Timer, context: InvocationContext): 
         const shouldCreateToken = !mostRecentToken || (mostRecentExpiresAt <= now + 5000);
 
         if (shouldCreateToken) {
-          const tokenTTL = parseInt(process.env.CHAIN_TOKEN_TTL_SECONDS || '20') * 1000;
+          const tokenTTL = parseInt(process.env.CHAIN_TOKEN_TTL_SECONDS || '10') * 1000;
           const newTokenId = generateTokenId();
           const newExpiresAt = now + tokenTTL;
 
