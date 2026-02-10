@@ -36,17 +36,7 @@ export const ChainVisualization: React.FC<ChainVisualizationProps> = ({
     const fetchHistory = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-        const headers: HeadersInit = {};
-        
-        if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
-          const mockPrincipal = {
-            userId: 'local-dev-teacher',
-            userDetails: 'teacher@vtc.edu.hk',
-            userRoles: ['authenticated', 'teacher'],
-            identityProvider: 'aad'
-          };
-          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-        }
+        const headers = await getAuthHeaders();
         
         const response = await fetch(
           `${apiUrl}/sessions/${sessionId}/chains/${chainId}/history`,

@@ -127,20 +127,7 @@ export function StudentSessionView({
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
       // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Add mock authentication header for local development
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
-        const mockPrincipal = {
-          userId: studentId,
-          userDetails: 'student@stu.vtc.edu.hk',
-          userRoles: ['authenticated', 'student'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      }
+      const headers = await getAuthHeaders();
       
       const response = await fetch(`${apiUrl}/sessions/${sessionId}`, { credentials: 'include',
         headers
@@ -154,7 +141,7 @@ export function StudentSessionView({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load session');
     }
-  }, [sessionId, studentId]);
+  }, [sessionId]);
 
   /**
    * Fetch student status (attendance and holder status)
@@ -164,20 +151,7 @@ export function StudentSessionView({
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
       // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Add mock authentication header for local development
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
-        const mockPrincipal = {
-          userId: studentId,
-          userDetails: 'student@stu.vtc.edu.hk',
-          userRoles: ['authenticated', 'student'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      }
+      const headers = await getAuthHeaders();
       
       // Fetch attendance status
       const attendanceResponse = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, { credentials: 'include',

@@ -204,26 +204,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     
     // Report online status
     const reportOnlineStatus = async (isOnline: boolean) => {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      if (isLocal) {
-        const mockPrincipal = {
-          userId: studentId,
-          userDetails: studentId, // studentId is now the email
-          userRoles: ['authenticated', 'student'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      } else {
-        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
-        const authData = await authResponse.json();
-        if (authData.clientPrincipal) {
-          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
-        }
-      }
+      const headers = await getAuthHeaders();
       
       try {
         const response = await fetch(`${apiUrl}/sessions/${sessionId}/student-online`, { credentials: 'include',
@@ -244,26 +225,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     
     // Get negotiate endpoint
     const getNegotiateUrl = async () => {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      if (isLocal) {
-        const mockPrincipal = {
-          userId: studentId,
-          userDetails: studentId, // studentId is now the email
-          userRoles: ['authenticated', 'student'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      } else {
-        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
-        const authData = await authResponse.json();
-        if (authData.clientPrincipal) {
-          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
-        }
-      }
+      const headers = await getAuthHeaders();
       
       try {
         const response = await fetch(`${apiUrl}/sessions/${sessionId}/negotiate`, { credentials: 'include', headers });
@@ -476,7 +438,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
 
   return (
     <div style={{
-      padding: '2rem',
+      padding: '1rem',
       maxWidth: '600px',
       margin: '0 auto',
       fontFamily: 'system-ui, sans-serif'
@@ -646,15 +608,17 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
               display: 'inline-block',
               padding: '1rem',
               backgroundColor: 'white',
-              borderRadius: '8px'
+              borderRadius: '8px',
+              maxWidth: '100%'
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src={qrCodeUrl} 
                 alt="Your chain QR code"
                 style={{
-                  width: '300px',
-                  height: '300px',
+                  width: '100%',
+                  maxWidth: '300px',
+                  height: 'auto',
                   display: 'block'
                 }}
               />

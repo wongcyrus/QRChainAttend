@@ -117,29 +117,7 @@ export default function StudentPage() {
       }
       
       // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Add authentication header
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      if (isLocal) {
-        const mockPrincipal = {
-          userId: user.userId,
-          userDetails: user.userDetails,
-          userRoles: user.userRoles,
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      } else {
-        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
-        const authData = await authResponse.json();
-        if (authData.clientPrincipal) {
-          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
-        } else {
-          throw new Error('Not authenticated');
-        }
-      }
+      const headers = await getAuthHeaders();
       
       // Handle ENTRY or EXIT based on QR type
       if (qrType === 'ENTRY') {

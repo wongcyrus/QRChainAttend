@@ -22,7 +22,7 @@ export async function startExitChain(request: HttpRequest, context: InvocationCo
 
 app.http('startExitChain', {
   methods: ['GET', 'POST'],
-  route: 'startExitChain',
+  route: 'sessions/{sessionId}/start-exit-chain',
   authLevel: 'anonymous',
   handler: startExitChain
 });
