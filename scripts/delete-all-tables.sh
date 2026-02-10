@@ -3,22 +3,17 @@
 # Delete All Tables from Azurite
 # WARNING: This will delete ALL data!
 
+# Get script directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Source table configuration (single source of truth)
+source "$SCRIPT_DIR/tables-config.sh"
+
 echo "🗑️  Deleting All Tables from Azurite"
 echo "======================================"
 echo ""
 
 CONNECTION_STRING="AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;DefaultEndpointsProtocol=http;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;"
-
-# Tables to delete
-TABLES=(
-  "Sessions"
-  "Attendance"
-  "Chains"
-  "Tokens"
-  "UserSessions"
-  "AttendanceSnapshots"
-  "ChainHistory"
-)
 
 # Check if Azure CLI is available
 if ! command -v az &> /dev/null; then

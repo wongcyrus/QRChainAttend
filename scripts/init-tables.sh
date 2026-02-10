@@ -3,20 +3,15 @@
 # Initialize Tables for QR Chain Attendance System
 # Works for both local (Azurite) and Azure environments
 
+# Get script directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Source table configuration (single source of truth)
+source "$SCRIPT_DIR/tables-config.sh"
+
 echo "🔧 Initializing Tables"
 echo "=============================="
 echo ""
-
-# Tables to create
-TABLES=(
-  "Sessions"
-  "Attendance"
-  "Chains"
-  "Tokens"
-  "UserSessions"
-  "AttendanceSnapshots"
-  "ChainHistory"
-)
 
 # Determine environment and get connection string
 if [ -n "$AZURE_STORAGE_CONNECTION_STRING" ]; then

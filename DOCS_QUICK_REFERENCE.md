@@ -1,6 +1,6 @@
 # Documentation Quick Reference
 
-**Last Updated**: February 9, 2026
+**Last Updated**: February 10, 2026
 
 ---
 
@@ -12,23 +12,8 @@
 3. **LOCAL_DEVELOPMENT_SETUP.md** - Local environment setup
 
 ### For Teachers/Users
-1. **LOGIN_GUIDE.md** - How to login and use the system
-2. **TEST_FLOW.md** - How attendance flow works
-
----
-
-## 🔐 Security & Challenge Code System
-
-### Current Implementation
-- **CHALLENGE_CODE_SYSTEM.md** ⭐ **NEW** - Complete guide to one-time challenge codes
-  - How it works
-  - Deployment status
-  - Testing guide
-  - Security analysis
-  - Troubleshooting
-
-### Historical Analysis
-- **QR_CHAIN_SECURITY_ANALYSIS.md** - Original vulnerability analysis (issues now fixed)
+1. **README.md** - System overview and usage
+2. **GETTING_STARTED.md** - Complete setup and testing guide
 
 ---
 
@@ -37,6 +22,7 @@
 ### Database
 - **DATABASE_TABLES.md** - Table schemas and structure
 - **DATABASE_MANAGEMENT.md** - Database operations and queries
+- **TABLES_CONFIG_REFERENCE.md** ⭐ **NEW** - Centralized table configuration
 
 ### Deployment
 - **DEPLOYMENT_GUIDE.md** - Full deployment instructions
@@ -51,7 +37,6 @@
 ### Development
 - **DEV_TOOLS.md** - Development tools and commands
 - **LOCAL_DEVELOPMENT_SETUP.md** - Local setup guide
-- **QR_CHAIN_FLOW.md** - QR chain flow documentation
 
 ### Azure & Infrastructure
 - **AZURE_ENVIRONMENT.md** - Azure resources and configuration
@@ -60,30 +45,28 @@
 
 ---
 
-## 📝 Feature Documentation
-
-### Core Features
-- **QR_CHAIN_FLOW.md** - How QR chain attendance works
-- **GEOLOCATION_FEATURE.md** - GPS-based attendance verification
-- **TEST_FLOW.md** - Complete testing flow
-
----
-
 ## 🗂️ Project Organization
 
 ### Main Documentation (Root)
 ```
 README.md                          - Project overview
-GETTING_STARTED.md                 - Quick start guide
-CHALLENGE_CODE_SYSTEM.md          ⭐ Challenge code implementation
-QR_CHAIN_SECURITY_ANALYSIS.md     - Security analysis (historical)
+GETTING_STARTED.md                 - Setup and testing guide
 DATABASE_TABLES.md                 - Database schema
+DATABASE_MANAGEMENT.md             - Database operations
+TABLES_CONFIG_REFERENCE.md         - Table configuration
 DEPLOYMENT_GUIDE.md                - Deployment instructions
+DEPLOYMENT_CHECKLIST.md            - Pre-deployment checks
+DEPLOYMENT_SCRIPTS_GUIDE.md        - Script reference
+DEV_TOOLS.md                       - Development commands
+LOCAL_DEVELOPMENT_SETUP.md         - Local environment setup
+AZURE_ENVIRONMENT.md               - Azure resources
+ROLE_ASSIGNMENT.md                 - Role system
+SECURITY.md                        - Security practices
 ```
 
 ### Archived Documentation
 ```
-.archive/old-docs/                 - Historical documentation
+.archive/old-docs/                 - Historical documentation and removed features
 ```
 
 ---
@@ -96,23 +79,18 @@ DEPLOYMENT_GUIDE.md                - Deployment instructions
 → GETTING_STARTED.md → LOCAL_DEVELOPMENT_SETUP.md
 
 **Deploy to Azure**
-→ DEPLOYMENT_GUIDE.md → DEPLOYMENT_CHECKLIST.md
-
-**Understand the challenge code system**
-→ CHALLENGE_CODE_SYSTEM.md
+→ DEPLOYMENT_GUIDE.md → DEPLOYMENT_CHECKLIST.md → DEPLOYMENT_SCRIPTS_GUIDE.md
 
 **Test the system**
-→ TEST_FLOW.md → CHALLENGE_CODE_SYSTEM.md (Testing Guide section)
+→ GETTING_STARTED.md (includes testing guide)
 
 **Manage the database**
-→ DATABASE_TABLES.md → DATABASE_MANAGEMENT.md
+→ DATABASE_TABLES.md → DATABASE_MANAGEMENT.md → TABLES_CONFIG_REFERENCE.md
 
 **Troubleshoot issues**
-→ CHALLENGE_CODE_SYSTEM.md (Troubleshooting section)
-→ DEV_TOOLS.md
+→ DEV_TOOLS.md → DATABASE_MANAGEMENT.md
 
 **Understand security**
-→ CHALLENGE_CODE_SYSTEM.md (Security Analysis section)
 → SECURITY.md
 
 **Assign user roles**
@@ -121,32 +99,34 @@ DEPLOYMENT_GUIDE.md                - Deployment instructions
 **Use development tools**
 → DEV_TOOLS.md
 
+**Configure table names**
+→ TABLES_CONFIG_REFERENCE.md
+
 ---
 
 ## 📌 Most Important Documents
 
 ### Top 5 for Developers
-1. **CHALLENGE_CODE_SYSTEM.md** - Current security implementation
+1. **GETTING_STARTED.md** - Complete setup and testing guide
 2. **DATABASE_TABLES.md** - Database schema
-3. **DEPLOYMENT_GUIDE.md** - How to deploy
-4. **DEV_TOOLS.md** - Development commands
-5. **QR_CHAIN_FLOW.md** - How the system works
+3. **DATABASE_MANAGEMENT.md** - Database operations
+4. **DEPLOYMENT_GUIDE.md** - How to deploy
+5. **DEV_TOOLS.md** - Development commands
 
 ### Top 3 for Users
-1. **LOGIN_GUIDE.md** - How to login
-2. **TEST_FLOW.md** - How to use the system
-3. **CHALLENGE_CODE_SYSTEM.md** - How challenge codes work
+1. **README.md** - System overview
+2. **GETTING_STARTED.md** - How to use the system
+3. **ROLE_ASSIGNMENT.md** - Understanding roles
 
 ---
 
-## 🗑️ Removed/Consolidated Documents
+## 🗑️ Archived Documents
 
-The following documents were consolidated into **CHALLENGE_CODE_SYSTEM.md**:
-- ~~DEPLOYMENT_FIX_SUMMARY.md~~
-- ~~DEPLOYMENT_SUCCESS_TEST_GUIDE.md~~
-- ~~ONE_TIME_CHALLENGE_IMPLEMENTATION_SUMMARY.md~~
-- ~~CHALLENGE_CODE_IMPLEMENTATION.md~~
-- ~~CHAIN_ATTACK_DIAGRAM.md~~
+The following documents were moved to `.archive/old-docs/`:
+- Historical status and analysis documents
+- Removed feature documentation (challenge codes)
+- Redundant guides (consolidated into main docs)
+- Outdated test flows
 
 ---
 
@@ -173,27 +153,24 @@ The following documents were consolidated into **CHALLENGE_CODE_SYSTEM.md**:
 
 ### When to Update
 
-**CHALLENGE_CODE_SYSTEM.md**:
-- When challenge code logic changes
-- When security improvements are made
-- When troubleshooting steps are added
-
 **DATABASE_TABLES.md**:
 - When table schemas change
 - When new tables are added
 - When fields are modified
+
+**TABLES_CONFIG_REFERENCE.md**:
+- When tables are added or removed
+- When table configuration changes
 
 **DEPLOYMENT_GUIDE.md**:
 - When deployment process changes
 - When new Azure resources are added
 - When configuration changes
 
-### Document Owners
-
-- **Security/Challenge Codes**: Development Team
-- **Database**: Development Team
-- **Deployment**: DevOps Team
-- **User Guides**: Product Team
+**GETTING_STARTED.md**:
+- When setup process changes
+- When new features are added
+- When testing procedures change
 
 ---
 
@@ -203,13 +180,6 @@ The following documents were consolidated into **CHALLENGE_CODE_SYSTEM.md**:
 - [Azure Functions Docs](https://docs.microsoft.com/en-us/azure/azure-functions/)
 - [Next.js Docs](https://nextjs.org/docs)
 - [Azure Table Storage](https://docs.microsoft.com/en-us/azure/storage/tables/)
-
-### Internal Resources
-- Project Status: PROJECT_STATUS.md
-- Quick Reference: QUICK_REFERENCE.md
-
-### Complete Documentation Index
-For a comprehensive list of all documentation including the docs/ folder, see DOCS_INDEX.md
 
 ---
 

@@ -41,12 +41,17 @@ This script:
 - Starting clean for development
 
 **Tables Created:**
+
+All table names are defined in `scripts/tables-config.sh` (single source of truth):
 - Sessions
 - Attendance
 - Chains
 - Tokens
-- ScanLogs
+- UserSessions
 - AttendanceSnapshots
+- ChainHistory
+- ScanLogs
+- DeletionLog
 
 ---
 
@@ -96,12 +101,17 @@ This script:
 4. Shows the list of tables
 
 **Tables Created:**
+
+All table names are defined in `scripts/tables-config.sh` (single source of truth):
 - Sessions
 - Attendance
 - Chains
 - Tokens
-- ScanLogs
+- UserSessions
 - AttendanceSnapshots
+- ChainHistory
+- ScanLogs
+- DeletionLog
 
 ---
 

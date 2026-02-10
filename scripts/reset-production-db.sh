@@ -5,6 +5,12 @@
 
 set -e
 
+# Get script directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Source table configuration (single source of truth)
+source "$SCRIPT_DIR/tables-config.sh"
+
 STORAGE_ACCOUNT="stqrattendancedev"
 RESOURCE_GROUP="rg-qr-attendance-dev"
 
@@ -26,8 +32,6 @@ fi
 
 echo ""
 echo "🗑️  Deleting tables..."
-
-TABLES=("Sessions" "Attendance" "Chains" "Tokens" "ScanLogs" "AttendanceSnapshots")
 
 for table in "${TABLES[@]}"; do
     echo -n "  Deleting $table... "

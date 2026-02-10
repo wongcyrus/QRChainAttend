@@ -32,7 +32,7 @@ export function SnapshotManager({
   // Load snapshots on mount
   useEffect(() => {
     loadSnapshots();
-  }, [sessionId]);
+  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSnapshots = async () => {
     setIsLoading(true);
@@ -481,7 +481,7 @@ function SnapshotTraceView({
 
   useEffect(() => {
     loadTraces();
-  }, [snapshot.snapshotId]);
+  }, [snapshot.snapshotId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadTraces = async () => {
     setIsLoading(true);
@@ -565,7 +565,7 @@ function SnapshotCompareView({
 
   useEffect(() => {
     loadComparison();
-  }, [snapshot1.snapshotId, snapshot2.snapshotId]);
+  }, [snapshot1.snapshotId, snapshot2.snapshotId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadComparison = async () => {
     setIsLoading(true);
