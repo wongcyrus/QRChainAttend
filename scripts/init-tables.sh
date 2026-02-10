@@ -14,7 +14,8 @@ TABLES=(
   "Chains"
   "Tokens"
   "UserSessions"
-    "AttendanceSnapshots"
+  "AttendanceSnapshots"
+  "ChainHistory"
 )
 
 # Determine environment and get connection string

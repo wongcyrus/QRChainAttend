@@ -286,6 +286,26 @@ export async function scanChain(
       lastAt: now
     }, 'Merge');
 
+    // Record chain history for tracking
+    const chainHistoryTable = getTableClient('ChainHistory');
+    try {
+      await chainHistoryTable.createEntity({
+        partitionKey: chainId,  // Group by chain
+        rowKey: `${newSeq.toString().padStart(10, '0')}_${now}`,  // Sortable by sequence
+        sessionId,
+        chainId,
+        sequence: newSeq,
+        fromHolder: previousHolder,
+        toHolder: scannerId,
+        scannedAt: now,
+        phase: chainData.phase
+      });
+      context.log(`Recorded chain history: ${previousHolder} -> ${scannerId} (seq ${newSeq})`);
+    } catch (historyError: any) {
+      // Don't fail the scan if history recording fails
+      context.log(`Warning: Failed to record chain history: ${historyError.message}`);
+    }
+
     context.log(`Chain ${chainId} passed from ${previousHolder} to ${scannerId}, seq ${newSeq}`);
 
     // Broadcast chain update

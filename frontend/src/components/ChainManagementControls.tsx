@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { ChainVisualization } from './ChainVisualization';
 
 enum ChainPhase {
   ENTRY = "ENTRY",
@@ -522,129 +523,58 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
                     padding: '1rem',
                     backgroundColor: 'white',
                     borderRadius: '8px',
-                    border: stalledChains.includes(chain.chainId) ? '2px solid #fc8181' : '2px solid #e2e8f0',
+                    border: stalledChains.includes(chain.chainId) ? '2px solid #fc8181' : '2px solid #e2e8f0'
+                  }}
+                >
+                  <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     flexWrap: 'wrap',
                     gap: '0.75rem'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <span style={{
-                      fontFamily: 'monospace',
-                      fontSize: '0.875rem',
-                      color: '#4a5568',
-                      fontWeight: '600'
-                    }}>
-                      #{chain.chainId.substring(0, 8)}
-                    </span>
-                    {stalledChains.includes(chain.chainId) && (
-                      <span style={{
-                        padding: '0.25rem 0.625rem',
-                        backgroundColor: '#fed7d7',
-                        color: '#742a2a',
-                        borderRadius: '12px',
-                        fontSize: '0.75rem',
-                        fontWeight: '700'
-                      }}>
-                        ⚠️ STALLED
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#718096',
-                    flexWrap: 'wrap',
-                    alignItems: 'center'
                   }}>
-                    <span>
-                      Holder: <strong style={{ color: '#2d3748' }}>{chain.lastHolder || 'None'}</strong>
-                    </span>
-                    <span>
-                      Seq: <strong style={{ color: '#2d3748' }}>{chain.lastSeq}</strong>
-                    </span>
-                    <span>
-                      Last: {formatTimestamp(chain.lastAt)}
-                    </span>
-                    
-                    {/* Manual holder assignment */}
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        placeholder="Student ID"
-                        value={manualHolderInput[chain.chainId] || ''}
-                        onChange={(e) => setManualHolderInput({ ...manualHolderInput, [chain.chainId]: e.target.value })}
-                        disabled={settingHolder === chain.chainId}
-                        style={{
-                          padding: '0.375rem 0.5rem',
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontFamily: 'monospace',
+                        fontSize: '0.875rem',
+                        color: '#4a5568',
+                        fontWeight: '600'
+                      }}>
+                        #{chain.chainId.substring(0, 8)}
+                      </span>
+                      {stalledChains.includes(chain.chainId) && (
+                        <span style={{
+                          padding: '0.25rem 0.625rem',
+                          backgroundColor: '#fed7d7',
+                          color: '#742a2a',
+                          borderRadius: '12px',
                           fontSize: '0.75rem',
-                          border: '1px solid #cbd5e0',
-                          borderRadius: '4px',
-                          width: '100px'
-                        }}
-                      />
-                      <button
-                        onClick={() => handleSetHolder(chain.chainId)}
-                        disabled={settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim()}
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          backgroundColor: settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim() ? '#ccc' : '#4299e1',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: settingHolder === chain.chainId || !manualHolderInput[chain.chainId]?.trim() ? 'not-allowed' : 'pointer',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseOver={(e) => {
-                          if (settingHolder !== chain.chainId && manualHolderInput[chain.chainId]?.trim()) {
-                            e.currentTarget.style.backgroundColor = '#3182ce';
-                          }
-                        }}
-                        onMouseOut={(e) => {
-                          if (settingHolder !== chain.chainId && manualHolderInput[chain.chainId]?.trim()) {
-                            e.currentTarget.style.backgroundColor = '#4299e1';
-                          }
-                        }}
-                      >
-                        {settingHolder === chain.chainId ? '⏳' : '👤 Set Holder'}
-                      </button>
+                          fontWeight: '700'
+                        }}>
+                          ⚠️ STALLED
+                        </span>
+                      )}
                     </div>
-                    
-                    {chain.lastHolder && (
-                      <button
-                        onClick={() => handleCloseChain(chain.chainId)}
-                        disabled={closingChain === chain.chainId}
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          backgroundColor: closingChain === chain.chainId ? '#ccc' : '#dc3545',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: closingChain === chain.chainId ? 'not-allowed' : 'pointer',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseOver={(e) => {
-                          if (closingChain !== chain.chainId) {
-                            e.currentTarget.style.backgroundColor = '#c82333';
-                          }
-                        }}
-                        onMouseOut={(e) => {
-                          if (closingChain !== chain.chainId) {
-                            e.currentTarget.style.backgroundColor = '#dc3545';
-                          }
-                        }}
-                      >
-                        {closingChain === chain.chainId ? '⏳ Closing...' : '🔒 Close Chain'}
-                      </button>
-                    )}
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '1rem',
+                      fontSize: '0.875rem',
+                      color: '#718096',
+                      flexWrap: 'wrap',
+                      alignItems: 'center'
+                    }}>
+                      {renderChainControls(chain)}
+                    </div>
                   </div>
+                  
+                  {/* Chain Visualization */}
+                  <ChainVisualization
+                    sessionId={sessionId}
+                    chainId={chain.chainId}
+                    lastSeq={chain.lastSeq}
+                    lastHolder={chain.lastHolder}
+                    phase={chain.phase as 'ENTRY' | 'EXIT'}
+                  />
                 </div>
               ))}
             </div>

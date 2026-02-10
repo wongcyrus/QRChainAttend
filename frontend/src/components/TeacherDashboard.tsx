@@ -632,7 +632,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
             <span>
               {new Date(session.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               {' → '}
-              {new Date(session.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {session.endAt ? new Date(session.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not set'}
             </span>
           </div>
         </div>

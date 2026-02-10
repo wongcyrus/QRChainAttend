@@ -40,7 +40,8 @@ function getTableClient(tableName: string): TableClient {
   if (!connectionString) {
     throw new Error('AzureWebJobsStorage is not configured');
   }
-  return TableClient.fromConnectionString(connectionString, tableName);
+  const isLocal = connectionString.includes("127.0.0.1") || connectionString.includes("localhost");
+  return TableClient.fromConnectionString(connectionString, tableName, { allowInsecureConnection: isLocal });
 }
 
 interface UpdateSessionRequest {

@@ -170,6 +170,24 @@ export async function seedEntry(
       };
       await chainsTable.createEntity(chainEntity);
 
+      // Record initial holder in chain history
+      const chainHistoryTable = getTableClient('ChainHistory');
+      try {
+        await chainHistoryTable.createEntity({
+          partitionKey: chainId,
+          rowKey: `0000000000_${now}`,  // Sequence 0
+          sessionId,
+          chainId,
+          sequence: 0,
+          fromHolder: 'TEACHER',  // Initial seed
+          toHolder: holderId,
+          scannedAt: now,
+          phase: 'ENTRY'
+        });
+      } catch (historyError: any) {
+        context.log(`Warning: Failed to record initial chain history: ${historyError.message}`);
+      }
+
       // Create token entity
       const tokenEntity = {
         partitionKey: sessionId,

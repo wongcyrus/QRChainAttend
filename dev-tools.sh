@@ -267,75 +267,23 @@ reset_database() {
     # Get the script directory
     SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
     
-    # Use local azurite directory instead of /workspace
-    AZURITE_DATA_DIR="$SCRIPT_DIR/azurite"
-    
-    # Create directory if it doesn't exist
-    if [ ! -d "$AZURITE_DATA_DIR" ]; then
-        echo "📁 Creating Azurite data directory: $AZURITE_DATA_DIR"
-        mkdir -p "$AZURITE_DATA_DIR"
-    fi
-    
-    # Check if Azurite is running
-    if pgrep -f azurite > /dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️  Azurite is running${NC}"
-        echo "   Stopping Azurite to clear data..."
-        pkill -f azurite 2>/dev/null || true
-        sleep 2
-        RESTART_AZURITE=true
+    # Use the delete-all-tables script
+    if [ -f "$SCRIPT_DIR/scripts/delete-all-tables.sh" ]; then
+        echo "Using delete-all-tables.sh..."
+        # Auto-confirm by piping 'yes'
+        echo "yes" | bash "$SCRIPT_DIR/scripts/delete-all-tables.sh"
     else
-        RESTART_AZURITE=false
+        echo -e "${RED}❌ delete-all-tables.sh not found${NC}"
+        return 1
     fi
     
     echo ""
-    
-    # Remove Azurite data files
-    echo "📁 Clearing Azurite data from: $AZURITE_DATA_DIR"
-    echo ""
-    
-    CLEARED=0
-    
-    if rm -f "$AZURITE_DATA_DIR/__azurite_db_table__.json" 2>/dev/null; then
-        echo -e "${GREEN}   ✓ Removed table storage data${NC}"
-        CLEARED=1
-    fi
-    
-    if rm -rf "$AZURITE_DATA_DIR/__blobstorage__" 2>/dev/null; then
-        echo -e "${GREEN}   ✓ Removed blob storage data${NC}"
-        CLEARED=1
-    fi
-    
-    if rm -rf "$AZURITE_DATA_DIR/__queuestorage__" 2>/dev/null; then
-        echo -e "${GREEN}   ✓ Removed queue storage data${NC}"
-        CLEARED=1
-    fi
-    
-    if rm -rf "$AZURITE_DATA_DIR/__tablestorage__" 2>/dev/null; then
-        echo -e "${GREEN}   ✓ Removed table storage directory${NC}"
-        CLEARED=1
-    fi
-    
-    if [ $CLEARED -eq 0 ]; then
-        echo -e "${YELLOW}   ℹ️  No data found to clear${NC}"
-    fi
-    
-    # Restart Azurite if it was running
-    if [ "$RESTART_AZURITE" = true ]; then
-        echo ""
-        echo "Restarting Azurite..."
-        npx azurite --silent --location "$AZURITE_DATA_DIR" --debug "$AZURITE_DATA_DIR/debug.log" > /dev/null 2>&1 &
-        sleep 3
-        echo -e "${GREEN}✅ Azurite restarted${NC}"
-        
-        # Recreate tables automatically
-        echo ""
-        echo "📋 Recreating tables..."
-        if [ -f "$SCRIPT_DIR/scripts/init-tables.sh" ]; then
-            bash "$SCRIPT_DIR/scripts/init-tables.sh"
-            echo -e "${GREEN}✅ Tables recreated${NC}"
-        else
-            echo -e "${YELLOW}⚠️  init-tables.sh not found, skipping table creation${NC}"
-        fi
+    echo "📋 Recreating tables..."
+    if [ -f "$SCRIPT_DIR/scripts/init-tables.sh" ]; then
+        bash "$SCRIPT_DIR/scripts/init-tables.sh"
+        echo -e "${GREEN}✅ Tables recreated${NC}"
+    else
+        echo -e "${YELLOW}⚠️  init-tables.sh not found${NC}"
     fi
     
     echo ""

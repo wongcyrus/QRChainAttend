@@ -45,7 +45,8 @@ function getTableClient(tableName: string): TableClient {
   if (!connectionString) {
     throw new Error('AzureWebJobsStorage is not configured');
   }
-  return TableClient.fromConnectionString(connectionString, tableName);
+  const isLocal = connectionString.includes("127.0.0.1") || connectionString.includes("localhost");
+  return TableClient.fromConnectionString(connectionString, tableName, { allowInsecureConnection: isLocal });
 }
 
 interface DeletionSummary {
@@ -216,7 +217,31 @@ export async function deleteSession(
         context.warn(`Error deleting tokens for session ${sid}: ${error.message}`);
       }
 
-      // 4. Delete ScanLogs
+      // 4. Delete ChainHistory (for all chains in this session)
+      try {
+        const chainHistoryTable = getTableClient('ChainHistory');
+        // First get all chains for this session to find their chainIds
+        const chainsTable = getTableClient('Chains');
+        const chainIds: string[] = [];
+        for await (const entity of chainsTable.listEntities({ 
+          queryOptions: { filter: `PartitionKey eq '${sid}'` } 
+        })) {
+          chainIds.push(entity.rowKey as string);
+        }
+        
+        // Delete history for each chain
+        for (const chainId of chainIds) {
+          for await (const entity of chainHistoryTable.listEntities({ 
+            queryOptions: { filter: `PartitionKey eq '${chainId}'` } 
+          })) {
+            await chainHistoryTable.deleteEntity(entity.partitionKey, entity.rowKey);
+          }
+        }
+      } catch (error: any) {
+        context.warn(`Error deleting chain history for session ${sid}: ${error.message}`);
+      }
+
+      // 5. Delete ScanLogs
       try {
         const scanLogsTable = getTableClient('ScanLogs');
         for await (const entity of scanLogsTable.listEntities({ 
