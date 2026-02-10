@@ -20,9 +20,12 @@
 ## 📊 Database & Infrastructure
 
 ### Database
-- **DATABASE_TABLES.md** - Table schemas and structure
+- **DATABASE_TABLES.md** - Table schemas and structure (9 tables)
 - **DATABASE_MANAGEMENT.md** - Database operations and queries
-- **TABLES_CONFIG_REFERENCE.md** ⭐ **NEW** - Centralized table configuration
+- **TABLES_CONFIG_REFERENCE.md** - Centralized table configuration
+
+### Architecture
+- **SYSTEM_ARCHITECTURE.md** ⭐ **NEW** - Complete system architecture and design decisions
 
 ### Deployment
 - **DEPLOYMENT_GUIDE.md** - Full deployment instructions
@@ -36,6 +39,7 @@
 ### Development
 - **DEV_TOOLS.md** - Development tools and commands
 - **LOCAL_DEVELOPMENT_SETUP.md** - Local setup guide
+- **ENTRY_EXIT_METHODS.md** - Entry/exit method tracking system
 
 ### Azure & Infrastructure
 - **AZURE_ENVIRONMENT.md** - Azure resources and configuration
@@ -50,9 +54,11 @@
 ```
 README.md                          - Project overview
 GETTING_STARTED.md                 - Setup and testing guide
-DATABASE_TABLES.md                 - Database schema
+SYSTEM_ARCHITECTURE.md             - System architecture and design
+DATABASE_TABLES.md                 - Database schema (9 tables)
 DATABASE_MANAGEMENT.md             - Database operations
 TABLES_CONFIG_REFERENCE.md         - Table configuration
+ENTRY_EXIT_METHODS.md              - Method tracking system
 DEPLOYMENT_GUIDE.md                - Deployment instructions
 DEPLOYMENT_CHECKLIST.md            - Pre-deployment checks
 DEPLOYMENT_SCRIPTS_GUIDE.md        - Script reference
@@ -89,14 +95,20 @@ SECURITY.md                        - Security practices
 **Troubleshoot issues**
 → DEV_TOOLS.md → DATABASE_MANAGEMENT.md
 
-**Understand security**
-→ SECURITY.md
+**Understand the system architecture**
+→ SYSTEM_ARCHITECTURE.md
+
+**Understand entry/exit tracking**
+→ ENTRY_EXIT_METHODS.md
 
 **Assign user roles**
 → ROLE_ASSIGNMENT.md
 
 **Use development tools**
 → DEV_TOOLS.md
+
+**Understand security**
+→ SECURITY.md
 
 **Configure table names**
 → TABLES_CONFIG_REFERENCE.md
@@ -107,10 +119,10 @@ SECURITY.md                        - Security practices
 
 ### Top 5 for Developers
 1. **GETTING_STARTED.md** - Complete setup and testing guide
-2. **DATABASE_TABLES.md** - Database schema
-3. **DATABASE_MANAGEMENT.md** - Database operations
-4. **DEPLOYMENT_GUIDE.md** - How to deploy
-5. **DEV_TOOLS.md** - Development commands
+2. **SYSTEM_ARCHITECTURE.md** - System design and architecture
+3. **DATABASE_TABLES.md** - Database schema (9 tables)
+4. **ENTRY_EXIT_METHODS.md** - Method tracking system
+5. **DEPLOYMENT_GUIDE.md** - How to deploy
 
 ### Top 3 for Users
 1. **README.md** - System overview
@@ -151,6 +163,15 @@ The following documents were moved to `.archive/old-docs/`:
 ## 🔄 Document Maintenance
 
 ### When to Update
+
+**SYSTEM_ARCHITECTURE.md**:
+- When system design changes
+- When new components are added
+- When design decisions are made
+
+**ENTRY_EXIT_METHODS.md**:
+- When method tracking logic changes
+- When new verification methods are added
 
 **DATABASE_TABLES.md**:
 - When table schemas change

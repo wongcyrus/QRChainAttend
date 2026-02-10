@@ -51,8 +51,10 @@ This creates the required tables:
 - Attendance
 - Chains
 - Tokens
-- ScanLogs
+- UserSessions
 - AttendanceSnapshots
+- ChainHistory
+- ScanLogs
 - DeletionLog
 
 ### 4. Start Development Servers
@@ -93,11 +95,13 @@ NEXT_PUBLIC_ENVIRONMENT=local
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "SIGNALR_CONNECTION_STRING": "dummy",
-    "CHAIN_TOKEN_TTL_SECONDS": "20",
+    "CHAIN_TOKEN_TTL_SECONDS": "10",
     "QR_ENCRYPTION_KEY": "your-32-byte-hex-key"
   }
 }
 ```
+
+**Note**: Token TTL is 10 seconds (not 20) for faster chain rotation.
 
 ## Testing the Flow
 
@@ -106,11 +110,12 @@ NEXT_PUBLIC_ENVIRONMENT=local
 1. Login with `teacher@vtc.edu.hk`
 2. Go to Teacher Dashboard
 3. Click "Create New Session"
-4. Fill in session details:
+3. Fill in session details:
    - Class ID (e.g., "CS101")
    - Start/end times
    - Late cutoff minutes (default: 15)
-   - Optional: Enable geofence
+   - Geofence radius (default: 1000 meters)
+   - Optional: Enable geofence enforcement
    - Optional: Enable recurring sessions
 5. Click "Create Session"
 6. View session in dashboard
@@ -140,7 +145,7 @@ NEXT_PUBLIC_ENVIRONMENT=local
 
 1. Create a session with geofence enabled
 2. Click "Use Current Location" to set coordinates
-3. Set radius (e.g., 100 meters)
+3. Set radius (default: 1000 meters)
 4. Toggle "Enforce Geofence" for strict mode
 5. Students outside radius will see warning or be blocked
 6. View location warnings in teacher dashboard
@@ -148,13 +153,12 @@ NEXT_PUBLIC_ENVIRONMENT=local
 ### Testing Snapshots
 
 1. Open a session dashboard
-2. Click "Take Snapshot"
-3. Select type (ENTRY or EXIT)
-4. Set chain count (1-20)
-5. Add optional notes
-6. View snapshot in list
-7. Click "View Trace" to see chain transfers
-8. Take another snapshot and click "Compare"
+2. Scroll to "Instant Attendance Snapshots" section
+3. Set number of chains (1-20)
+4. Click "Take Snapshot Now"
+5. View snapshot in history list
+6. See: timestamp, chains started, students online, status
+7. Snapshots record who's present at that moment via chains
 
 ## Common Issues
 

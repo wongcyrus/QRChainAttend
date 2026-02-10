@@ -3,7 +3,7 @@
 **Date**: February 6, 2026  
 **Storage**: Azure Table Storage
 
-## Required Tables (5 Total)
+## Required Tables (9 Total)
 
 ### 1. Sessions
 **Purpose**: Store active attendance sessions
@@ -28,48 +28,70 @@ Fields:
 PartitionKey: sessionId
 RowKey: studentId (email)
 Fields:
+  - entryStatus: "PRESENT_ENTRY" | "LATE_ENTRY" [optional]
+  - entryMethod: "DIRECT_QR" | "CHAIN" [optional]
+  - entryAt: number (Unix seconds) [optional]
   - exitVerified: boolean
-  - joinedAt: timestamp (Unix seconds)
-  - exitedAt: timestamp (Unix seconds) [optional]
+  - exitMethod: "DIRECT_QR" | "CHAIN" [optional]
+  - exitedAt: number (Unix seconds) [optional]
+  - earlyLeaveAt: number (Unix seconds) [optional]
+  - finalStatus: string [optional]
+  - joinedAt: number (Unix seconds)
+  - isOnline: boolean
+  - lastSeen: number (Unix seconds)
+  - locationWarning: string [optional]
+  - locationDistance: number [optional]
+  - scanLocation: string (JSON) [optional]
   - Timestamp: Azure auto-generated
 ```
 
+**Entry/Exit Methods**:
+- **Entry Chain**: Sets `entryMethod: 'CHAIN'`, `entryStatus`, `entryAt`
+- **Entry QR**: Currently not implemented (students join but entry marked via chains)
+- **Exit Chain**: Sets `exitMethod: 'CHAIN'`, `exitVerified: true`, `exitedAt`
+- **Exit QR**: Sets `exitMethod: 'DIRECT_QR'`, `exitVerified: true`, `exitedAt`
+
 ### 3. Chains
-**Purpose**: Store QR code chain data for entry/exit tracking
+**Purpose**: Store QR code chain data for entry/exit/snapshot tracking
 
 **Schema**:
 ```
 PartitionKey: sessionId
-RowKey: chainId
+RowKey: chainId (UUID)
 Fields:
-  - type: "ENTRY" | "EXIT" | "LATE" | "EARLY"
-  - currentToken: string
-  - previousToken: string
-  - rotationCount: number
-  - lastRotation: timestamp
+  - phase: "ENTRY" | "EXIT" | "SNAPSHOT"
+  - state: "ACTIVE" | "STALLED" | "COMPLETED"
+  - index: number (chain index within phase)
+  - lastHolder: string (email of current holder)
+  - lastSeq: number (sequence number of last transfer)
+  - lastAt: number (Unix seconds of last activity)
+  - createdAt: number (Unix seconds)
+  - completedAt: number (Unix seconds) [optional]
+  - snapshotId: string (UUID) [optional - for SNAPSHOT phase]
+  - snapshotIndex: number [optional - for SNAPSHOT phase]
 ```
 
 ### 4. Tokens
-**Purpose**: Store session tokens for chain validation
+**Purpose**: Store chain tokens for QR code validation
 
 **Schema**:
 ```
 PartitionKey: sessionId
 RowKey: tokenId (UUID)
 Fields:
-  - chainId: string
+  - chainId: string (UUID)
   - holderId: string (email of current holder)
   - seq: number (sequence number in chain)
-  - expiresAt: timestamp (token expiration, default 20s)
-  - createdAt: timestamp
-  
-  # Challenge Code Fields (Optional - added when scanner requests challenge)
-  - pendingChallenge: string (email of scanner who requested challenge)
-  - challengeCode: string (SHA-256 hash of 6-digit code)
-  - challengeExpiresAt: timestamp (challenge expiration, default 30s)
+  - expiresAt: number (Unix seconds, default 10s TTL)
+  - createdAt: number (Unix seconds)
+  - snapshotId: string (UUID) [optional - for SNAPSHOT tokens]
 ```
 
-**Note**: Challenge fields are added dynamically when a scanner requests a challenge code. They are optional and not present on newly created tokens until a scan is initiated.
+**Token Lifecycle**:
+- Created when chain is seeded or passed
+- Expires after 10 seconds (configurable via CHAIN_TOKEN_TTL_SECONDS)
+- Deleted when scanned or chain closed
+- Auto-cleanup on session end
 
 ### 5. UserSessions
 **Purpose**: Map users to their active sessions
@@ -80,8 +102,71 @@ PartitionKey: userId (email)
 RowKey: sessionId
 Fields:
   - role: "teacher" | "student"
-  - joinedAt: timestamp
+  - joinedAt: number (Unix seconds)
   - status: "active" | "ended"
+```
+
+### 6. AttendanceSnapshots
+**Purpose**: Store metadata for on-demand attendance snapshots
+
+**Schema**:
+```
+PartitionKey: sessionId
+RowKey: snapshotId (UUID)
+Fields:
+  - snapshotIndex: number (1, 2, 3...)
+  - capturedAt: number (Unix seconds)
+  - totalStudents: number (online students at time of snapshot)
+  - chainsCreated: number (number of chains started)
+  - status: "ACTIVE" | "COMPLETED"
+  - presentCount: number [optional - calculated after chains complete]
+```
+
+### 7. ChainHistory
+**Purpose**: Track chain transfer history for audit and analysis
+
+**Schema**:
+```
+PartitionKey: chainId
+RowKey: {seq}_{timestamp} (sortable)
+Fields:
+  - sessionId: string
+  - chainId: string (UUID)
+  - sequence: number
+  - fromHolder: string (email)
+  - toHolder: string (email)
+  - scannedAt: number (Unix seconds)
+  - phase: "ENTRY" | "EXIT" | "SNAPSHOT"
+```
+
+### 8. ScanLogs
+**Purpose**: Audit log for all QR code scans
+
+**Schema**:
+```
+PartitionKey: sessionId
+RowKey: {timestamp}_{scanId}
+Fields:
+  - studentId: string (email)
+  - scanType: string
+  - success: boolean
+  - timestamp: number (Unix seconds)
+  - metadata: string (JSON)
+```
+
+### 9. DeletionLog
+**Purpose**: Audit trail for deleted sessions
+
+**Schema**:
+```
+PartitionKey: "DELETION"
+RowKey: {timestamp}_{sessionId}
+Fields:
+  - sessionId: string
+  - deletedBy: string (email)
+  - deletedAt: number (Unix seconds)
+  - reason: string
+  - metadata: string (JSON)
 ```
 
 ## Removed Tables
@@ -236,26 +321,33 @@ az storage entity query \
 
 ## Migration Notes
 
-### Challenge Code System (February 2026)
+### Timestamp Standardization (February 2026)
 
-**No migration needed**:
-- Challenge fields are optional and added dynamically
-- Azure Table Storage is schema-less
-- Existing tokens continue to work
-- New tokens support challenge codes automatically
+**All timestamps now use Unix seconds (10 digits)**:
+- Changed from milliseconds to seconds throughout backend
+- Frontend converts to milliseconds when needed: `timestamp * 1000`
+- Consistent across all tables and functions
 
-**What changed**:
-- Added 3 optional fields to Tokens table:
-  - `pendingChallenge`: Scanner's email
-  - `challengeCode`: SHA-256 hash of 6-digit code
-  - `challengeExpiresAt`: Challenge expiration timestamp
-- Fields are added via `updateEntity` when scanner requests challenge
-- Old tokens without these fields still work (just can't use challenge system)
+**Fields affected**:
+- All `*At` fields (createdAt, entryAt, exitedAt, etc.)
+- All `expiresAt` fields
+- All `lastSeen`, `lastAt` fields
 
-**Backward compatibility**:
-- ✅ Old tokens (before deployment): Work normally
-- ✅ New tokens (after deployment): Support challenges
-- ✅ Mixed environment: Both coexist without issues
+### Entry/Exit Methods (February 2026)
+
+**Added method tracking**:
+- `entryMethod`: "DIRECT_QR" or "CHAIN"
+- `exitMethod`: "DIRECT_QR" or "CHAIN"
+- Allows distinguishing how attendance was verified
+- Old records without these fields show "—" in UI
+
+### Snapshot Simplification (February 2026)
+
+**Simplified snapshot system**:
+- Removed complex snapshot types (ENTRY/EXIT)
+- Now just "SNAPSHOT" phase for on-demand attendance
+- Snapshots create chains to record who's present at a moment
+- No trace viewing or comparison features (removed)
 
 ### From QRTokens to Encryption
 
@@ -275,12 +367,13 @@ az storage table delete \
 
 ## Summary
 
-✅ **5 tables required** (Sessions, Attendance, Chains, Tokens, UserSessions)  
+✅ **9 tables required** (Sessions, Attendance, Chains, Tokens, UserSessions, AttendanceSnapshots, ChainHistory, ScanLogs, DeletionLog)  
 ❌ **QRTokens NOT needed** (encryption-based approach)  
 ✅ **Simple schema** (easy to understand and maintain)  
 ✅ **Low cost** (< $1/month for typical usage)  
 ✅ **Fast performance** (< 50ms for most operations)  
-✅ **No cleanup needed** (tokens auto-expire)
+✅ **Timestamps in seconds** (consistent across all tables)  
+✅ **Method tracking** (entry/exit via CHAIN or DIRECT_QR)
 
 ---
 

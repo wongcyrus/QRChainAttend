@@ -41,10 +41,10 @@ A comprehensive, real-time attendance tracking system using QR code chains, geol
 
 ### Advanced Features
 - **Recurring Sessions**: Create daily, weekly, or monthly recurring sessions
-- **Geolocation Tracking**: Location-based attendance with warning/enforce modes
-- **Attendance Snapshots**: On-demand snapshots with chain trace visualization
-- **Snapshot Comparison**: Compare snapshots to see attendance changes
-- **Export Functionality**: Download attendance as CSV or JSON
+- **Geolocation Tracking**: Location-based attendance with warning/enforce modes (default 1000m radius)
+- **Attendance Snapshots**: On-demand snapshots via chains to record instant attendance
+- **Entry/Exit Methods**: Track how attendance was verified (Chain vs Direct QR)
+- **Export Functionality**: Download attendance as CSV or JSON with method tracking
 
 ### User Experience
 - **Progressive Web App**: Installable on mobile devices
@@ -126,10 +126,10 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
   - Control chain flow
   
 - **Snapshots & Analysis**
-  - Take on-demand attendance snapshots
-  - View chain transfer traces
-  - Compare snapshots to see changes
-  - Add notes to snapshots
+  - Take on-demand attendance snapshots via chains
+  - View snapshot history with metadata
+  - Track who was present at specific moments
+  - Simple, focused snapshot interface
   
 - **Export & Reporting**
   - Export attendance as CSV
@@ -162,11 +162,11 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 - **Authentication**: Role assignment, user info
 - **Session Management**: CRUD operations with recurring support
 - **QR Code Generation**: Entry, exit, early leave QR codes
-- **Chain Management**: Seed, reseed, scan operations
-- **Attendance**: Tracking, verification, export
-- **Snapshots**: Create, list, trace, compare
+- **Chain Management**: Seed, reseed, scan, close operations
+- **Attendance**: Tracking with entry/exit methods, verification, export
+- **Snapshots**: Create on-demand snapshots via chains
 - **SignalR**: Real-time connections for teacher and student
-- **Utilities**: Token rotation, session checks
+- **Utilities**: Token rotation, session checks, geolocation validation
 
 ### Frontend (22+ Components)
 - **Pages**: Home, teacher dashboard, student view
@@ -176,15 +176,16 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 - **Snapshots**: Manager, trace viewer, comparison
 - **Utilities**: Offline indicator, error display
 
-### Database (8 Tables)
+### Database (9 Tables)
 - **Sessions**: Session metadata with recurring support
-- **Attendance**: Student attendance records with location
-- **Chains**: QR chain state and holders
-- **Tokens**: Chain tokens with expiration
-- **ScanLogs**: Chain scan history
-- **AttendanceSnapshots**: Snapshot metadata
-- **DeletionLog**: Audit trail for deletions
-- **SignalRConnections**: Real-time connection tracking
+- **Attendance**: Student attendance records with entry/exit methods
+- **Chains**: QR chain state and holders (ENTRY/EXIT/SNAPSHOT phases)
+- **Tokens**: Chain tokens with 10-second expiration
+- **UserSessions**: User session mapping
+- **AttendanceSnapshots**: On-demand snapshot metadata
+- **ChainHistory**: Chain transfer audit trail
+- **ScanLogs**: QR scan audit log
+- **DeletionLog**: Session deletion audit trail
 
 ## 🔒 Security
 
@@ -221,7 +222,8 @@ See [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) for complete troubleshooting
 **Features**: 12 major features fully implemented  
 **Backend Functions**: 36 functions operational  
 **Frontend Components**: 22+ components working  
-**Documentation**: 75% complete  
+**Database Tables**: 9 tables with consistent timestamps (Unix seconds)  
+**Documentation**: Updated to reflect current codebase  
 **Testing**: Manual testing (automated tests planned)
 
 See [Project Status](PROJECT_STATUS.md) for detailed information.
@@ -243,5 +245,5 @@ Built with Azure services and modern web technologies.
 
 ---
 
-**Last Updated**: February 8, 2026  
+**Last Updated**: February 10, 2026  
 **Version**: 2.0

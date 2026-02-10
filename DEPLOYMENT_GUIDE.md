@@ -89,7 +89,16 @@ npx @azure/static-web-apps-cli deploy ./out \
 
 ### CORS Configuration (Required for credentials: 'include')
 
-**Important**: When using `credentials: 'include'` in fetch requests, CORS must be configured properly:
+**Important**: When using `credentials: 'include'` in fetch requests, CORS must be configured properly.
+
+**Why this is critical**:
+- Frontend uses `credentials: 'include'` to pass authentication cookies
+- Azure Static Web Apps authentication requires credentials
+- CORS with credentials cannot use wildcard `*` origin
+- Must specify exact allowed origins
+- Backend validates `x-ms-client-principal` header from auth cookies
+
+**Configuration**:
 
 ```bash
 # Run the CORS configuration script
@@ -99,7 +108,7 @@ npx @azure/static-web-apps-cli deploy ./out \
 Or manually configure:
 
 ```bash
-# Remove wildcard origin
+# Remove wildcard origin (incompatible with credentials)
 az functionapp cors remove \
   --name func-qrattendance-dev \
   --resource-group rg-qr-attendance-dev \
@@ -122,11 +131,26 @@ az functionapp cors credentials \
   --enable true
 ```
 
-**Why this is needed:**
-- Frontend uses `credentials: 'include'` to pass authentication cookies
-- Azure Static Web Apps authentication requires credentials
-- CORS with credentials cannot use wildcard `*` origin
-- Must specify exact allowed origins
+**Backend host.json**:
+```json
+{
+  "version": "2.0",
+  "extensions": {
+    "http": {
+      "routePrefix": "api",
+      "cors": {
+        "allowedOrigins": [
+          "https://red-grass-0f8bc910f.4.azurestaticapps.net",
+          "http://localhost:3000",
+          "http://localhost:3001",
+          "http://localhost:3002"
+        ],
+        "supportCredentials": true
+      }
+    }
+  }
+}
+```
 
 ### Backend Environment Variables
 
@@ -138,8 +162,14 @@ az functionapp config appsettings set \
   --settings \
     FUNCTIONS_WORKER_RUNTIME=node \
     FUNCTIONS_EXTENSION_VERSION=~4 \
-    WEBSITE_NODE_DEFAULT_VERSION=~20
+    WEBSITE_NODE_DEFAULT_VERSION=~20 \
+    CHAIN_TOKEN_TTL_SECONDS=10 \
+    QR_ENCRYPTION_KEY=<your-32-byte-hex-key>
 ```
+
+**Important Settings**:
+- `CHAIN_TOKEN_TTL_SECONDS=10` - Token expiry (10 seconds, not 20)
+- `QR_ENCRYPTION_KEY` - 32-byte hex key for QR encryption
 
 ### Frontend Environment Variables
 
@@ -283,4 +313,4 @@ az functionapp show \
 
 ---
 
-**Last Updated**: February 6, 2026
+**Last Updated**: February 10, 2026
