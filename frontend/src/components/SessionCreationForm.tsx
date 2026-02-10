@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { getAuthHeaders } from '../utils/authHeaders';
 import QRCode from 'qrcode';
 
 interface SessionConstraints {
@@ -204,27 +205,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
     try {
       // Get authentication info first
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      if (isLocal) {
-        const mockPrincipal = {
-          userId: teacherId || 'local-dev-teacher',
-          userDetails: teacherEmail || 'teacher@vtc.edu.hk',
-          userRoles: ['authenticated', 'teacher'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      } else {
-        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
-        const authData = await authResponse.json();
-        
-        if (authData.clientPrincipal) {
-          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
-        } else {
-          throw new Error('Not authenticated');
-        }
-      }
+      const headers = await getAuthHeaders();
 
       // Edit mode updates a single session only
       if (isEditMode && sessionToEdit) {
@@ -240,7 +221,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
         }
 
         const updateUrl = `${apiUrl}/sessions/${sessionToEdit.sessionId}?scope=this`;
-        const updateResponse = await fetch(updateUrl, {
+        const updateResponse = await fetch(updateUrl, { credentials: 'include',
           method: 'PATCH',
           headers,
           body: JSON.stringify(updates),
@@ -289,7 +270,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
         request.constraints = constraints;
       }
       
-      const response = await fetch(`${apiUrl}/sessions`, {
+      const response = await fetch(`${apiUrl}/sessions`, { credentials: 'include',
         method: 'POST',
         headers,
         body: JSON.stringify(request),
@@ -1152,3 +1133,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
     </div>
   );
 };
+
+
+
+

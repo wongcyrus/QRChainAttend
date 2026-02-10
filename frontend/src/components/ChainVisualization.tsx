@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { getAuthHeaders } from '../utils/authHeaders';
 
 interface ChainVisualizationProps {
   sessionId: string;
@@ -49,7 +50,7 @@ export const ChainVisualization: React.FC<ChainVisualizationProps> = ({
         
         const response = await fetch(
           `${apiUrl}/sessions/${sessionId}/chains/${chainId}/history`,
-          { headers }
+          { credentials: 'include', headers }
         );
         
         if (response.ok) {
@@ -229,3 +230,6 @@ export const ChainVisualization: React.FC<ChainVisualizationProps> = ({
     </div>
   );
 };
+
+
+

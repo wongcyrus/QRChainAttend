@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { getAuthHeaders } from '../utils/authHeaders';
 import QRCode from 'qrcode';
 import * as signalR from '@microsoft/signalr';
 import { getCurrentLocation } from '../utils/geolocation';
@@ -64,28 +65,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      if (isLocal) {
-        const mockPrincipal = {
-          userId: studentId,
-          userDetails: studentId,
-          userRoles: ['authenticated', 'student'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      } else {
-        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
-        const authData = await authResponse.json();
-        if (authData.clientPrincipal) {
-          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
-        } else {
-          throw new Error('Not authenticated');
-        }
-      }
+      const headers = await getAuthHeaders();
 
       // Direct scan without challenge code
       setScanMessage('Processing scan...');
@@ -94,7 +74,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       
       const scanResponse = await fetch(
         `${apiUrl}/sessions/${sessionId}/chains/${chainId}/scan`,
-        {
+        { credentials: 'include',
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -139,31 +119,10 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
       // Create auth headers
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      if (isLocal) {
-        const mockPrincipal = {
-          userId: studentId,
-          userDetails: 'student@stu.vtc.edu.hk',
-          userRoles: ['authenticated', 'student'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      } else {
-        const authResponse = await fetch('/.auth/me', { credentials: 'include' });
-        const authData = await authResponse.json();
-        if (authData.clientPrincipal) {
-          headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
-        } else {
-          throw new Error('Not authenticated');
-        }
-      }
+      const headers = await getAuthHeaders();
       
       // Fetch session info
-      const sessionRes = await fetch(`${apiUrl}/sessions/${sessionId}`, { headers });
+      const sessionRes = await fetch(`${apiUrl}/sessions/${sessionId}`, { credentials: 'include', headers });
       if (sessionRes.ok) {
         const data = await sessionRes.json();
         setSession({
@@ -186,7 +145,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       
       // Check if student is a holder by looking for active tokens
       try {
-        const tokensRes = await fetch(`${apiUrl}/sessions/${sessionId}/tokens/${studentId}`, { headers });
+        const tokensRes = await fetch(`${apiUrl}/sessions/${sessionId}/tokens/${studentId}`, { credentials: 'include', headers });
         if (tokensRes.ok) {
           const tokenData = await tokensRes.json();
           if (tokenData.isHolder && tokenData.token && tokenData.chainId) {
@@ -267,7 +226,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       }
       
       try {
-        const response = await fetch(`${apiUrl}/sessions/${sessionId}/student-online`, {
+        const response = await fetch(`${apiUrl}/sessions/${sessionId}/student-online`, { credentials: 'include',
           method: 'POST',
           headers,
           body: JSON.stringify({ isOnline })
@@ -307,7 +266,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
       }
       
       try {
-        const response = await fetch(`${apiUrl}/sessions/${sessionId}/negotiate`, { headers });
+        const response = await fetch(`${apiUrl}/sessions/${sessionId}/negotiate`, { credentials: 'include', headers });
         if (response.ok) {
           return await response.json();
         }
@@ -793,3 +752,8 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     </div>
   );
 }
+
+
+
+
+

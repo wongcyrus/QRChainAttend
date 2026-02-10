@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { getAuthHeaders } from '../utils/authHeaders';
 import { QRScanner } from './QRScanner';
 import { QRDisplay } from './QRDisplay';
 import { getCurrentLocation } from '../utils/geolocation';
@@ -141,7 +142,7 @@ export function StudentSessionView({
         headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
       }
       
-      const response = await fetch(`${apiUrl}/sessions/${sessionId}`, {
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}`, { credentials: 'include',
         headers
       });
       
@@ -179,7 +180,7 @@ export function StudentSessionView({
       }
       
       // Fetch attendance status
-      const attendanceResponse = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, {
+      const attendanceResponse = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, { credentials: 'include',
         headers
       });
       
@@ -220,7 +221,7 @@ export function StudentSessionView({
         return;
       }
 
-      const response = await fetch(`/api/sessions/${sessionId}/join`, {
+      const response = await fetch(`/api/sessions/${sessionId}/join`, { credentials: 'include',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -292,7 +293,7 @@ export function StudentSessionView({
       
       try {
         // Call join session API
-        const response = await fetch(`/api/sessions/${sessionQRData.sessionId}/join`, {
+        const response = await fetch(`/api/sessions/${sessionQRData.sessionId}/join`, { credentials: 'include',
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -992,3 +993,8 @@ export function StudentSessionView({
 }
 
 export default StudentSessionView;
+
+
+
+
+

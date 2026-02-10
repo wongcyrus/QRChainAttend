@@ -213,7 +213,7 @@ async function callScanAPI(
     throw new Error('Unsupported QR code type');
   }
 
-  const response = await fetch(endpoint, {
+  const response = await fetch(endpoint, { credentials: 'include',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -511,3 +511,4 @@ export function QRScanner({
 }
 
 export default QRScanner;
+

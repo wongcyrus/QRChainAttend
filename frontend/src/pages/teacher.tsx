@@ -3,6 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { getAuthHeaders } from '../utils/authHeaders';
 import { useRouter } from 'next/router';
 import { SessionCreationForm } from '../components/SessionCreationForm';
 import { TeacherDashboard } from '../components/TeacherDashboard';
@@ -70,6 +71,7 @@ export default function TeacherPage() {
     const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
     
     fetch(authEndpoint, {
+      credentials: 'include',
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -144,7 +146,7 @@ export default function TeacherPage() {
       // Use email (userDetails) as teacher ID, not the generated userId
       const teacherId = authData.clientPrincipal.userDetails || authData.clientPrincipal.userId || '';
       // Use query parameter instead of path parameter to avoid URL encoding issues
-      const response = await fetch(`${apiUrl}/teacher/sessions?teacherId=${encodeURIComponent(teacherId)}`, {
+      const response = await fetch(`${apiUrl}/teacher/sessions?teacherId=${encodeURIComponent(teacherId)}`, { credentials: 'include',
         headers
       });
       
@@ -201,7 +203,7 @@ export default function TeacherPage() {
         };
         
         const endpoint = qrCodeData.type === 'ENTRY' ? 'entry-qr' : 'exit-qr';
-        const response = await fetch(`${apiUrl}/sessions/${qrCodeData.sessionId}/${endpoint}`, { headers });
+        const response = await fetch(`${apiUrl}/sessions/${qrCodeData.sessionId}/${endpoint}`, { credentials: 'include', headers });
         
         if (!response.ok) {
           console.error(`Failed to refresh ${endpoint}:`, response.status);
@@ -263,7 +265,7 @@ export default function TeacherPage() {
       };
       
       // Get entry QR token from backend
-      const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/entry-qr`, { headers });
+      const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/entry-qr`, { credentials: 'include', headers });
       
       if (!response.ok) {
         const error = await response.text();
@@ -327,7 +329,7 @@ export default function TeacherPage() {
       };
       
       // Get exit QR token from backend
-      const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/exit-qr`, { headers });
+      const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/exit-qr`, { credentials: 'include', headers });
       
       if (!response.ok) {
         const error = await response.text();
@@ -416,7 +418,7 @@ export default function TeacherPage() {
       const url = new URL(`${apiUrl}/sessions/${sessionId}`, window.location.origin);
       url.searchParams.set('scope', scope);
       
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url.toString(), { credentials: 'include',
         method: 'DELETE',
         headers
       });
@@ -770,3 +772,9 @@ export default function TeacherPage() {
     </div>
   );
 }
+
+
+
+
+
+

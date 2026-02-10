@@ -56,7 +56,7 @@ export function SessionEnrollment({
         const location = await getCurrentLocation();
 
         // Call join session API
-        const response = await fetch(`/api/sessions/${sessionQRData.sessionId}/join`, {
+        const response = await fetch(`/api/sessions/${sessionQRData.sessionId}/join`, { credentials: 'include',
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -462,3 +462,4 @@ export function SessionEnrollment({
 }
 
 export default SessionEnrollment;
+

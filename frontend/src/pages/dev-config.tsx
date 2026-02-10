@@ -60,6 +60,7 @@ export default function DevConfig() {
     // Set cookie via API
     const response = await fetch('/api/auth/mock-login', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },

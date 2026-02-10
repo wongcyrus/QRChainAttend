@@ -3,6 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { getAuthHeaders } from '../utils/authHeaders';
 import { useRouter } from 'next/router';
 import { SimpleStudentView } from '../components/SimpleStudentView';
 import { getCurrentLocationWithError } from '../utils/geolocation';
@@ -40,6 +41,7 @@ export default function StudentPage() {
     const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
     
     fetch(authEndpoint, {
+      credentials: 'include',
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -142,7 +144,7 @@ export default function StudentPage() {
       // Handle ENTRY or EXIT based on QR type
       if (qrType === 'ENTRY') {
         // Mark entry with token validation
-        const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, {
+        const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, { credentials: 'include',
           method: 'POST',
           headers,
           body: JSON.stringify({ 
@@ -161,7 +163,7 @@ export default function StudentPage() {
         
       } else if (qrType === 'EXIT') {
         // Mark exit with token validation
-        const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/exit`, {
+        const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/exit`, { credentials: 'include',
           method: 'POST',
           headers,
           body: JSON.stringify({ 
@@ -181,7 +183,7 @@ export default function StudentPage() {
         
       } else {
         // No type specified - just join the session (backward compatibility)
-        const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, {
+        const response = await fetch(`${apiUrl}/sessions/${sessionIdToJoin}/join`, { credentials: 'include',
           method: 'POST',
           headers,
           body: JSON.stringify({ location }) // Include location if available
@@ -438,3 +440,9 @@ export default function StudentPage() {
     </div>
   );
 }
+
+
+
+
+
+

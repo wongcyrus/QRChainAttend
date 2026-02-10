@@ -10,6 +10,7 @@
  */
 
 import React, { useState } from 'react';
+import { getAuthHeaders } from '../utils/authHeaders';
 
 // Type definitions
 enum EntryStatus {
@@ -98,7 +99,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
         'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
       };
       
-      const response = await fetch(`${apiUrl}/sessions/${sessionId}/end`, {
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/end`, { credentials: 'include',
         method: 'POST',
         headers
       });
@@ -158,7 +159,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
         'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
       };
       
-      const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, {
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, { credentials: 'include',
         headers
       });
 
@@ -227,7 +228,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
         'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
       };
       
-      const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, {
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, { credentials: 'include',
         headers
       });
 
@@ -825,3 +826,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
 };
 
 export default SessionEndAndExportControls;
+
+
+
+

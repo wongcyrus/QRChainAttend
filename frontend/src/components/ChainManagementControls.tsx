@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { ChainVisualization } from './ChainVisualization';
+import { getAuthHeaders } from '../utils/authHeaders';
 
 enum ChainPhase {
   ENTRY = "ENTRY",
@@ -73,21 +74,11 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
-        const mockPrincipal = {
-          userId: 'local-dev-teacher',
-          userDetails: 'teacher@vtc.edu.hk',
-          userRoles: ['authenticated', 'teacher'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      }
+      const headers = await getAuthHeaders();
       
       const response = await fetch(
         `${apiUrl}/sessions/${sessionId}/seed-entry?count=${entryChainCount}`,
-        { method: 'POST', headers }
+        { method: 'POST', headers, credentials: 'include' }
       );
 
       if (!response.ok) {
@@ -116,21 +107,11 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
-        const mockPrincipal = {
-          userId: 'local-dev-teacher',
-          userDetails: 'teacher@vtc.edu.hk',
-          userRoles: ['authenticated', 'teacher'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      }
+      const headers = await getAuthHeaders();
       
       const response = await fetch(
         `${apiUrl}/sessions/${sessionId}/start-exit-chain?count=${exitChainCount}`,
-        { method: 'POST', headers }
+        { credentials: 'include', method: 'POST', headers }
       );
 
       if (!response.ok) {
@@ -265,21 +246,11 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
-        const mockPrincipal = {
-          userId: 'local-dev-teacher',
-          userDetails: 'teacher@vtc.edu.hk',
-          userRoles: ['authenticated', 'teacher'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      }
+      const headers = await getAuthHeaders();
       
       const response = await fetch(
         `${apiUrl}/sessions/${sessionId}/chains/${chainId}/close`,
-        { method: 'POST', headers }
+        { credentials: 'include', method: 'POST', headers }
       );
 
       if (!response.ok) {
@@ -314,21 +285,11 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'local') {
-        const mockPrincipal = {
-          userId: 'local-dev-teacher',
-          userDetails: 'teacher@vtc.edu.hk',
-          userRoles: ['authenticated', 'teacher'],
-          identityProvider: 'aad'
-        };
-        headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
-      }
+      const headers = await getAuthHeaders();
       
       const response = await fetch(
         `${apiUrl}/sessions/${sessionId}/chains/${chainId}/set-holder`,
-        { 
+        { credentials: 'include', 
           method: 'POST', 
           headers,
           body: JSON.stringify({ studentId })
@@ -803,3 +764,5 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
     </div>
   );
 };
+
+

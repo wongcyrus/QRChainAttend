@@ -14,6 +14,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { getAuthHeaders } from '../utils/authHeaders';
 import * as signalR from '@microsoft/signalr';
 import { ChainManagementControls } from './ChainManagementControls';
 import { SessionEndAndExportControls } from './SessionEndAndExportControls';
@@ -198,7 +199,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
         }
       }
       
-      const response = await fetch(`${apiUrl}/sessions/${sessionId}`, {
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}`, { credentials: 'include',
         headers
       });
       
@@ -386,7 +387,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       
       // Negotiate connection with backend
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const negotiateResponse = await fetch(`${apiUrl}/sessions/${sessionId}/dashboard/negotiate`, {
+      const negotiateResponse = await fetch(`${apiUrl}/sessions/${sessionId}/dashboard/negotiate`, { credentials: 'include',
         method: 'POST',
       });
       
@@ -1117,3 +1118,8 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
   );
 };
 export const TeacherDashboard = React.memo(TeacherDashboardComponent);
+
+
+
+
+

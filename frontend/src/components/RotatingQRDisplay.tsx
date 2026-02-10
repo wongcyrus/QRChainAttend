@@ -112,7 +112,7 @@ export function RotatingQRDisplay({
       setLoading(true);
       setError(null);
 
-      const response = await fetch(getEndpoint());
+      const response = await fetch(getEndpoint(), { credentials: 'include' });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -158,7 +158,7 @@ export function RotatingQRDisplay({
       setIsStarting(true);
       setError(null);
 
-      const response = await fetch(`/api/sessions/${sessionId}/start-early-leave`, {
+      const response = await fetch(`/api/sessions/${sessionId}/start-early-leave`, { credentials: 'include',
         method: 'POST',
       });
 
@@ -200,7 +200,7 @@ export function RotatingQRDisplay({
       setIsStopping(true);
       setError(null);
 
-      const response = await fetch(`/api/sessions/${sessionId}/stop-early-leave`, {
+      const response = await fetch(`/api/sessions/${sessionId}/stop-early-leave`, { credentials: 'include',
         method: 'POST',
       });
 
@@ -624,3 +624,4 @@ export function RotatingQRDisplay({
 }
 
 export default RotatingQRDisplay;
+

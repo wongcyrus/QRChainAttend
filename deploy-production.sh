@@ -136,6 +136,17 @@ fi
 
 # Build backend
 echo ""
+echo "Installing backend dependencies..."
+npm ci
+
+if [ $? -ne 0 ]; then
+    print_error "Backend dependency installation failed"
+    exit 1
+fi
+
+print_success "Dependencies installed"
+
+echo ""
 echo "Building backend..."
 npm run build
 
@@ -179,6 +190,23 @@ if [ -f ".env.local" ]; then
 fi
 
 # Build frontend for production
+echo ""
+echo "Installing frontend dependencies..."
+npm ci
+
+if [ $? -ne 0 ]; then
+    print_error "Frontend dependency installation failed"
+    
+    # Restore .env.local
+    if [ -f ".env.local.backup" ]; then
+        mv .env.local.backup .env.local
+    fi
+    
+    exit 1
+fi
+
+print_success "Dependencies installed"
+
 echo ""
 echo "Building frontend for production..."
 NODE_ENV=production npm run build

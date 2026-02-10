@@ -8,6 +8,8 @@ import { Snapshot } from '../types/shared';
 import { ChainTraceViewer } from './ChainTraceViewer';
 import { SnapshotComparison } from './SnapshotComparison';
 
+import { getAuthHeaders } from '../utils/authHeaders';
+
 interface SnapshotManagerProps {
   sessionId: string;
   onError?: (error: string) => void;
@@ -38,27 +40,24 @@ export function SnapshotManager({
     setIsLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const authHeaders = await getAuthHeaders();
+      
       const response = await fetch(`${apiUrl}/sessions/${sessionId}/snapshots`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(process.env.NEXT_PUBLIC_ENVIRONMENT === 'local' && {
-            'x-ms-client-principal': Buffer.from(JSON.stringify({
-              userDetails: 'teacher@vtc.edu.hk',
-              userRoles: ['authenticated', 'teacher']
-            })).toString('base64')
-          })
-        }
+        credentials: 'include',
+        headers: authHeaders
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load snapshots: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Failed to load snapshots: ${response.statusText}`);
       }
 
       const data = await response.json();
       setSnapshots(data.snapshots || []);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load snapshots';
+      console.error('Load snapshots error:', error);
       onError?.(message);
     } finally {
       setIsLoading(false);
@@ -69,25 +68,21 @@ export function SnapshotManager({
     setIsCreating(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const authHeaders = await getAuthHeaders();
+      
       const response = await fetch(
         `${apiUrl}/sessions/${sessionId}/snapshot?type=${snapshotType}&count=${chainCount}`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(process.env.NEXT_PUBLIC_ENVIRONMENT === 'local' && {
-              'x-ms-client-principal': Buffer.from(JSON.stringify({
-                userDetails: 'teacher@vtc.edu.hk',
-                userRoles: ['authenticated', 'teacher']
-              })).toString('base64')
-            })
-          },
+          credentials: 'include',
+          headers: authHeaders,
           body: JSON.stringify({ notes: snapshotNotes || undefined })
         }
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to create snapshot: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Failed to create snapshot: ${response.statusText}`);
       }
 
       // Reset form and reload snapshots
@@ -96,6 +91,7 @@ export function SnapshotManager({
       setViewMode('list');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to create snapshot';
+      console.error('Create snapshot error:', error);
       onError?.(message);
     } finally {
       setIsCreating(false);
@@ -487,30 +483,27 @@ function SnapshotTraceView({
     setIsLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const authHeaders = await getAuthHeaders();
+      
       const response = await fetch(
         `${apiUrl}/sessions/${sessionId}/snapshots/${snapshot.snapshotId}/chain-trace`,
         {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(process.env.NEXT_PUBLIC_ENVIRONMENT === 'local' && {
-              'x-ms-client-principal': Buffer.from(JSON.stringify({
-                userDetails: 'teacher@vtc.edu.hk',
-                userRoles: ['authenticated', 'teacher']
-              })).toString('base64')
-            })
-          }
+          credentials: 'include',
+          headers: authHeaders
         }
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to load traces: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Failed to load traces: ${response.statusText}`);
       }
 
       const data = await response.json();
       setTraces(data.chains || []);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load traces';
+      console.error('Load traces error:', error);
       onError?.(message);
     } finally {
       setIsLoading(false);
@@ -571,30 +564,27 @@ function SnapshotCompareView({
     setIsLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const authHeaders = await getAuthHeaders();
+      
       const response = await fetch(
         `${apiUrl}/sessions/${sessionId}/snapshots/compare?snap1=${snapshot1.snapshotId}&snap2=${snapshot2.snapshotId}`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(process.env.NEXT_PUBLIC_ENVIRONMENT === 'local' && {
-              'x-ms-client-principal': Buffer.from(JSON.stringify({
-                userDetails: 'teacher@vtc.edu.hk',
-                userRoles: ['authenticated', 'teacher']
-              })).toString('base64')
-            })
-          }
+          credentials: 'include',
+          headers: authHeaders
         }
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to compare snapshots: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Failed to compare snapshots: ${response.statusText}`);
       }
 
       const data = await response.json();
       setComparison(data.comparison);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to compare snapshots';
+      console.error('Load comparison error:', error);
       onError?.(message);
     } finally {
       setIsLoading(false);

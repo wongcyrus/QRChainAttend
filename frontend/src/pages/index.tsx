@@ -39,6 +39,7 @@ export default function Home() {
     const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
     
     fetch(authEndpoint, {
+      credentials: 'include',
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -72,6 +73,7 @@ export default function Home() {
         const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
         
         fetch(authEndpoint, {
+          credentials: 'include',
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',

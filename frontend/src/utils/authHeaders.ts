@@ -1,60 +1,72 @@
 /**
- * Utility to get authentication headers for API calls
+ * Authentication Headers Utility
+ * Handles fetching and formatting authentication headers for API requests
  */
 
-export async function getAuthHeaders(): Promise<HeadersInit> {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  
+let cachedPrincipal: string | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get authentication headers for API requests
+ * In production: Fetches from /.auth/me and formats as x-ms-client-principal
+ * In local: Uses mock teacher credentials
+ */
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+
   const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-  
+
   if (isLocal) {
-    // Local development - use mock authentication
-    const mockPrincipal = {
-      userId: 'local-dev-user',
+    // Local development - use mock credentials
+    headers['x-ms-client-principal'] = Buffer.from(JSON.stringify({
       userDetails: 'teacher@vtc.edu.hk',
-      userRoles: ['authenticated', 'teacher'],
-      identityProvider: 'aad'
-    };
-    headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(mockPrincipal)).toString('base64');
+      userRoles: ['authenticated', 'teacher']
+    })).toString('base64');
   } else {
-    // Production - get real authentication from Azure Static Web Apps
-    const authResponse = await fetch('/.auth/me', { credentials: 'include' });
-    const authData = await authResponse.json();
-    
-    if (authData.clientPrincipal) {
-      headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
-    } else {
-      throw new Error('Not authenticated');
+    // Production - fetch from Azure Static Web Apps auth
+    try {
+      // Check cache first
+      const now = Date.now();
+      if (cachedPrincipal && (now - cacheTimestamp) < CACHE_DURATION) {
+        headers['x-ms-client-principal'] = cachedPrincipal;
+        return headers;
+      }
+
+      // Fetch fresh auth data
+      const authResponse = await fetch('/.auth/me', {
+        credentials: 'include',
+        cache: 'no-store'
+      });
+
+      if (authResponse.ok) {
+        const authData = await authResponse.json();
+        if (authData.clientPrincipal) {
+          // Format as x-ms-client-principal header
+          const principal = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
+          
+          // Cache it
+          cachedPrincipal = principal;
+          cacheTimestamp = now;
+          
+          headers['x-ms-client-principal'] = principal;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch auth headers:', error);
+      // Continue without auth header - backend will return 401
     }
   }
-  
+
   return headers;
 }
 
-export async function getAuthHeadersWithCustomPrincipal(customPrincipal: any): Promise<HeadersInit> {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  
-  const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-  
-  if (isLocal) {
-    // Local development - use provided custom principal
-    headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(customPrincipal)).toString('base64');
-  } else {
-    // Production - get real authentication and merge with custom data
-    const authResponse = await fetch('/.auth/me', { credentials: 'include' });
-    const authData = await authResponse.json();
-    
-    if (authData.clientPrincipal) {
-      // Use real auth but allow overriding specific fields
-      const principal = {
-        ...authData.clientPrincipal,
-        ...customPrincipal
-      };
-      headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(principal)).toString('base64');
-    } else {
-      throw new Error('Not authenticated');
-    }
-  }
-  
-  return headers;
+/**
+ * Clear the cached principal (e.g., on logout)
+ */
+export function clearAuthCache() {
+  cachedPrincipal = null;
+  cacheTimestamp = 0;
 }

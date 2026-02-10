@@ -87,6 +87,47 @@ npx @azure/static-web-apps-cli deploy ./out \
 
 ## Configuration
 
+### CORS Configuration (Required for credentials: 'include')
+
+**Important**: When using `credentials: 'include'` in fetch requests, CORS must be configured properly:
+
+```bash
+# Run the CORS configuration script
+./scripts/configure-cors.sh
+```
+
+Or manually configure:
+
+```bash
+# Remove wildcard origin
+az functionapp cors remove \
+  --name func-qrattendance-dev \
+  --resource-group rg-qr-attendance-dev \
+  --allowed-origins "*"
+
+# Add specific origins
+az functionapp cors add \
+  --name func-qrattendance-dev \
+  --resource-group rg-qr-attendance-dev \
+  --allowed-origins \
+    "https://red-grass-0f8bc910f.4.azurestaticapps.net" \
+    "http://localhost:3000" \
+    "http://localhost:3001" \
+    "http://localhost:3002"
+
+# Enable credentials support
+az functionapp cors credentials \
+  --name func-qrattendance-dev \
+  --resource-group rg-qr-attendance-dev \
+  --enable true
+```
+
+**Why this is needed:**
+- Frontend uses `credentials: 'include'` to pass authentication cookies
+- Azure Static Web Apps authentication requires credentials
+- CORS with credentials cannot use wildcard `*` origin
+- Must specify exact allowed origins
+
 ### Backend Environment Variables
 
 Set in Azure Function App:
