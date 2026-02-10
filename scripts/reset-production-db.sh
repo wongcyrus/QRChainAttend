@@ -46,8 +46,8 @@ for table in "${TABLES[@]}"; do
 done
 
 echo ""
-echo "⏳ Waiting 15 seconds for deletion to complete..."
-sleep 15
+echo "⏳ Waiting 30 seconds for deletion to complete..."
+sleep 30
 
 echo ""
 echo "📦 Creating tables..."
