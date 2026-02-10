@@ -1,35 +1,34 @@
 /**
  * Snapshot Manager Component
- * Allows teachers to create snapshots and view snapshot history
+ * Simplified: Take instant attendance snapshots via chains
  */
 
 import React, { useState, useEffect } from 'react';
-import { Snapshot } from '../types/shared';
-import { ChainTraceViewer } from './ChainTraceViewer';
-import { SnapshotComparison } from './SnapshotComparison';
-
 import { getAuthHeaders } from '../utils/authHeaders';
+
+interface Snapshot {
+  snapshotId: string;
+  snapshotIndex: number;
+  capturedAt: number;
+  totalStudents: number;
+  chainsCreated: number;
+  presentCount?: number;
+  status: string;
+}
 
 interface SnapshotManagerProps {
   sessionId: string;
   onError?: (error: string) => void;
-  className?: string;
 }
 
 export function SnapshotManager({
   sessionId,
-  onError,
-  className = ''
+  onError
 }: SnapshotManagerProps) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [selectedSnapshot, setSelectedSnapshot] = useState<Snapshot | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'trace' | 'compare'>('list');
-  const [snapshotType, setSnapshotType] = useState<'ENTRY' | 'EXIT'>('ENTRY');
   const [chainCount, setChainCount] = useState(3);
-  const [snapshotNotes, setSnapshotNotes] = useState('');
-  const [compareSnapshots, setCompareSnapshots] = useState<[Snapshot | null, Snapshot | null]>([null, null]);
 
   // Load snapshots on mount
   useEffect(() => {
@@ -64,34 +63,31 @@ export function SnapshotManager({
     }
   };
 
-  const handleCreateSnapshot = async () => {
+  const handleTakeSnapshot = async () => {
     setIsCreating(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       const authHeaders = await getAuthHeaders();
       
       const response = await fetch(
-        `${apiUrl}/sessions/${sessionId}/snapshot?type=${snapshotType}&count=${chainCount}`,
+        `${apiUrl}/sessions/${sessionId}/snapshot?count=${chainCount}`,
         {
           method: 'POST',
           credentials: 'include',
-          headers: authHeaders,
-          body: JSON.stringify({ notes: snapshotNotes || undefined })
+          headers: authHeaders
         }
       );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `Failed to create snapshot: ${response.statusText}`);
+        throw new Error(errorData.error?.message || `Failed to take snapshot: ${response.statusText}`);
       }
 
-      // Reset form and reload snapshots
-      setSnapshotNotes('');
+      // Reload snapshots
       await loadSnapshots();
-      setViewMode('list');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create snapshot';
-      console.error('Create snapshot error:', error);
+      const message = error instanceof Error ? error.message : 'Failed to take snapshot';
+      console.error('Take snapshot error:', error);
       onError?.(message);
     } finally {
       setIsCreating(false);
@@ -99,146 +95,44 @@ export function SnapshotManager({
   };
 
   return (
-    <div className={`snapshot-manager ${className}`} style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '1.5rem'
-    }}>
-      {viewMode === 'list' && (
-        <>
-          {/* Create Snapshot Form */}
-          <SnapshotCreationForm
-            snapshotType={snapshotType}
-            chainCount={chainCount}
-            snapshotNotes={snapshotNotes}
-            isCreating={isCreating}
-            onSnapshotTypeChange={setSnapshotType}
-            onChainCountChange={setChainCount}
-            onNotesChange={setSnapshotNotes}
-            onCreateSnapshot={handleCreateSnapshot}
-          />
-
-          {/* Snapshots List */}
-          <SnapshotsList
-            snapshots={snapshots}
-            isLoading={isLoading}
-            onSelectSnapshot={(snap) => {
-              setSelectedSnapshot(snap);
-              setViewMode('trace');
-            }}
-            onCompareSelect={(snap) => {
-              if (!compareSnapshots[0]) {
-                setCompareSnapshots([snap, null]);
-              } else if (!compareSnapshots[1]) {
-                setCompareSnapshots([compareSnapshots[0], snap]);
-                setViewMode('compare');
-              } else {
-                setCompareSnapshots([snap, null]);
-              }
-            }}
-          />
-        </>
-      )}
-
-      {viewMode === 'trace' && selectedSnapshot && (
-        <SnapshotTraceView
-          snapshot={selectedSnapshot}
-          sessionId={sessionId}
-          onBack={() => {
-            setViewMode('list');
-            setSelectedSnapshot(null);
-          }}
-          onError={onError}
-        />
-      )}
-
-      {viewMode === 'compare' && compareSnapshots[0] && compareSnapshots[1] && (
-        <SnapshotCompareView
-          snapshot1={compareSnapshots[0]}
-          snapshot2={compareSnapshots[1]}
-          sessionId={sessionId}
-          onBack={() => {
-            setViewMode('list');
-            setCompareSnapshots([null, null]);
-          }}
-          onError={onError}
-        />
-      )}
-    </div>
-  );
-}
-
-interface SnapshotCreationFormProps {
-  snapshotType: 'ENTRY' | 'EXIT';
-  chainCount: number;
-  snapshotNotes: string;
-  isCreating: boolean;
-  onSnapshotTypeChange: (type: 'ENTRY' | 'EXIT') => void;
-  onChainCountChange: (count: number) => void;
-  onNotesChange: (notes: string) => void;
-  onCreateSnapshot: () => void;
-}
-
-function SnapshotCreationForm({
-  snapshotType,
-  chainCount,
-  snapshotNotes,
-  isCreating,
-  onSnapshotTypeChange,
-  onChainCountChange,
-  onNotesChange,
-  onCreateSnapshot
-}: SnapshotCreationFormProps) {
-  return (
     <div style={{
       backgroundColor: 'white',
-      borderRadius: '8px',
+      borderRadius: '12px',
       padding: '1.5rem',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+      boxShadow: '0 4px 16px rgba(0,0,0,0.08)'
     }}>
-      <h3 style={{ marginBottom: '1.5rem', color: '#2d3748' }}>Create New Snapshot</h3>
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '1.5rem',
-        marginBottom: '1.5rem'
+      <h3 style={{ 
+        margin: '0 0 1rem 0',
+        color: '#2d3748',
+        fontSize: '1.25rem',
+        fontWeight: '700'
       }}>
-        {/* Snapshot Type */}
-        <div>
-          <label style={{
-            display: 'block',
-            marginBottom: '0.5rem',
-            fontWeight: '600',
-            color: '#2d3748'
-          }}>
-            Snapshot Type
-          </label>
-          <select
-            value={snapshotType}
-            onChange={(e) => onSnapshotTypeChange(e.target.value as 'ENTRY' | 'EXIT')}
-            disabled={isCreating}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #e2e8f0',
-              borderRadius: '6px',
-              fontSize: '0.95rem',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="ENTRY">Entry Chain</option>
-            <option value="EXIT">Exit Chain</option>
-          </select>
-        </div>
+        📸 Instant Attendance Snapshots
+      </h3>
+      
+      <p style={{
+        margin: '0 0 1.5rem 0',
+        color: '#718096',
+        fontSize: '0.9rem'
+      }}>
+        Take a snapshot to record who's present right now by running chains on demand.
+      </p>
 
-        {/* Chain Count */}
-        <div>
+      {/* Create Snapshot Form */}
+      <div style={{
+        display: 'flex',
+        gap: '1rem',
+        alignItems: 'flex-end',
+        marginBottom: '1.5rem',
+        flexWrap: 'wrap'
+      }}>
+        <div style={{ flex: '0 0 auto' }}>
           <label style={{
             display: 'block',
             marginBottom: '0.5rem',
             fontWeight: '600',
-            color: '#2d3748'
+            color: '#2d3748',
+            fontSize: '0.9rem'
           }}>
             Number of Chains
           </label>
@@ -247,374 +141,136 @@ function SnapshotCreationForm({
             min="1"
             max="20"
             value={chainCount}
-            onChange={(e) => onChainCountChange(parseInt(e.target.value, 10))}
+            onChange={(e) => setChainCount(parseInt(e.target.value, 10))}
             disabled={isCreating}
             style={{
-              width: '100%',
+              width: '100px',
               padding: '0.75rem',
               border: '1px solid #e2e8f0',
-              borderRadius: '6px',
+              borderRadius: '8px',
               fontSize: '0.95rem'
             }}
           />
         </div>
-      </div>
 
-      {/* Notes */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{
-          display: 'block',
-          marginBottom: '0.5rem',
-          fontWeight: '600',
-          color: '#2d3748'
-        }}>
-          Notes (Optional)
-        </label>
-        <textarea
-          value={snapshotNotes}
-          onChange={(e) => onNotesChange(e.target.value)}
-          disabled={isCreating}
-          placeholder="e.g., 'Mid-session check', 'Before break', etc."
+        <button
+          onClick={handleTakeSnapshot}
+          disabled={isCreating || chainCount < 1 || chainCount > 20}
           style={{
-            width: '100%',
-            padding: '0.75rem',
-            border: '1px solid #e2e8f0',
-            borderRadius: '6px',
+            padding: '0.75rem 1.5rem',
+            backgroundColor: isCreating ? '#d0d0d0' : '#667eea',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
             fontSize: '0.95rem',
-            minHeight: '80px',
-            fontFamily: 'inherit',
-            resize: 'vertical'
+            fontWeight: '600',
+            cursor: isCreating ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s',
+            boxShadow: isCreating ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.3)'
           }}
-        />
+          onMouseOver={(e) => {
+            if (!isCreating) e.currentTarget.style.backgroundColor = '#5a67d8';
+          }}
+          onMouseOut={(e) => {
+            if (!isCreating) e.currentTarget.style.backgroundColor = '#667eea';
+          }}
+        >
+          {isCreating ? '⏳ Taking Snapshot...' : '📸 Take Snapshot Now'}
+        </button>
       </div>
 
-      {/* Create Button */}
-      <button
-        onClick={onCreateSnapshot}
-        disabled={isCreating || chainCount < 1 || chainCount > 20}
-        style={{
-          padding: '0.75rem 1.5rem',
-          backgroundColor: isCreating ? '#d0d0d0' : '#107c10',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          fontSize: '0.95rem',
-          fontWeight: '600',
-          cursor: isCreating ? 'not-allowed' : 'pointer',
-          transition: 'background-color 0.2s'
-        }}
-        onMouseOver={(e) => {
-          if (!isCreating) e.currentTarget.style.backgroundColor = '#0b6e1f';
-        }}
-        onMouseOut={(e) => {
-          if (!isCreating) e.currentTarget.style.backgroundColor = '#107c10';
-        }}
-      >
-        {isCreating ? '🔄 Creating Snapshot...' : '📸 Take Snapshot'}
-      </button>
-    </div>
-  );
-}
-
-interface SnapshotsListProps {
-  snapshots: Snapshot[];
-  isLoading: boolean;
-  onSelectSnapshot: (snapshot: Snapshot) => void;
-  onCompareSelect: (snapshot: Snapshot) => void;
-}
-
-function SnapshotsList({
-  snapshots,
-  isLoading,
-  onSelectSnapshot,
-  onCompareSelect
-}: SnapshotsListProps) {
-  if (isLoading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '2rem', color: '#718096' }}>
-        <div className="spinner" style={{
-          width: '40px',
-          height: '40px',
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #0078d4',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-          margin: '0 auto 1rem'
-        }}></div>
-        Loading snapshots...
-      </div>
-    );
-  }
-
-  if (snapshots.length === 0) {
-    return (
-      <div style={{
-        padding: '2rem',
-        textAlign: 'center',
-        backgroundColor: '#f0f4f8',
-        borderRadius: '8px',
-        color: '#718096'
-      }}>
-        <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📸</div>
-        <p>No snapshots yet. Create one to get started!</p>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '0.75rem'
-    }}>
-      <h4 style={{ color: '#2d3748', marginBottom: '0.75rem' }}>Snapshots ({snapshots.length})</h4>
-      {snapshots.map((snapshot) => (
-        <SnapshotRow
-          key={snapshot.snapshotId}
-          snapshot={snapshot}
-          onSelect={() => onSelectSnapshot(snapshot)}
-          onCompare={() => onCompareSelect(snapshot)}
-        />
-      ))}
-    </div>
-  );
-}
-
-interface SnapshotRowProps {
-  snapshot: Snapshot;
-  onSelect: () => void;
-  onCompare: () => void;
-}
-
-function SnapshotRow({ snapshot, onSelect, onCompare }: SnapshotRowProps) {
-  const typeIcon = snapshot.snapshotType === 'ENTRY' ? '📥' : '📤';
-  const typeColor = snapshot.snapshotType === 'ENTRY' ? '#107c10' : '#d13438';
-
-  return (
-    <div style={{
-      padding: '1rem',
-      backgroundColor: '#f9f9f9',
-      border: '1px solid #e2e8f0',
-      borderRadius: '6px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: '1rem'
-    }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '1.25rem' }}>{typeIcon}</span>
-          <span style={{
-            padding: '0.25rem 0.75rem',
-            backgroundColor: `${typeColor}20`,
-            color: typeColor,
-            borderRadius: '4px',
-            fontSize: '0.875rem',
+      {/* Snapshots List */}
+      {isLoading ? (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '2rem', 
+          color: '#718096' 
+        }}>
+          Loading snapshots...
+        </div>
+      ) : snapshots.length === 0 ? (
+        <div style={{
+          padding: '2rem',
+          textAlign: 'center',
+          backgroundColor: '#f7fafc',
+          borderRadius: '8px',
+          color: '#718096'
+        }}>
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📸</div>
+          <p style={{ margin: 0 }}>No snapshots yet. Take one to record instant attendance!</p>
+        </div>
+      ) : (
+        <div>
+          <h4 style={{ 
+            color: '#2d3748', 
+            marginBottom: '1rem',
+            fontSize: '1rem',
             fontWeight: '600'
           }}>
-            {snapshot.snapshotType} #{snapshot.snapshotIndex}
-          </span>
-          <span style={{ color: '#718096', fontSize: '0.875rem' }}>
-            {new Date(snapshot.capturedAt * 1000).toLocaleTimeString()}
-          </span>
+            Snapshot History ({snapshots.length})
+          </h4>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem'
+          }}>
+            {snapshots.map((snapshot) => (
+              <div
+                key={snapshot.snapshotId}
+                style={{
+                  padding: '1rem',
+                  backgroundColor: '#f7fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '1rem'
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.75rem',
+                    marginBottom: '0.25rem'
+                  }}>
+                    <span style={{
+                      padding: '0.25rem 0.75rem',
+                      backgroundColor: '#667eea',
+                      color: 'white',
+                      borderRadius: '6px',
+                      fontSize: '0.875rem',
+                      fontWeight: '600'
+                    }}>
+                      Snapshot #{snapshot.snapshotIndex}
+                    </span>
+                    <span style={{ color: '#2d3748', fontSize: '0.95rem', fontWeight: '500' }}>
+                      {new Date(snapshot.capturedAt * 1000).toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: '#718096' }}>
+                    {snapshot.chainsCreated} chains started • {snapshot.totalStudents} students online
+                    {snapshot.presentCount !== undefined && ` • ${snapshot.presentCount} verified present`}
+                  </div>
+                </div>
+                <div style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: snapshot.status === 'COMPLETED' ? '#c6f6d5' : '#fff3cd',
+                  color: snapshot.status === 'COMPLETED' ? '#22543d' : '#856404',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}>
+                  {snapshot.status === 'COMPLETED' ? '✓ Complete' : '⏳ Active'}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div style={{ fontSize: '0.875rem', color: '#718096' }}>
-          {snapshot.chainsCreated} chains • {snapshot.studentsCaptured} students
-          {snapshot.notes && ` • ${snapshot.notes}`}
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button
-          onClick={onSelect}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#0078d4',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: '600'
-          }}
-        >
-          View Trace
-        </button>
-        <button
-          onClick={onCompare}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#8764b8',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: '600'
-          }}
-        >
-          Compare
-        </button>
-      </div>
+      )}
     </div>
   );
 }
 
-interface SnapshotTraceViewProps {
-  snapshot: Snapshot;
-  sessionId: string;
-  onBack: () => void;
-  onError?: (error: string) => void;
-}
-
-function SnapshotTraceView({
-  snapshot,
-  sessionId,
-  onBack,
-  onError
-}: SnapshotTraceViewProps) {
-  const [traces, setTraces] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadTraces();
-  }, [snapshot.snapshotId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadTraces = async () => {
-    setIsLoading(true);
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const authHeaders = await getAuthHeaders();
-      
-      const response = await fetch(
-        `${apiUrl}/sessions/${sessionId}/snapshots/${snapshot.snapshotId}/chain-trace`,
-        {
-          method: 'GET',
-          credentials: 'include',
-          headers: authHeaders
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `Failed to load traces: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setTraces(data.chains || []);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load traces';
-      console.error('Load traces error:', error);
-      onError?.(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div>
-      <button
-        onClick={onBack}
-        style={{
-          marginBottom: '1rem',
-          padding: '0.5rem 1rem',
-          backgroundColor: '#e2e8f0',
-          color: '#2d3748',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontWeight: '600'
-        }}
-      >
-        ← Back to Snapshots
-      </button>
-      <ChainTraceViewer
-        snapshotId={snapshot.snapshotId}
-        sessionId={sessionId}
-        traces={traces}
-        isLoading={isLoading}
-        onError={onError}
-      />
-    </div>
-  );
-}
-
-interface SnapshotCompareViewProps {
-  snapshot1: Snapshot;
-  snapshot2: Snapshot;
-  sessionId: string;
-  onBack: () => void;
-  onError?: (error: string) => void;
-}
-
-function SnapshotCompareView({
-  snapshot1,
-  snapshot2,
-  sessionId,
-  onBack,
-  onError
-}: SnapshotCompareViewProps) {
-  const [comparison, setComparison] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadComparison();
-  }, [snapshot1.snapshotId, snapshot2.snapshotId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadComparison = async () => {
-    setIsLoading(true);
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const authHeaders = await getAuthHeaders();
-      
-      const response = await fetch(
-        `${apiUrl}/sessions/${sessionId}/snapshots/compare?snap1=${snapshot1.snapshotId}&snap2=${snapshot2.snapshotId}`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: authHeaders
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `Failed to compare snapshots: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setComparison(data.comparison);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to compare snapshots';
-      console.error('Load comparison error:', error);
-      onError?.(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div>
-      <button
-        onClick={onBack}
-        style={{
-          marginBottom: '1rem',
-          padding: '0.5rem 1rem',
-          backgroundColor: '#e2e8f0',
-          color: '#2d3748',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontWeight: '600'
-        }}
-      >
-        ← Back to Snapshots
-      </button>
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <div style={{ color: '#718096' }}>Loading comparison...</div>
-        </div>
-      ) : comparison ? (
-        <SnapshotComparison comparison={comparison} />
-      ) : null}
-    </div>
-  );
-}
+export default SnapshotManager;

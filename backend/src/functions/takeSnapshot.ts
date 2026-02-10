@@ -1,13 +1,13 @@
 /**
  * Take Snapshot API Endpoint
- * Creates a snapshot of current attendance by starting new chains
- * Can be called anytime (not restricted by session phase)
+ * Creates a snapshot of current attendance by starting chains on demand
+ * Records who is present at this specific moment in time
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { TableClient } from '@azure/data-tables';
 import { randomUUID } from 'crypto';
-import { createSnapshot } from '../utils/snapshotService';
+import { broadcastChainUpdate } from '../utils/signalrBroadcast';
 
 function parseUserPrincipal(header: string): any {
   try {
@@ -51,7 +51,7 @@ export async function takeSnapshot(
     if (!principalHeader) {
       return {
         status: 401,
-        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Math.floor(Date.now() / 1000) } }
       };
     }
 
@@ -61,29 +61,28 @@ export async function takeSnapshot(
     if (!hasRole(principal, 'Teacher')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Math.floor(Date.now() / 1000) } }
       };
     }
 
     const sessionId = request.params.sessionId;
-    const snapshotType = (request.query.get('type') || 'ENTRY') as 'ENTRY' | 'EXIT';
     const count = parseInt(request.query.get('count') || '3', 10);
     
     if (!sessionId) {
       return {
         status: 400,
-        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', timestamp: Math.floor(Date.now() / 1000) } }
       };
     }
 
     if (count < 1 || count > 20) {
       return {
         status: 400,
-        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Count must be between 1 and 20', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Count must be between 1 and 20', timestamp: Math.floor(Date.now() / 1000) } }
       };
     }
 
-    const now = Math.floor(Date.now() / 1000);
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
 
     // Get tables
     const sessionsTable = getTableClient('Sessions');
@@ -106,24 +105,32 @@ export async function takeSnapshot(
       throw error;
     }
 
-    // Get all enrolled students
-    const enrolledStudents: string[] = [];
+    // Get all online students
+    const onlineStudents: string[] = [];
+    const onlineThreshold = 30; // Consider online if seen in last 30 seconds
+    
     try {
       for await (const entity of attendanceTable.listEntities({
         queryOptions: {
           filter: `PartitionKey eq '${sessionId}'`
         }
       })) {
-        enrolledStudents.push(entity.rowKey as string);
+        const lastSeen = entity.lastSeen as number || 0;
+        const isOnline = entity.isOnline === true;
+        const isRecentlyActive = (now - lastSeen) < onlineThreshold;
+        
+        if (isOnline || isRecentlyActive) {
+          onlineStudents.push(entity.rowKey as string);
+        }
       }
     } catch (error) {
-      context.warn(`Warning: Could not fetch enrolled students: ${error}`);
+      context.warn(`Warning: Could not fetch online students: ${error}`);
     }
 
-    if (enrolledStudents.length === 0) {
+    if (onlineStudents.length === 0) {
       return {
         status: 400,
-        jsonBody: { error: { code: 'NO_STUDENTS', message: 'No students enrolled in session', timestamp: now } }
+        jsonBody: { error: { code: 'NO_STUDENTS', message: 'No online students available', timestamp: now } }
       };
     }
 
@@ -144,21 +151,23 @@ export async function takeSnapshot(
     }
 
     // Create snapshot record
-    const snapshot = await createSnapshot(
-      sessionId,
-      snapshotType,
+    const snapshotId = randomUUID();
+    await snapshotsTable.createEntity({
+      partitionKey: sessionId,
+      rowKey: snapshotId,
       snapshotIndex,
-      count,
-      enrolledStudents.length,
-      snapshotsTable
-    );
+      capturedAt: now,
+      totalStudents: onlineStudents.length,
+      chainsCreated: Math.min(count, onlineStudents.length),
+      status: 'ACTIVE'
+    });
 
     // Select random students and create chains
-    const actualCount = Math.min(count, enrolledStudents.length);
+    const actualCount = Math.min(count, onlineStudents.length);
     const selectedStudents: string[] = [];
     
     // Fisher-Yates shuffle
-    const shuffled = [...enrolledStudents];
+    const shuffled = [...onlineStudents];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -169,9 +178,8 @@ export async function takeSnapshot(
     }
 
     // Create chains
-    const tokenTTL = parseInt(process.env.CHAIN_TOKEN_TTL_SECONDS || '20');
-    const expiresAt = now + (tokenTTL * 1000);
-    const createdChains: any[] = [];
+    const tokenTTL = 10; // 10 seconds
+    const expiresAt = now + tokenTTL;
 
     for (let i = 0; i < actualCount; i++) {
       const chainId = randomUUID();
@@ -182,8 +190,8 @@ export async function takeSnapshot(
       const chainEntity = {
         partitionKey: sessionId,
         rowKey: chainId,
-        phase: snapshotType,
-        snapshotId: snapshot.rowKey,
+        phase: 'SNAPSHOT',
+        snapshotId,
         snapshotIndex,
         index: i,
         state: 'ACTIVE',
@@ -199,7 +207,7 @@ export async function takeSnapshot(
         partitionKey: sessionId,
         rowKey: tokenId,
         chainId,
-        snapshotId: snapshot.rowKey,
+        snapshotId,
         holderId,
         seq: 0,
         expiresAt,
@@ -207,27 +215,27 @@ export async function takeSnapshot(
       };
       await tokensTable.createEntity(tokenEntity);
 
-      createdChains.push({
+      // Broadcast so student sees their QR code
+      await broadcastChainUpdate(sessionId, {
         chainId,
-        tokenId,
-        holder: holderId,
-        seq: 0
-      });
+        phase: 'SNAPSHOT',
+        lastHolder: holderId,
+        lastSeq: 0,
+        state: 'ACTIVE'
+      }, context);
     }
 
-    context.log(`Snapshot created: ${snapshot.rowKey}, type: ${snapshotType}, chains: ${actualCount}`);
+    context.log(`Snapshot #${snapshotIndex} created: ${snapshotId}, chains: ${actualCount}`);
 
     return {
       status: 200,
       jsonBody: {
         success: true,
-        snapshotId: snapshot.rowKey,
-        snapshotType,
+        snapshotId,
         snapshotIndex,
         chainsCreated: actualCount,
-        initialHolders: selectedStudents,
-        expiresAt,
-        createdChains
+        totalStudents: onlineStudents.length,
+        initialHolders: selectedStudents
       }
     };
   } catch (error: any) {
@@ -240,7 +248,7 @@ export async function takeSnapshot(
           code: 'INTERNAL_ERROR',
           message: 'Failed to take snapshot',
           details: error.message,
-          timestamp: Date.now()
+          timestamp: Math.floor(Date.now() / 1000)
         }
       }
     };
