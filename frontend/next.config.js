@@ -35,11 +35,7 @@ const nextConfig = {
     // Number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 5,
   },
-  // Disable automatic static optimization to prevent full reloads
-  experimental: {
-    // Keep connections alive during rebuilds
-    isrMemoryCacheSize: 0,
-  },
+  // Note: isrMemoryCacheSize removed in Next.js 15 - no longer needed
 };
 
 module.exports = nextConfig;
