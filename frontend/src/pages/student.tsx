@@ -64,6 +64,15 @@ export default function StudentPage() {
           // Check if user has student role
           if (!roles.includes('student')) {
             router.push('/');
+          } else {
+            // If no sessionId in URL, check localStorage for active session
+            if (!sessionId) {
+              const storedSessionId = localStorage.getItem('activeSessionId');
+              if (storedSessionId) {
+                // Restore session from localStorage
+                router.replace(`/student?sessionId=${storedSessionId}`, undefined, { shallow: true });
+              }
+            }
           }
         } else {
           const loginUrl = isLocal ? '/dev-config' : '/.auth/login/aad';
@@ -75,7 +84,7 @@ export default function StudentPage() {
         setLoading(false);
         router.push('/');
       });
-  }, [router]);
+  }, [router, sessionId]);
 
   // Separate effect for auto-join to avoid infinite loop
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -83,8 +92,11 @@ export default function StudentPage() {
     // Check if this is a chain scan URL (has chainId and tokenId)
     const isChainScan = chainId && tokenId;
     
-    // Only auto-join for teacher's entry/exit QR codes (has type but no chainId)
-    if (user && sessionId && typeof sessionId === 'string' && !hasAutoJoined && !joining && !isChainScan) {
+    // Only auto-join for teacher's entry/exit QR codes (has type parameter)
+    // Don't auto-join when just restoring from localStorage (no type parameter)
+    const hasQRType = type !== undefined;
+    
+    if (user && sessionId && typeof sessionId === 'string' && hasQRType && !hasAutoJoined && !joining && !isChainScan) {
       setHasAutoJoined(true);
       const qrType = typeof type === 'string' ? type : undefined;
       const qrToken = typeof token === 'string' ? token : undefined;
@@ -136,6 +148,9 @@ export default function StudentPage() {
           throw new Error(errorData.error?.message || 'Failed to mark entry');
         }
         
+        // Store session in localStorage for persistence across refreshes
+        localStorage.setItem('activeSessionId', sessionIdToJoin);
+        
         // Successfully joined - navigate to session view (without token in URL)
         router.push(`/student?sessionId=${sessionIdToJoin}`);
         
@@ -155,6 +170,9 @@ export default function StudentPage() {
           throw new Error(errorData.error?.message || 'Failed to mark exit');
         }
         
+        // Clear session from localStorage when exiting
+        localStorage.removeItem('activeSessionId');
+        
         // Successfully marked exit - show success message and redirect
         alert('Exit marked successfully! You can now leave.');
         router.push('/student');
@@ -171,6 +189,9 @@ export default function StudentPage() {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error?.message || 'Failed to join session');
         }
+        
+        // Store session in localStorage for persistence across refreshes
+        localStorage.setItem('activeSessionId', sessionIdToJoin);
         
         // Successfully joined - navigate to session view
         router.push(`/student?sessionId=${sessionIdToJoin}`);
@@ -231,7 +252,11 @@ export default function StudentPage() {
       <SimpleStudentView 
         sessionId={sessionId}
         studentId={user.userDetails}
-        onLeaveSession={() => router.push('/student')}
+        onLeaveSession={() => {
+          // Clear stored session when leaving
+          localStorage.removeItem('activeSessionId');
+          router.push('/student');
+        }}
       />
     );
   }

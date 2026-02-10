@@ -94,6 +94,12 @@ export default function TeacherPage() {
           // Check if user has teacher role
           if (!roles.includes('teacher')) {
             router.push('/');
+          } else {
+            // Restore selected session from localStorage if available
+            const storedSessionId = localStorage.getItem('teacherActiveSessionId');
+            if (storedSessionId) {
+              setSelectedSessionId(storedSessionId);
+            }
           }
         } else {
           const loginUrl = isLocal ? '/dev-config' : '/.auth/login/aad';
@@ -175,6 +181,8 @@ export default function TeacherPage() {
     // Navigate to the session dashboard
     setShowCreateForm(false);
     setSelectedSessionId(sessionId);
+    // Store in localStorage for persistence
+    localStorage.setItem('teacherActiveSessionId', sessionId);
     loadSessions();
   };
 
@@ -512,7 +520,11 @@ export default function TeacherPage() {
       }}>
         <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <button 
-            onClick={() => setSelectedSessionId(null)}
+            onClick={() => {
+              setSelectedSessionId(null);
+              // Clear stored session when going back
+              localStorage.removeItem('teacherActiveSessionId');
+            }}
             style={{
               padding: '0.75rem 1.5rem',
               backgroundColor: 'white',
@@ -738,7 +750,11 @@ export default function TeacherPage() {
         {!showCreateForm && !showEditForm && (
         <SessionsList
           sessions={sessions}
-          onDashboard={(session) => setSelectedSessionId(session.sessionId)}
+          onDashboard={(session) => {
+            setSelectedSessionId(session.sessionId);
+            // Store in localStorage for persistence
+            localStorage.setItem('teacherActiveSessionId', session.sessionId);
+          }}
           onEntryQR={handleShowEntryQR}
           onExitQR={handleShowExitQR}
           onEdit={handleEditSession}
