@@ -21,6 +21,10 @@ param aadClientSecret = ''
 
 // Deploy Azure OpenAI for Live Quiz feature
 param deployAzureOpenAI = true
+
+// Deploy SignalR Service with Standard S1 tier for production
+// Standard S1: 1000 concurrent connections, 1M messages/day
+param deploySignalR = true
 param gpt4DeploymentName = 'gpt-4o'
 param gpt4ModelName = 'gpt-4o'
 param gpt4ModelVersion = '2024-08-06'  // Latest GPT-4o version

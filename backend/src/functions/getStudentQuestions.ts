@@ -67,6 +67,8 @@ export async function getStudentQuestions(
     const sessionId = request.params.sessionId;
     const studentId = getUserId(principal);
 
+    context.log(`Getting questions for session: ${sessionId}, student: ${studentId}`);
+
     if (!sessionId) {
       return {
         status: 400,
@@ -78,37 +80,62 @@ export async function getStudentQuestions(
     const responsesTable = getTableClient('QuizResponses');
     const now = Math.floor(Date.now() / 1000);
 
-    // Get all pending responses for this student
+    // Get all pending responses for this student (not answered, not expired)
     const responses = responsesTable.listEntities({
       queryOptions: { filter: `PartitionKey eq '${sessionId}' and studentId eq '${studentId}' and status eq 'PENDING'` }
     });
 
     const pendingQuestions = [];
     const expiredResponses = [];
+    let mostRecentQuestion: any = null;
+    let mostRecentSentAt = 0;
+    let totalResponses = 0;
     
     for await (const response of responses) {
-      // Skip expired questions
+      totalResponses++;
+      context.log(`Checking response: ${response.rowKey}, status: ${response.status}, expiresAt: ${response.expiresAt}, now: ${now}`);
+      
+      // Skip expired questions - don't return them at all
       if ((response.expiresAt as number) <= now) {
         context.log(`Question ${response.questionId} expired, will mark as EXPIRED`);
         expiredResponses.push(response.rowKey as string);
         continue;
       }
       
-      // Get the question details
+      // Track the most recent question
+      const sentAt = response.sentAt as number;
+      context.log(`Question sentAt: ${sentAt}, current mostRecent: ${mostRecentSentAt}`);
+      if (sentAt > mostRecentSentAt) {
+        mostRecentSentAt = sentAt;
+        mostRecentQuestion = response;
+        context.log(`New most recent question: ${response.rowKey}`);
+      }
+    }
+    
+    context.log(`Total responses found: ${totalResponses}, expired: ${expiredResponses.length}, mostRecent: ${mostRecentQuestion?.rowKey || 'none'}`);
+    
+    // Only return the most recent question
+    if (mostRecentQuestion) {
       try {
-        const question = await questionsTable.getEntity(sessionId, response.questionId as string);
+        const question = await questionsTable.getEntity(sessionId, mostRecentQuestion.questionId as string);
+        
+        // Calculate remaining time from server perspective
+        const remainingTime = (mostRecentQuestion.expiresAt as number) - now;
         
         pendingQuestions.push({
-          questionId: response.questionId,
-          responseId: response.rowKey,
+          questionId: mostRecentQuestion.questionId,
+          responseId: mostRecentQuestion.rowKey,
           question: question.question,
           options: JSON.parse(question.options as string),
           slideUrl: question.slideImageUrl,
-          sentAt: response.sentAt,
-          expiresAt: response.expiresAt
+          sentAt: mostRecentQuestion.sentAt,
+          expiresAt: mostRecentQuestion.expiresAt,
+          remainingTime
         });
+        
+        context.log(`Returning most recent question: ${mostRecentQuestion.rowKey}, sent at ${mostRecentSentAt}`);
       } catch (error: any) {
-        context.warn(`Question ${response.questionId} not found`);
+        context.warn(`Question ${mostRecentQuestion.questionId} not found`);
       }
     }
 

@@ -47,6 +47,9 @@ param aadClientSecret string = ''
 @description('Deploy Azure OpenAI resource (optional)')
 param deployAzureOpenAI bool = false
 
+@description('Deploy SignalR Service (optional, system works with polling fallback)')
+param deploySignalR bool = false
+
 @description('Deploy Azure Static Web App (optional, requires GitHub repo)')
 param deployStaticWebApp bool = true
 
@@ -105,13 +108,14 @@ module storage 'modules/storage.bicep' = {
   }
 }
 
-// Azure SignalR Service
+// Azure SignalR Service (Optional)
 module signalr 'modules/signalr.bicep' = {
   name: 'signalr-deployment'
   params: {
     signalRName: signalRName
     location: location
     environment: environment
+    deploySignalR: deploySignalR
     tags: tags
   }
 }

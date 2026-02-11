@@ -1,6 +1,8 @@
 // Azure OpenAI Service (Optional)
 // Requirements: 19.3
 // Updated: Support for Live Quiz feature with GPT-4 and GPT-4 Vision
+// API Version: 2024-10-01 (updated from 2023-05-01 for better compatibility)
+// Kind: AIServices (updated from OpenAI for unified AI services)
 
 @description('Azure OpenAI resource name')
 param openAIName string
@@ -36,11 +38,14 @@ param tags object
 // AZURE OPENAI ACCOUNT
 // ============================================================================
 
-resource openAI 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
+resource openAI 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   name: openAIName
   location: location
   tags: tags
-  kind: 'OpenAI'
+  kind: 'AIServices'
+  identity: {
+    type: 'SystemAssigned'
+  }
   sku: {
     name: 'S0'
   }
@@ -59,7 +64,7 @@ resource openAI 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
 // GPT-4 DEPLOYMENT (for question generation and answer evaluation)
 // ============================================================================
 
-resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = {
+resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
   parent: openAI
   name: gpt4DeploymentName
   sku: {
@@ -72,7 +77,6 @@ resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-0
       name: gpt4ModelName
       version: gpt4ModelVersion
     }
-    raiPolicyName: 'Microsoft.Default'
   }
 }
 
@@ -80,7 +84,7 @@ resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-0
 // GPT-4 VISION DEPLOYMENT (for slide analysis)
 // ============================================================================
 
-resource gpt4VisionDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = if (deployVisionModel) {
+resource gpt4VisionDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployVisionModel) {
   parent: openAI
   name: gpt4VisionDeploymentName
   sku: {
@@ -93,7 +97,6 @@ resource gpt4VisionDeployment 'Microsoft.CognitiveServices/accounts/deployments@
       name: gpt4VisionModelName
       version: gpt4VisionModelVersion
     }
-    raiPolicyName: 'Microsoft.Default'
   }
   dependsOn: [
     gpt4Deployment  // Deploy sequentially to avoid conflicts

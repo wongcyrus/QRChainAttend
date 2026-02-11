@@ -38,90 +38,6 @@ function getTableClient(tableName: string): TableClient {
   return TableClient.fromConnectionString(connectionString, tableName, { allowInsecureConnection: isLocal });
 }
 
-// Fair student selection algorithm
-async function selectStudentFairly(
-  sessionId: string,
-  attendees: string[],
-  metricsTable: TableClient,
-  context: InvocationContext
-): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const recentThreshold = 300; // 5 minutes
-
-  // Get metrics for all attendees
-  const metricsMap = new Map<string, any>();
-  
-  for (const studentId of attendees) {
-    try {
-      const metric = await metricsTable.getEntity(sessionId, studentId);
-      metricsMap.set(studentId, metric);
-    } catch {
-      // No metrics yet for this student
-      metricsMap.set(studentId, {
-        questionCount: 0,
-        lastQuestionAt: 0,
-        engagementScore: 50
-      });
-    }
-  }
-
-  // Calculate average question count
-  const totalQuestions = Array.from(metricsMap.values())
-    .reduce((sum, m) => sum + (m.questionCount || 0), 0);
-  const avgQuestions = attendees.length > 0 ? totalQuestions / attendees.length : 0;
-
-  // Score each student
-  const scores = attendees.map(studentId => {
-    const metric = metricsMap.get(studentId) || {
-      questionCount: 0,
-      lastQuestionAt: 0,
-      engagementScore: 50
-    };
-    
-    let score = 100;
-    
-    // Penalty for recent questions (higher = more recent)
-    const timeSinceLastQuestion = now - (metric.lastQuestionAt || 0);
-    if (timeSinceLastQuestion < recentThreshold) {
-      score -= ((recentThreshold - timeSinceLastQuestion) / recentThreshold) * 50;
-    }
-    
-    // Penalty for high question count (normalize to average)
-    const questionDiff = (metric.questionCount || 0) - avgQuestions;
-    score -= questionDiff * 10;
-    
-    // Bonus for low engagement (need more attention)
-    const engagementScore = metric.engagementScore || 50;
-    if (engagementScore < 50) {
-      score += (50 - engagementScore) * 0.5;
-    }
-    
-    return { studentId, score: Math.max(0, score) };
-  });
-
-  context.log('Student selection scores:', scores);
-
-  // Weighted random selection
-  const totalScore = scores.reduce((sum, s) => sum + s.score, 0);
-  
-  if (totalScore === 0) {
-    // All scores are 0, truly random
-    return attendees[Math.floor(Math.random() * attendees.length)];
-  }
-
-  let random = Math.random() * totalScore;
-  
-  for (const { studentId, score } of scores) {
-    random -= score;
-    if (random <= 0) {
-      return studentId;
-    }
-  }
-  
-  // Fallback: truly random
-  return attendees[Math.floor(Math.random() * attendees.length)];
-}
-
 export async function sendQuizQuestion(
   request: HttpRequest,
   context: InvocationContext
@@ -168,7 +84,6 @@ export async function sendQuizQuestion(
     const now = Math.floor(Date.now() / 1000);
     const questionsTable = getTableClient('QuizQuestions');
     const responsesTable = getTableClient('QuizResponses');
-    const metricsTable = getTableClient('QuizMetrics');
     const attendanceTable = getTableClient('Attendance');
 
     // Get question details
@@ -176,138 +91,83 @@ export async function sendQuizQuestion(
     const question = await questionsTable.getEntity(sessionId, questionId);
     context.log('Question found:', question.question);
 
-    // Determine target student
-    let targetStudent: string;
+    // Get all present students (those who have joined)
+    const attendees = [];
+    const attendanceRecords = attendanceTable.listEntities({
+      queryOptions: { filter: `PartitionKey eq '${sessionId}'` }
+    });
 
-    if (studentId) {
-      // Teacher specified a student
-      targetStudent = studentId;
-      context.log('Using specified student:', targetStudent);
-    } else {
-      // Select student fairly
-      context.log('Selecting student fairly...');
-      
-      // First, let's see ALL attendance records for debugging
-      context.log('Checking ALL attendance records for session:', sessionId);
-      const allRecords = attendanceTable.listEntities({
-        queryOptions: { filter: `PartitionKey eq '${sessionId}'` }
-      });
-      
-      let recordCount = 0;
-      for await (const record of allRecords) {
-        recordCount++;
-        context.log(`Attendance record ${recordCount}:`, { 
-          studentId: record.rowKey, 
-          entryStatus: record.entryStatus,
-          joinedAt: record.joinedAt,
-          isOnline: record.isOnline,
-          exitVerified: record.exitVerified,
-          lastSeen: record.lastSeen
-        });
+    for await (const record of attendanceRecords) {
+      if (record.joinedAt != null && record.joinedAt !== undefined) {
+        attendees.push(record.rowKey as string);
       }
-      context.log(`Total attendance records found: ${recordCount}`);
-      
-      // Get all present students (those who have joined)
-      const attendees = [];
-      const attendanceRecords = attendanceTable.listEntities({
-        queryOptions: { filter: `PartitionKey eq '${sessionId}'` }
-      });
-
-      for await (const record of attendanceRecords) {
-        // Filter in code: check if joinedAt exists and is not null/undefined
-        if (record.joinedAt != null && record.joinedAt !== undefined) {
-          attendees.push(record.rowKey as string);
-        }
-      }
-
-      context.log('Found attendees with joinedAt:', attendees);
-
-      if (attendees.length === 0) {
-        context.log('No students present - silently skipping question send');
-        // Don't return error, just skip silently
-        return {
-          status: 200,
-          jsonBody: { 
-            skipped: true,
-            reason: 'No students present',
-            timestamp: now 
-          }
-        };
-      }
-
-      targetStudent = await selectStudentFairly(sessionId, attendees, metricsTable, context);
-      context.log('Selected student:', targetStudent);
     }
 
-    // Create response record
-    const responseId = randomUUID();
+    context.log('Found attendees:', attendees);
+
+    if (attendees.length === 0) {
+      context.log('No students present - silently skipping question send');
+      return {
+        status: 200,
+        jsonBody: { 
+          skipped: true,
+          reason: 'No students present',
+          timestamp: now 
+        }
+      };
+    }
+
+    // Create response records for ALL students and broadcast via SignalR
+    const responseIds: string[] = [];
     const expiresAt = now + timeLimit;
 
-    context.log('Creating quiz response:', {
-      responseId,
-      now,
-      timeLimit,
-      expiresAt,
-      nowDate: new Date(now * 1000).toISOString(),
-      expiresAtDate: new Date(expiresAt * 1000).toISOString()
-    });
-
-    await responsesTable.createEntity({
-      partitionKey: sessionId,
-      rowKey: responseId,
-      questionId,
-      studentId: targetStudent,
-      answer: '',
-      isCorrect: false,
-      responseTime: 0,
-      submittedAt: 0,
-      sentAt: now,
-      expiresAt,
-      status: 'PENDING'
-    });
-
-    // Update metrics
-    try {
-      const metric = await metricsTable.getEntity(sessionId, targetStudent);
-      await metricsTable.updateEntity({
+    for (const studentId of attendees) {
+      const responseId = randomUUID();
+      
+      await responsesTable.createEntity({
         partitionKey: sessionId,
-        rowKey: targetStudent,
-        questionCount: (metric.questionCount as number || 0) + 1,
-        lastQuestionAt: now
-      }, 'Merge');
-    } catch {
-      // Create new metric
-      await metricsTable.createEntity({
-        partitionKey: sessionId,
-        rowKey: targetStudent,
-        totalQuestions: 1,
-        correctAnswers: 0,
-        questionCount: 1,
-        averageResponseTime: 0,
-        engagementScore: 50,
-        lastQuestionAt: now
+        rowKey: responseId,
+        questionId,
+        studentId: studentId,
+        answer: '',
+        isCorrect: false,
+        responseTime: 0,
+        submittedAt: 0,
+        sentAt: now,
+        expiresAt,
+        status: 'PENDING'
       });
+
+      responseIds.push(responseId);
+
+      // Broadcast question to this student via SignalR
+      const questionData = {
+        responseId,
+        questionId,
+        studentId: studentId,
+        question: question.question as string,
+        questionType: question.questionType as string,
+        options: question.options ? JSON.parse(question.options as string) : null,
+        timeLimit,
+        expiresAt
+      };
+      
+      context.log(`Broadcasting question to student ${studentId}:`, {
+        responseId,
+        questionId,
+        expiresAt
+      });
+      
+      await broadcastQuizQuestion(sessionId, questionData, context);
     }
 
-    // Broadcast question to student via SignalR
-    await broadcastQuizQuestion(sessionId, {
-      responseId,
-      questionId,
-      studentId: targetStudent,
-      question: question.question as string,
-      questionType: question.questionType as string,
-      options: question.options ? JSON.parse(question.options as string) : null,
-      timeLimit,
-      expiresAt
-    }, context);
-
-    context.log(`Sent question ${questionId} to student ${targetStudent}`);
+    context.log(`Sent question ${questionId} to ${attendees.length} students`);
 
     return {
       status: 200,
       jsonBody: {
-        responseId,
-        studentId: targetStudent,
+        responseIds,
+        students: attendees,
         sentAt: now,
         expiresAt
       }

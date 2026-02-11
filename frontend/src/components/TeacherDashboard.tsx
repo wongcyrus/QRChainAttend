@@ -332,7 +332,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
         },
         body: JSON.stringify({
           questionId: question.questionId,
-          timeLimit: 180 // 3 minutes - enough time to read and answer
+          timeLimit: 30 // 30 seconds to answer
         })
       });
       

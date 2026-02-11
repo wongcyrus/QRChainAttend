@@ -28,6 +28,15 @@ export function QuizModal({ sessionId, question, onClose, onSubmit }: QuizModalP
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [result, setResult] = useState<{ isCorrect: boolean; feedback: string } | null>(null);
+
+  // Reset state when question changes
+  useEffect(() => {
+    setSelectedAnswer('');
+    setSubmitting(false);
+    setError(null);
+    setResult(null);
+  }, [question.responseId]);
 
   // Countdown timer
   useEffect(() => {
@@ -60,6 +69,11 @@ export function QuizModal({ sessionId, question, onClose, onSubmit }: QuizModalP
       return;
     }
 
+    console.log('[Quiz] Submitting answer:', {
+      responseId: question.responseId,
+      answer: selectedAnswer
+    });
+
     setSubmitting(true);
     setError(null);
 
@@ -77,78 +91,173 @@ export function QuizModal({ sessionId, question, onClose, onSubmit }: QuizModalP
         })
       });
 
+      console.log('[Quiz] Submit response:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('[Quiz] Submit error:', errorData);
         throw new Error(errorData.error?.message || 'Failed to submit answer');
       }
 
-      onSubmit();
-      onClose();
+      const result = await response.json();
+      console.log('[Quiz] Submit result:', result);
+
+      // Show feedback for 3 seconds before closing
+      setResult({
+        isCorrect: result.isCorrect,
+        feedback: result.feedback
+      });
+      
+      setTimeout(() => {
+        onSubmit();
+        onClose();
+      }, 3000);
+      
     } catch (err: any) {
+      console.error('[Quiz] Submit failed:', err);
       setError(err.message);
       setSubmitting(false);
     }
   };
 
+  const getTimerColor = () => {
+    if (timeRemaining <= 10) return '#dc3545';
+    if (timeRemaining <= 30) return '#ffc107';
+    return '#28a745';
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+      padding: '1rem'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+        maxWidth: '800px',
+        width: '100%',
+        maxHeight: '90vh',
+        overflow: 'auto',
+        fontFamily: 'system-ui, sans-serif'
+      }}>
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-xl">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-white">📝 Quiz Question</h2>
-            <div className="flex items-center gap-4">
+        <div style={{
+          background: 'linear-gradient(to right, #2563eb, #1d4ed8)',
+          padding: '1.5rem',
+          borderTopLeftRadius: '12px',
+          borderTopRightRadius: '12px',
+          color: 'white'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>📝 Quiz Question</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               {/* Countdown Timer */}
-              <div className={`px-4 py-2 rounded-lg font-bold text-lg ${
-                timeRemaining <= 10 ? 'bg-red-500 animate-pulse' : 
-                timeRemaining <= 30 ? 'bg-yellow-500' : 
-                'bg-green-500'
-              } text-white`}>
+              <div style={{
+                padding: '0.5rem 1rem',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                fontSize: '1.1rem',
+                backgroundColor: getTimerColor(),
+                color: 'white',
+                animation: timeRemaining <= 10 ? 'pulse 1s infinite' : 'none'
+              }}>
                 ⏱️ {timeRemaining}s
               </div>
               <button
                 onClick={onClose}
-                className="text-white hover:text-gray-200 transition-colors"
                 disabled={submitting}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '1.5rem',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.5 : 1
+                }}
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             </div>
           </div>
         </div>
 
-        <div className="p-6">
+        <div style={{ padding: '1.5rem' }}>
           {/* Slide Image */}
           {question.slideUrl && (
-            <div className="mb-6">
+            <div style={{ marginBottom: '1.5rem' }}>
               <img 
                 src={question.slideUrl} 
                 alt="Slide" 
-                className="w-full rounded-lg border-2 border-gray-200 shadow-sm"
+                style={{
+                  width: '100%',
+                  borderRadius: '8px',
+                  border: '2px solid #e5e7eb',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}
               />
             </div>
           )}
 
           {/* Question */}
-          <div className="mb-6">
-            <div className="bg-blue-50 p-6 rounded-lg border-2 border-blue-300 mb-6 shadow-sm">
-              <p className="text-xl font-bold text-gray-900 leading-relaxed break-words">
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{
+              backgroundColor: '#eff6ff',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              border: '2px solid #93c5fd',
+              marginBottom: '1.5rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}>
+              <p style={{
+                fontSize: '1.25rem',
+                fontWeight: 'bold',
+                color: '#1f2937',
+                lineHeight: '1.6',
+                margin: 0,
+                wordWrap: 'break-word'
+              }}>
                 {question.question}
               </p>
             </div>
             
             {/* Options */}
-            <div className="space-y-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {question.options.map((option, index) => (
                 <label
                   key={index}
-                  className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedAnswer === option
-                      ? 'border-blue-500 bg-blue-50 shadow-md'
-                      : 'border-gray-300 hover:border-blue-300 hover:bg-gray-50'
-                  }`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    padding: '1rem',
+                    border: selectedAnswer === option ? '2px solid #2563eb' : '2px solid #d1d5db',
+                    borderRadius: '8px',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    backgroundColor: selectedAnswer === option ? '#eff6ff' : 'white',
+                    boxShadow: selectedAnswer === option ? '0 4px 6px rgba(37, 99, 235, 0.1)' : 'none',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submitting && selectedAnswer !== option) {
+                      e.currentTarget.style.borderColor = '#93c5fd';
+                      e.currentTarget.style.backgroundColor = '#f9fafb';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submitting && selectedAnswer !== option) {
+                      e.currentTarget.style.borderColor = '#d1d5db';
+                      e.currentTarget.style.backgroundColor = 'white';
+                    }
+                  }}
                 >
                   <input
                     type="radio"
@@ -157,9 +266,25 @@ export function QuizModal({ sessionId, question, onClose, onSubmit }: QuizModalP
                     checked={selectedAnswer === option}
                     onChange={(e) => setSelectedAnswer(e.target.value)}
                     disabled={submitting}
-                    className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0"
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      marginTop: '2px',
+                      marginRight: '12px',
+                      cursor: submitting ? 'not-allowed' : 'pointer',
+                      accentColor: '#2563eb'
+                    }}
                   />
-                  <span className="ml-3 text-base text-gray-900 leading-relaxed font-medium break-words">{option}</span>
+                  <span style={{
+                    fontSize: '1rem',
+                    color: '#1f2937',
+                    lineHeight: '1.5',
+                    fontWeight: '500',
+                    wordWrap: 'break-word',
+                    flex: 1
+                  }}>
+                    {option}
+                  </span>
                 </label>
               ))}
             </div>
@@ -167,26 +292,76 @@ export function QuizModal({ sessionId, question, onClose, onSubmit }: QuizModalP
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded text-red-700">
-              <p className="font-medium">⚠️ {error}</p>
+            <div style={{
+              marginBottom: '1rem',
+              padding: '1rem',
+              backgroundColor: '#fef2f2',
+              borderLeft: '4px solid #dc2626',
+              borderRadius: '4px',
+              color: '#991b1b'
+            }}>
+              <p style={{ margin: 0, fontWeight: '500' }}>⚠️ {error}</p>
+            </div>
+          )}
+
+          {/* Result Feedback */}
+          {result && (
+            <div style={{
+              marginBottom: '1rem',
+              padding: '1rem',
+              backgroundColor: result.isCorrect ? '#f0fdf4' : '#fef2f2',
+              borderLeft: `4px solid ${result.isCorrect ? '#16a34a' : '#dc2626'}`,
+              borderRadius: '4px',
+              color: result.isCorrect ? '#166534' : '#991b1b'
+            }}>
+              <p style={{ margin: 0, fontWeight: '600', fontSize: '1.1rem' }}>
+                {result.isCorrect ? '✓ Correct!' : '✗ Incorrect'}
+              </p>
+              <p style={{ margin: '0.5rem 0 0 0' }}>{result.feedback}</p>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '0.75rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid #e5e7eb'
+          }}>
             <button
               onClick={onClose}
               disabled={submitting}
-              className="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              style={{
+                padding: '0.625rem 1.5rem',
+                border: '2px solid #d1d5db',
+                borderRadius: '8px',
+                backgroundColor: 'white',
+                color: '#374151',
+                fontWeight: '500',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                opacity: submitting ? 0.5 : 1,
+                fontSize: '1rem'
+              }}
             >
               Skip
             </button>
             <button
               onClick={handleSubmit}
-              disabled={submitting || !selectedAnswer || timeRemaining <= 0}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+              disabled={submitting || !selectedAnswer || timeRemaining <= 0 || result !== null}
+              style={{
+                padding: '0.625rem 1.5rem',
+                border: 'none',
+                borderRadius: '8px',
+                backgroundColor: (submitting || !selectedAnswer || timeRemaining <= 0 || result !== null) ? '#9ca3af' : '#2563eb',
+                color: 'white',
+                fontWeight: '500',
+                cursor: (submitting || !selectedAnswer || timeRemaining <= 0 || result !== null) ? 'not-allowed' : 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                fontSize: '1rem'
+              }}
             >
-              {submitting ? '⏳ Submitting...' : '✓ Submit Answer'}
+              {submitting ? '⏳ Submitting...' : result ? '✓ Submitted' : '✓ Submit Answer'}
             </button>
           </div>
         </div>

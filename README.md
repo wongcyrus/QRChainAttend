@@ -1,10 +1,12 @@
 # QR Chain Attendance System
 
-A comprehensive, real-time attendance tracking system using QR code chains, geolocation, and Azure services.
+A comprehensive, real-time attendance tracking system using QR code chains, geolocation, and Azure services with AI-powered Live Quiz feature.
 
 ## 🚀 Quick Start
 
-**Production URL**: https://red-grass-0f8bc910f.4.azurestaticapps.net
+**Production URL**: https://ashy-desert-0fc9a700f.6.azurestaticapps.net
+
+**Status**: ✅ Live with SignalR Standard S1 (1000 connections)
 
 **Login**:
 - Teachers: `@vtc.edu.hk` email addresses (excluding `@stu.vtc.edu.hk`)
@@ -12,21 +14,19 @@ A comprehensive, real-time attendance tracking system using QR code chains, geol
 
 ## 📚 Documentation
 
-### Getting Started
-- **[Getting Started](GETTING_STARTED.md)** - Local development setup
-- **[Login Guide](LOGIN_GUIDE.md)** - How to login and switch accounts
-- **[Quick Reference](QUICK_REFERENCE.md)** - Common commands and tasks
+**Complete Documentation Index**: See [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) for all documentation files.
 
-### Features
-- **[QR Chain Flow](QR_CHAIN_FLOW.md)** - How the QR chain system works
-- **[Geolocation Feature](GEOLOCATION_FEATURE.md)** - Location-based attendance
-- **[Role Assignment](ROLE_ASSIGNMENT.md)** - Email domain-based roles
-- **[Snapshot Deployment](SNAPSHOT_DEPLOYMENT.md)** - Attendance snapshots
+### Essential Guides
+- **[Getting Started](GETTING_STARTED.md)** - Setup and first steps
+- **[Project Status](PROJECT_STATUS.md)** - Current deployment status
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Complete deployment guide
+- **[Live Quiz Guide](LIVE_QUIZ.md)** - AI-powered quiz feature
 
-### Deployment
-- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - How to deploy to Azure
-- **[Deployment Scripts Guide](DEPLOYMENT_SCRIPTS_GUIDE.md)** - All deployment scripts
-- **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Pre-deployment verification
+### Quick Links
+- **[System Architecture](SYSTEM_ARCHITECTURE.md)** - System design
+- **[Database Schema](DATABASE_TABLES.md)** - 12 tables
+- **[SignalR Configuration](SIGNALR_CONFIGURATION.md)** - Real-time updates
+- **[Local Development](LOCAL_DEVELOPMENT.md)** - Development setup
 
 ### Complete Documentation
 - **[Full Documentation Index](DOCS_INDEX.md)** - All documentation

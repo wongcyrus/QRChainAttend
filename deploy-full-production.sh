@@ -65,16 +65,24 @@ echo ""
 
 # Step 3: Deploy infrastructure
 echo -e "${BLUE}Step 3: Deploying infrastructure (10-15 minutes)...${NC}"
+
+# Deploy with minimal output to avoid JSON corruption
 az deployment group create \
     --name $DEPLOYMENT_NAME \
     --resource-group $RESOURCE_GROUP \
     --template-file infrastructure/main.bicep \
     --parameters infrastructure/parameters/prod.bicepparam \
     --mode Incremental \
-    --output json > deployment-output.json
+    --only-show-errors \
+    --query '{properties: properties}' \
+    --output json > deployment-output.json 2>&1
 
-if [ $? -ne 0 ]; then
+DEPLOY_EXIT_CODE=$?
+
+if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
     echo -e "${RED}✗ Infrastructure deployment failed${NC}"
+    echo "Deployment output:"
+    cat deployment-output.json
     exit 1
 fi
 
@@ -83,13 +91,52 @@ echo ""
 
 # Step 4: Extract outputs
 echo -e "${BLUE}Step 4: Extracting deployment outputs...${NC}"
-STORAGE_ACCOUNT=$(jq -r '.properties.outputs.storageAccountName.value' deployment-output.json)
-FUNCTION_APP=$(jq -r '.properties.outputs.functionAppName.value' deployment-output.json)
-STATIC_WEB_APP=$(jq -r '.properties.outputs.staticWebAppName.value' deployment-output.json)
-STATIC_WEB_APP_URL=$(jq -r '.properties.outputs.staticWebAppUrl.value' deployment-output.json)
-SWA_TOKEN=$(jq -r '.properties.outputs.staticWebAppDeploymentToken.value' deployment-output.json)
-OPENAI_NAME=$(jq -r '.properties.outputs.openAIName.value' deployment-output.json)
-OPENAI_ENDPOINT=$(jq -r '.properties.outputs.openAIEndpoint.value' deployment-output.json)
+
+# Check if deployment-output.json exists and is valid
+if [ ! -f "deployment-output.json" ]; then
+    echo -e "${RED}✗ deployment-output.json not found${NC}"
+    exit 1
+fi
+
+# Validate JSON before parsing
+if ! jq empty deployment-output.json 2>/dev/null; then
+    echo -e "${RED}✗ Invalid JSON in deployment-output.json${NC}"
+    echo "File content:"
+    cat deployment-output.json
+    echo ""
+    echo "Attempting to extract outputs directly from Azure..."
+    
+    # Fallback: Query deployment directly
+    az deployment group show \
+        --name $DEPLOYMENT_NAME \
+        --resource-group $RESOURCE_GROUP \
+        --query 'properties.outputs' \
+        --output json > deployment-output.json 2>&1
+    
+    if ! jq empty deployment-output.json 2>/dev/null; then
+        echo -e "${RED}✗ Failed to retrieve valid deployment outputs${NC}"
+        exit 1
+    fi
+    
+    echo -e "${YELLOW}⚠ Retrieved outputs directly from Azure${NC}"
+fi
+
+# Extract outputs with proper error handling
+STORAGE_ACCOUNT=$(jq -r '.storageAccountName.value // .properties.outputs.storageAccountName.value // empty' deployment-output.json)
+FUNCTION_APP=$(jq -r '.functionAppName.value // .properties.outputs.functionAppName.value // empty' deployment-output.json)
+STATIC_WEB_APP=$(jq -r '.staticWebAppName.value // .properties.outputs.staticWebAppName.value // empty' deployment-output.json)
+STATIC_WEB_APP_URL=$(jq -r '.staticWebAppUrl.value // .properties.outputs.staticWebAppUrl.value // empty' deployment-output.json)
+SWA_TOKEN=$(jq -r '.staticWebAppDeploymentToken.value // .properties.outputs.staticWebAppDeploymentToken.value // empty' deployment-output.json)
+OPENAI_NAME=$(jq -r '.openAIName.value // .properties.outputs.openAIName.value // empty' deployment-output.json)
+OPENAI_ENDPOINT=$(jq -r '.openAIEndpoint.value // .properties.outputs.openAIEndpoint.value // empty' deployment-output.json)
+
+# Validate required outputs
+if [ -z "$STORAGE_ACCOUNT" ] || [ -z "$FUNCTION_APP" ]; then
+    echo -e "${RED}✗ Failed to extract required outputs${NC}"
+    echo "Storage Account: $STORAGE_ACCOUNT"
+    echo "Function App: $FUNCTION_APP"
+    exit 1
+fi
 
 echo -e "${GREEN}✓ Outputs extracted${NC}"
 echo "  Storage: $STORAGE_ACCOUNT"

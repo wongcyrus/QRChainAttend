@@ -5,7 +5,7 @@
 
 let cachedPrincipal: string | null = null;
 let cacheTimestamp: number = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes (increased from 5)
 
 /**
  * Get authentication headers for API requests

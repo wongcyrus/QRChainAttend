@@ -211,44 +211,53 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         headers
       });
       
-      console.log('Check questions response:', response.status);
+      console.log('[Quiz] Response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Questions data:', data);
+        console.log('[Quiz] Questions received:', data.questions?.length || 0);
         
         if (data.questions && data.questions.length > 0) {
-          // Only update if we don't have a pending question or if it's a different question
           const newQuestion = data.questions[0];
-          console.log('New question:', newQuestion);
+          console.log('[Quiz] Question:', {
+            responseId: newQuestion.responseId,
+            question: newQuestion.question.substring(0, 50) + '...',
+            remainingTime: newQuestion.remainingTime
+          });
           
-          // Check if question is already expired
-          const now = Math.floor(Date.now() / 1000);
-          console.log('Time check:', { now, expiresAt: newQuestion.expiresAt, expired: newQuestion.expiresAt <= now });
-          
-          if (newQuestion.expiresAt <= now) {
-            console.log('Question already expired, skipping:', newQuestion.responseId);
-            // Don't show expired questions
-            if (pendingQuestion && pendingQuestion.responseId === newQuestion.responseId) {
-              setPendingQuestion(null);
-            }
+          // Server already filtered expired questions
+          // Use server-provided remaining time
+          if (!newQuestion.remainingTime || newQuestion.remainingTime <= 0) {
+            console.log('[Quiz] Question has no time left, skipping');
             return;
           }
           
+          // Calculate client-side expiry based on server's remaining time
+          const clientExpiresAt = Math.floor(Date.now() / 1000) + newQuestion.remainingTime;
+          newQuestion.expiresAt = clientExpiresAt;
+          
+          console.log('[Quiz] Client expiry set:', {
+            remainingTime: newQuestion.remainingTime,
+            expiresAt: clientExpiresAt,
+            expiresAtDate: new Date(clientExpiresAt * 1000).toISOString()
+          });
+          
+          // Only show if it's a new question
           if (!pendingQuestion || pendingQuestion.responseId !== newQuestion.responseId) {
-            console.log('Setting pending question:', newQuestion.responseId);
+            console.log('[Quiz] Setting new question');
             setPendingQuestion(newQuestion);
+          } else {
+            console.log('[Quiz] Same question already displayed');
           }
         } else {
-          console.log('No questions in response');
-          // No questions available - clear pending if we had one
+          console.log('[Quiz] No questions available');
           if (pendingQuestion) {
             setPendingQuestion(null);
           }
         }
       }
     } catch (err) {
-      console.log('Failed to check for questions:', err);
+      console.error('[Quiz] Error:', err);
     }
   };
 
@@ -432,33 +441,53 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     return () => clearInterval(pollInterval);
   }, [status.isHolder]);
 
-  // Poll for status changes when NOT a holder (for local dev without SignalR)
+  // Poll for status changes when NOT a holder (for when SignalR is unavailable)
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     // Only poll if not connected via SignalR and not a holder
     if (connectionStatus === 'connected' || status.isHolder) {
+      console.log('[Status] Polling disabled:', { 
+        signalRConnected: connectionStatus === 'connected', 
+        isHolder: status.isHolder 
+      });
       return;
     }
 
-    // Poll every 3 seconds to check if student became a holder
+    console.log('[Status] Enabling status polling (15s interval)');
+    
+    // Poll every 15 seconds (balanced for server load)
     const pollInterval = setInterval(() => {
       fetchData();
-    }, 3000);
+    }, 15000);
 
-    return () => clearInterval(pollInterval);
-  }, [connectionStatus, status.isHolder]);
+    return () => {
+      console.log('[Status] Cleaning up status polling');
+      clearInterval(pollInterval);
+    };
+  }, [connectionStatus, status.isHolder, sessionId, studentId]);
 
-  // Poll for quiz questions every 5 seconds
+  // Poll for quiz questions only if SignalR is not connected
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    // Always check for questions, even if one is showing
-    // This ensures we get the next question after answering
+    // Don't poll if SignalR is connected - it will push updates
+    if (connectionStatus === 'connected') {
+      console.log('[Quiz] SignalR connected, disabling polling');
+      return;
+    }
+
+    console.log('[Quiz] SignalR not connected, enabling fallback polling');
+    
+    // Fallback polling for when SignalR is unavailable
+    // 5 seconds for responsive quiz experience
     const pollInterval = setInterval(() => {
       checkForQuestions();
     }, 5000);
 
-    return () => clearInterval(pollInterval);
-  }, []); // Empty dependency array - always poll
+    return () => {
+      console.log('[Quiz] Cleaning up polling interval');
+      clearInterval(pollInterval);
+    };
+  }, [connectionStatus, sessionId, studentId]); // Re-run when connection status or session changes
 
   // Countdown timer for token expiration
   /* eslint-disable react-hooks/exhaustive-deps */
