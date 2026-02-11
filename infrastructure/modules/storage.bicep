@@ -84,6 +84,66 @@ resource scanLogsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2
   name: 'ScanLogs'
 }
 
+resource userSessionsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'UserSessions'
+}
+
+resource attendanceSnapshotsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'AttendanceSnapshots'
+}
+
+resource chainHistoryTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'ChainHistory'
+}
+
+resource deletionLogTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'DeletionLog'
+}
+
+// Quiz tables
+resource quizQuestionsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'QuizQuestions'
+}
+
+resource quizResponsesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'QuizResponses'
+}
+
+resource quizMetricsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'QuizMetrics'
+}
+
+// ============================================================================
+// BLOB SERVICE
+// ============================================================================
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+  parent: storageAccount
+  name: 'default'
+  properties: {
+    deleteRetentionPolicy: {
+      enabled: true
+      days: 7
+    }
+  }
+}
+
+// Quiz slides container
+resource quizSlidesContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'quiz-slides'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 // ============================================================================
 // OUTPUTS
 // ============================================================================
@@ -99,3 +159,6 @@ output tableEndpoint string = storageAccount.properties.primaryEndpoints.table
 
 @description('Storage Account primary key')
 output storageAccountKey string = storageAccount.listKeys().keys[0].value
+
+@description('Storage Account Blob endpoint')
+output blobEndpoint string = storageAccount.properties.primaryEndpoints.blob

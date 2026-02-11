@@ -9,6 +9,7 @@ import { getAuthHeaders } from '../utils/authHeaders';
 import QRCode from 'qrcode';
 import * as signalR from '@microsoft/signalr';
 import { getCurrentLocation } from '../utils/geolocation';
+import { QuizModal } from './QuizModal';
 
 interface SimpleStudentViewProps {
   sessionId: string;
@@ -31,6 +32,16 @@ interface StudentStatus {
   tokenExpiresAt?: number;
 }
 
+interface QuizQuestion {
+  questionId: string;
+  responseId: string;
+  question: string;
+  options: string[];
+  slideUrl?: string;
+  sentAt: number;
+  expiresAt: number;
+}
+
 export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: SimpleStudentViewProps) {
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [status, setStatus] = useState<StudentStatus>({
@@ -43,6 +54,7 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<QuizQuestion | null>(null);
 
   // Check URL parameters for scan simulation (when clicking QR URL in dev mode)
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -188,10 +200,63 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
     }
   };
 
+  // Check for pending quiz questions
+  const checkForQuestions = async () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+    const headers = await getAuthHeaders();
+    
+    try {
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/student-questions`, {
+        credentials: 'include',
+        headers
+      });
+      
+      console.log('Check questions response:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Questions data:', data);
+        
+        if (data.questions && data.questions.length > 0) {
+          // Only update if we don't have a pending question or if it's a different question
+          const newQuestion = data.questions[0];
+          console.log('New question:', newQuestion);
+          
+          // Check if question is already expired
+          const now = Math.floor(Date.now() / 1000);
+          console.log('Time check:', { now, expiresAt: newQuestion.expiresAt, expired: newQuestion.expiresAt <= now });
+          
+          if (newQuestion.expiresAt <= now) {
+            console.log('Question already expired, skipping:', newQuestion.responseId);
+            // Don't show expired questions
+            if (pendingQuestion && pendingQuestion.responseId === newQuestion.responseId) {
+              setPendingQuestion(null);
+            }
+            return;
+          }
+          
+          if (!pendingQuestion || pendingQuestion.responseId !== newQuestion.responseId) {
+            console.log('Setting pending question:', newQuestion.responseId);
+            setPendingQuestion(newQuestion);
+          }
+        } else {
+          console.log('No questions in response');
+          // No questions available - clear pending if we had one
+          if (pendingQuestion) {
+            setPendingQuestion(null);
+          }
+        }
+      }
+    } catch (err) {
+      console.log('Failed to check for questions:', err);
+    }
+  };
+
   // Initial load
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchData();
+    checkForQuestions();
   }, [sessionId, studentId]);
 
   // Setup SignalR connection
@@ -271,6 +336,22 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         connection.on('chainUpdated', () => {
           console.log('SignalR: Chain updated');
           fetchData();
+        });
+
+        connection.on('quizQuestion', (question: any) => {
+          console.log('SignalR: Quiz question received', question);
+          // Only show if it's for this student
+          if (question.studentId === studentId) {
+            setPendingQuestion({
+              questionId: question.questionId,
+              responseId: question.responseId,
+              question: question.question,
+              options: question.options || [],
+              slideUrl: question.slideUrl,
+              sentAt: question.sentAt || Math.floor(Date.now() / 1000),
+              expiresAt: question.expiresAt
+            });
+          }
         });
 
         connection.onreconnecting(() => {
@@ -366,6 +447,18 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
 
     return () => clearInterval(pollInterval);
   }, [connectionStatus, status.isHolder]);
+
+  // Poll for quiz questions every 5 seconds
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    // Always check for questions, even if one is showing
+    // This ensures we get the next question after answering
+    const pollInterval = setInterval(() => {
+      checkForQuestions();
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, []); // Empty dependency array - always poll
 
   // Countdown timer for token expiration
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -712,6 +805,19 @@ export function SimpleStudentView({ sessionId, studentId, onLeaveSession }: Simp
         }}>
           Leave Session
         </button>
+      )}
+
+      {/* Quiz Modal */}
+      {pendingQuestion && (
+        <QuizModal
+          sessionId={sessionId}
+          question={pendingQuestion}
+          onClose={() => setPendingQuestion(null)}
+          onSubmit={() => {
+            setPendingQuestion(null);
+            checkForQuestions(); // Check for next question
+          }}
+        />
       )}
     </div>
   );

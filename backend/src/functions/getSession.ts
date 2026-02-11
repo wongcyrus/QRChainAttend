@@ -11,10 +11,13 @@ interface Session {
   partitionKey: string;
   rowKey: string;
   teacherId: string;
-  courseName: string;
+  classId: string;
+  courseName?: string; // Legacy field
   status: 'ACTIVE' | 'ENDED';
-  startTime: number;
-  endTime?: number;
+  startAt: string; // ISO string
+  endAt: string; // ISO string
+  startTime?: number; // Legacy field
+  endTime?: number; // Legacy field
   timestamp?: Date;
   etag?: string;
 }
@@ -209,17 +212,17 @@ export async function getSession(
     const response: any = {
       session: {
         sessionId: session.rowKey,
-        classId: session.courseName,
+        classId: session.classId || session.courseName, // Support both new and legacy field names
         teacherId: session.teacherId,
-        startAt: toISOString(session.startTime) || new Date().toISOString(),
-        endAt: toISOString(session.endTime),
+        startAt: session.startAt || toISOString(session.startTime) || new Date().toISOString(),
+        endAt: session.endAt || toISOString(session.endTime),
         lateCutoffMinutes: 15, // Default value
         exitWindowMinutes: 30, // Default value
         status: session.status,
         ownerTransfer: false,
         lateEntryActive: false,
         earlyLeaveActive: false,
-        createdAt: toISOString(session.startTime) || new Date().toISOString()
+        createdAt: session.startAt || toISOString(session.startTime) || new Date().toISOString()
       },
       attendance: attendance.map(a => ({
         sessionId,

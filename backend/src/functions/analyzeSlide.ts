@@ -72,7 +72,9 @@ export async function analyzeSlide(
       };
     }
 
-    // Upload image to blob storage
+    const slideId = randomUUID();
+    
+    // Upload image to blob storage for future review
     const connectionString = process.env.AzureWebJobsStorage;
     if (!connectionString) {
       throw new Error('AzureWebJobsStorage not configured');
@@ -82,37 +84,52 @@ export async function analyzeSlide(
     const containerName = 'quiz-slides';
     const containerClient = blobServiceClient.getContainerClient(containerName);
     
-    // Create container if it doesn't exist
-    await containerClient.createIfNotExists({ access: 'blob' });
+    // Create container if it doesn't exist (with retry for Azurite compatibility)
+    try {
+      await containerClient.createIfNotExists({ access: 'blob' });
+    } catch (error: any) {
+      // If container already exists or Azurite version issue, continue
+      if (!error.message?.includes('ContainerAlreadyExists')) {
+        context.warn('Container creation warning:', error.message);
+      }
+    }
 
-    const slideId = randomUUID();
     const blobName = `${sessionId}/${slideId}.jpg`;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
-    let finalImageUrl: string;
+    let blobUrl: string;
+    let imageDataForAI: string;
 
     if (image) {
-      // Upload base64 image
+      // Upload base64 image to blob storage
       const imageBuffer = Buffer.from(image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-      await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
-        blobHTTPHeaders: { blobContentType: 'image/jpeg' }
-      });
-      finalImageUrl = blockBlobClient.url;
+      try {
+        await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
+          blobHTTPHeaders: { blobContentType: 'image/jpeg' }
+        });
+        blobUrl = blockBlobClient.url;
+      } catch (error: any) {
+        // If upload fails (Azurite version issue), use placeholder
+        context.warn('Blob upload warning:', error.message);
+        blobUrl = `local-${slideId}`;
+      }
+      imageDataForAI = image; // Use base64 for OpenAI
     } else {
       // Use provided URL
-      finalImageUrl = imageUrl;
+      blobUrl = imageUrl;
+      imageDataForAI = imageUrl;
     }
 
-    // Call Azure OpenAI Vision API
+    // Call Azure OpenAI Vision API (GPT-4o has vision built-in)
     const openaiEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
     const openaiKey = process.env.AZURE_OPENAI_KEY;
-    const openaiDeployment = process.env.AZURE_OPENAI_VISION_DEPLOYMENT || 'gpt-4-vision';
+    const openaiDeployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
     if (!openaiEndpoint || !openaiKey) {
       throw new Error('Azure OpenAI not configured');
     }
 
-    const apiUrl = `${openaiEndpoint}/openai/deployments/${openaiDeployment}/chat/completions?api-version=2024-02-15-preview`;
+    const apiUrl = `${openaiEndpoint}/openai/deployments/${openaiDeployment}/chat/completions?api-version=2024-08-01-preview`;
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -144,7 +161,7 @@ Be concise and accurate. Extract only what's clearly visible.`
               {
                 type: 'image_url',
                 image_url: {
-                  url: finalImageUrl
+                  url: imageDataForAI
                 }
               }
             ]
@@ -186,7 +203,7 @@ Be concise and accurate. Extract only what's clearly visible.`
       status: 200,
       jsonBody: {
         slideId,
-        imageUrl: finalImageUrl,
+        imageUrl: blobUrl,
         analysis: {
           topic: analysis.topic || 'Unknown',
           title: analysis.title || '',

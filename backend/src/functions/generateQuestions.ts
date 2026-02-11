@@ -107,6 +107,14 @@ Summary: ${analysis.summary || 'N/A'}
           {
             role: 'system',
             content: `You are a university professor creating quiz questions to test student attention and understanding.
+
+IMPORTANT FORMATTING RULES:
+- Keep questions SHORT and DIRECT (one sentence when possible)
+- Use simple, clear language
+- Avoid long, complex sentences
+- Break multi-part questions into separate questions
+- For options, keep them concise (5-10 words max)
+
 Generate questions that:
 - Test comprehension, not just memorization
 - Are clear and concise
@@ -114,25 +122,30 @@ Generate questions that:
 - Can be answered based on the slide content
 - Help identify if students are paying attention
 
-For multiple choice questions, create 4 options with only 1 correct answer.
-For short answer questions, provide a concise correct answer (1-2 sentences).`
+ONLY create MULTIPLE CHOICE questions with 4 options and 1 correct answer.`
           },
           {
             role: 'user',
             content: `Based on this slide content:
 ${slideContent}
 
-Generate ${count} quiz questions at ${difficultyFilter} difficulty level.
+Generate ${count} MULTIPLE CHOICE quiz questions at ${difficultyFilter} difficulty level.
+
+FORMATTING REQUIREMENTS:
+- Question text: Maximum 15 words, one clear sentence
+- Options: Maximum 8 words each, concise and distinct
+- Use simple vocabulary appropriate for the difficulty level
+- ONLY generate MULTIPLE_CHOICE questions (no SHORT_ANSWER)
 
 Return ONLY valid JSON in this exact format (no markdown, no code blocks):
 {
   "questions": [
     {
-      "text": "Question text here?",
-      "type": "MULTIPLE_CHOICE" or "SHORT_ANSWER",
+      "text": "Short, clear question?",
+      "type": "MULTIPLE_CHOICE",
       "difficulty": "EASY" or "MEDIUM" or "HARD",
-      "options": ["Option A", "Option B", "Option C", "Option D"] (only for MULTIPLE_CHOICE),
-      "correctAnswer": "Correct answer text",
+      "options": ["Brief option A", "Brief option B", "Brief option C", "Brief option D"],
+      "correctAnswer": "Brief option A",
       "explanation": "Why this is the correct answer"
     }
   ]
@@ -174,6 +187,7 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks):
         partitionKey: sessionId,
         rowKey: questionId,
         slideId: slideId || '',
+        slideImageUrl: body.slideImageUrl || '', // Store blob URL for future review
         slideContent: JSON.stringify(analysis),
         question: q.text,
         questionType: q.type,

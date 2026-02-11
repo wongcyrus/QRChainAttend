@@ -86,6 +86,14 @@ export default function StudentPage() {
       });
   }, [router, sessionId]);
 
+  // Reset hasAutoJoined when token changes (new QR scan)
+  useEffect(() => {
+    if (token) {
+      console.log('[StudentPage] Token changed, resetting hasAutoJoined:', token);
+      setHasAutoJoined(false);
+    }
+  }, [token]);
+
   // Separate effect for auto-join to avoid infinite loop
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
@@ -96,7 +104,17 @@ export default function StudentPage() {
     // Don't auto-join when just restoring from localStorage (no type parameter)
     const hasQRType = type !== undefined;
     
+    console.log('[StudentPage] Auto-join check:', {
+      user: !!user,
+      sessionId,
+      hasQRType,
+      hasAutoJoined,
+      joining,
+      isChainScan
+    });
+    
     if (user && sessionId && typeof sessionId === 'string' && hasQRType && !hasAutoJoined && !joining && !isChainScan) {
+      console.log('[StudentPage] Triggering auto-join');
       setHasAutoJoined(true);
       const qrType = typeof type === 'string' ? type : undefined;
       const qrToken = typeof token === 'string' ? token : undefined;

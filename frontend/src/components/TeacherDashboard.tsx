@@ -163,10 +163,228 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [stalledChains, setStalledChains] = useState<string[]>([]);
   const [showGpsMissingOnly, setShowGpsMissingOnly] = useState(false);
+  
+  // Live Quiz state
+  const [quizActive, setQuizActive] = useState(false);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+  const [captureInterval, setCaptureInterval] = useState(30); // seconds
+  const [lastCaptureTime, setLastCaptureTime] = useState<number>(0);
+  const [quizStats, setQuizStats] = useState({
+    capturesCount: 0,
+    questionsGenerated: 0,
+    questionsSent: 0
+  });
 
   // SignalR connection ref
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const isConnectingRef = useRef<boolean>(false);
+
+  /**
+   * Start screen sharing and continuous capture
+   */
+  const startScreenShare = async () => {
+    try {
+      // Request screen sharing permission
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true
+      });
+      
+      setScreenStream(stream);
+      setQuizActive(true);
+      setLastCaptureTime(Date.now());
+      
+      // Handle stream end (user stops sharing)
+      stream.getVideoTracks()[0].addEventListener('ended', () => {
+        stopScreenShare();
+      });
+      
+      // Start first capture immediately
+      captureAndAnalyze(stream);
+      
+    } catch (error: any) {
+      setError('Failed to start screen sharing: ' + error.message);
+    }
+  };
+
+  /**
+   * Stop screen sharing
+   */
+  const stopScreenShare = () => {
+    if (screenStream) {
+      screenStream.getTracks().forEach(track => track.stop());
+      setScreenStream(null);
+    }
+    setQuizActive(false);
+  };
+
+  /**
+   * Capture screenshot and analyze with AI
+   */
+  const captureAndAnalyze = async (stream: MediaStream) => {
+    try {
+      // Create video element to capture frame
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+      
+      // Wait for video to be ready
+      await new Promise(resolve => {
+        video.onloadedmetadata = resolve;
+      });
+      
+      // Create canvas and capture frame
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0);
+      
+      // Convert to base64
+      const base64Image = canvas.toDataURL('image/jpeg', 0.8);
+      
+      // Send to backend for analysis
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/quiz/analyze-slide`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          image: base64Image
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to analyze slide');
+      }
+      
+      const data = await response.json();
+      
+      // Update stats
+      setQuizStats(prev => ({
+        ...prev,
+        capturesCount: prev.capturesCount + 1
+      }));
+      
+      // Generate and send question automatically
+      await generateAndSendQuestion(data.slideId, data.analysis, data.imageUrl);
+      
+    } catch (error: any) {
+      console.error('Capture error:', error);
+      setError('Failed to capture screen: ' + error.message);
+    }
+  };
+
+  /**
+   * Generate question and send to student automatically
+   */
+  const generateAndSendQuestion = async (slideId: string, analysis: any, slideImageUrl: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const headers = await getAuthHeaders();
+      
+      // Generate questions
+      const genResponse = await fetch(`${apiUrl}/sessions/${sessionId}/quiz/generate-questions`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          slideId,
+          analysis,
+          slideImageUrl,
+          difficulty: analysis.difficulty || 'MEDIUM',
+          count: 1 // Generate 1 question per capture
+        })
+      });
+      
+      if (!genResponse.ok) {
+        throw new Error('Failed to generate questions');
+      }
+      
+      const genData = await genResponse.json();
+      const questions = genData.questions || [];
+      
+      if (questions.length === 0) {
+        return;
+      }
+      
+      // Update stats
+      setQuizStats(prev => ({
+        ...prev,
+        questionsGenerated: prev.questionsGenerated + questions.length
+      }));
+      
+      // Send first question to student
+      const question = questions[0];
+      const sendResponse = await fetch(`${apiUrl}/sessions/${sessionId}/quiz/send-question`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          questionId: question.questionId,
+          timeLimit: 180 // 3 minutes - enough time to read and answer
+        })
+      });
+      
+      if (!sendResponse.ok) {
+        const errorData = await sendResponse.json().catch(() => ({}));
+        const errorMsg = errorData.error?.message || 'Failed to send question';
+        
+        // If no students, just log and continue (don't throw error)
+        if (errorData.error?.code === 'NO_STUDENTS') {
+          console.log('No students present yet, skipping question send');
+          return;
+        }
+        
+        throw new Error(errorMsg);
+      }
+      
+      const sendData = await sendResponse.json();
+      
+      // Update stats
+      setQuizStats(prev => ({
+        ...prev,
+        questionsSent: prev.questionsSent + 1
+      }));
+      
+      console.log(`Question sent to ${sendData.studentId}`);
+      
+    } catch (error: any) {
+      console.error('Generate/send error:', error);
+    }
+  };
+
+  /**
+   * Continuous capture loop
+   */
+  useEffect(() => {
+    if (!quizActive || !screenStream) {
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = (now - lastCaptureTime) / 1000;
+      
+      if (elapsed >= captureInterval) {
+        setLastCaptureTime(now);
+        captureAndAnalyze(screenStream);
+      }
+    }, 1000); // Check every second
+    
+    return () => clearInterval(interval);
+  }, [quizActive, screenStream, lastCaptureTime, captureInterval]);
+
 
   /**
    * Fetch initial session data
@@ -555,14 +773,22 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>📅</span>
-            <span>{new Date(session.startAt).toLocaleDateString()}</span>
+            <span>
+              {session.startAt && !isNaN(new Date(session.startAt).getTime()) 
+                ? new Date(session.startAt).toLocaleDateString() 
+                : 'Not set'}
+            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>🕐</span>
             <span>
-              {new Date(session.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {session.startAt && !isNaN(new Date(session.startAt).getTime())
+                ? new Date(session.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : 'Not set'}
               {' → '}
-              {session.endAt ? new Date(session.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not set'}
+              {session.endAt && !isNaN(new Date(session.endAt).getTime())
+                ? new Date(session.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : 'Not set'}
             </span>
           </div>
         </div>
@@ -789,6 +1015,168 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           }}
         />
       </div>
+
+      {/* Live Quiz Controls */}
+      {session.status === 'ACTIVE' && (
+        <div style={{ 
+          marginBottom: '2rem',
+          padding: '1.5rem',
+          backgroundColor: quizActive ? '#e6f7ff' : '#f0f9ff',
+          border: `2px solid ${quizActive ? '#1890ff' : '#0078d4'}`,
+          borderRadius: '8px'
+        }}>
+          <h3 style={{ 
+            margin: '0 0 1rem 0',
+            color: '#0078d4',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            🤖 Live Quiz (AI-Powered)
+            {quizActive && <span style={{ 
+              fontSize: '0.8rem',
+              padding: '0.25rem 0.75rem',
+              backgroundColor: '#52c41a',
+              color: 'white',
+              borderRadius: '12px',
+              fontWeight: '600'
+            }}>● ACTIVE</span>}
+          </h3>
+          
+          {!quizActive ? (
+            <>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: '#666' }}>
+                Share your screen to automatically capture slides and generate quiz questions for students.
+              </p>
+              
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Capture Frequency:
+                </label>
+                <select
+                  value={captureInterval}
+                  onChange={(e) => setCaptureInterval(Number(e.target.value))}
+                  style={{
+                    padding: '0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid #d9d9d9',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  <option value={15}>Every 15 seconds</option>
+                  <option value={30}>Every 30 seconds</option>
+                  <option value={60}>Every 60 seconds</option>
+                  <option value={120}>Every 2 minutes</option>
+                  <option value={300}>Every 5 minutes</option>
+                </select>
+              </div>
+              
+              <button
+                onClick={startScreenShare}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#0078d4',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                🖥️ Start Screen Share
+              </button>
+            </>
+          ) : (
+            <div>
+              <div style={{ 
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: '1rem',
+                marginBottom: '1rem'
+              }}>
+                <div style={{
+                  padding: '1rem',
+                  backgroundColor: 'white',
+                  borderRadius: '4px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1890ff' }}>
+                    {quizStats.capturesCount}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#666' }}>Captures</div>
+                </div>
+                
+                <div style={{
+                  padding: '1rem',
+                  backgroundColor: 'white',
+                  borderRadius: '4px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#52c41a' }}>
+                    {quizStats.questionsGenerated}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#666' }}>Questions</div>
+                </div>
+                
+                <div style={{
+                  padding: '1rem',
+                  backgroundColor: 'white',
+                  borderRadius: '4px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#fa8c16' }}>
+                    {quizStats.questionsSent}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#666' }}>Sent</div>
+                </div>
+                
+                <div style={{
+                  padding: '1rem',
+                  backgroundColor: 'white',
+                  borderRadius: '4px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#722ed1' }}>
+                    {Math.max(0, captureInterval - Math.floor((Date.now() - lastCaptureTime) / 1000))}s
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#666' }}>Next Capture</div>
+                </div>
+              </div>
+              
+              <div style={{ 
+                padding: '0.75rem',
+                backgroundColor: '#fff7e6',
+                borderRadius: '4px',
+                marginBottom: '1rem',
+                fontSize: '0.85rem',
+                color: '#ad6800'
+              }}>
+                ℹ️ Screen is being captured every {captureInterval} seconds. AI will automatically generate and send questions to students.
+              </div>
+              
+              <button
+                onClick={stopScreenShare}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#ff4d4f',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '600'
+                }}
+              >
+                ⏹️ Stop Screen Share
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Student List */}
       <div style={{

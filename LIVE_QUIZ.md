@@ -1,36 +1,36 @@
 # Live Quiz - AI-Powered Attention Tracking
 
-Interactive quiz system using AI to analyze lecture slides and quiz students in real-time.
+Interactive quiz system using AI to analyze lecture slides in real-time and quiz students automatically.
 
 ---
 
 ## Quick Start (Teachers)
 
-### 5-Minute Setup
+### 3-Step Setup
 
-1. **Open Session Dashboard** → Look for "Live Quiz" panel
-2. **Capture Slide** → Click "📸 Capture Slide" or upload image
-3. **Generate Questions** → AI creates 3 questions automatically
-4. **Send to Student** → Set time limit, AI selects student fairly
-5. **View Result** → See answer, AI evaluation, and engagement metrics
+1. **Start Screen Share** → Click "🖥️ Start Screen Share" button
+2. **Set Frequency** → Choose capture interval (15s - 5min)
+3. **AI Takes Over** → System automatically captures, analyzes, generates questions, and sends to students
+
+That's it! The system runs automatically while you teach.
 
 ---
 
 ## Overview
 
-Teachers can share their screen or upload slides during a session. AI analyzes the content and generates relevant questions. Students are randomly (but fairly) selected to answer within a time limit, helping track engagement and attention.
+Teachers share their screen during a session. The system continuously captures screenshots at configurable intervals, analyzes content with AI, generates relevant questions, and automatically sends them to students. This creates a seamless, attention-tracking quiz experience without interrupting the lecture flow.
 
 ---
 
 ## Features
 
 ### For Teachers
-- 📸 Capture or upload lecture slides
-- 🤖 AI analyzes content and generates questions
-- 👥 Fair student selection algorithm
-- ⏱️ Configurable time limits (15s-90s)
-- 📊 Real-time engagement tracking
-- 💯 AI-powered answer evaluation
+- 🖥️ One-click screen sharing
+- ⏱️ Configurable capture frequency (15s - 5min)
+- 🤖 Fully automated AI workflow
+- 📊 Real-time statistics dashboard
+- 🎯 Zero manual intervention needed
+- 📈 Continuous engagement tracking
 
 ### For Students
 - 🔔 Real-time question notifications
@@ -43,20 +43,22 @@ Teachers can share their screen or upload slides during a session. AI analyzes t
 
 ## How It Works
 
-### Teacher Flow
+### Automated Teacher Flow
 
 1. **Start Session** - Open session dashboard
-2. **Capture Slide** - Upload image or capture screen
-3. **AI Analysis** - AI analyzes slide (2-3 seconds)
-4. **Generate Questions** - AI creates 3-5 question options
-5. **Select Question** - Pick a question or edit it
-6. **Set Parameters** - Time limit, difficulty, question type
-7. **Send to Student** - AI selects student fairly
-8. **Monitor Response** - See countdown and student answer
-9. **Review Answer** - AI evaluates answer quality
-10. **Track Metrics** - View engagement scores
+2. **Click "Start Screen Share"** - Browser requests screen permission
+3. **Select Screen** - Choose which screen/window to share
+4. **Set Frequency** - Choose how often to capture (default: 30s)
+5. **System Runs Automatically**:
+   - Captures screenshot every N seconds
+   - AI analyzes slide content (2-3s)
+   - AI generates 1 question per capture
+   - AI selects student fairly
+   - Question sent automatically via SignalR
+6. **Monitor Stats** - View captures, questions, and sends in real-time
+7. **Stop When Done** - Click "Stop Screen Share"
 
-### Student Flow
+### Student Flow (Same as Before)
 
 1. **In Session** - Viewing session dashboard
 2. **Receive Question** - Pop-up notification
@@ -65,6 +67,23 @@ Teachers can share their screen or upload slides during a session. AI analyzes t
 5. **Submit** - Before timer expires
 6. **See Result** - Immediate feedback with score
 7. **View Stats** - Personal engagement score
+
+---
+
+## Capture Frequency Options
+
+**Available Intervals**:
+- **15 seconds** - High frequency (4 questions/minute)
+- **30 seconds** - Balanced (2 questions/minute) ⭐ Recommended
+- **60 seconds** - Moderate (1 question/minute)
+- **2 minutes** - Low frequency (0.5 questions/minute)
+- **5 minutes** - Very low (0.2 questions/minute)
+
+**Recommendations**:
+- **Fast-paced lecture**: 30-60 seconds
+- **Detailed explanations**: 2-5 minutes
+- **Code demonstrations**: 60-120 seconds
+- **Theory-heavy content**: 30-60 seconds
 
 ---
 
@@ -219,27 +238,28 @@ Fields: totalQuestions, correctAnswers, averageResponseTime,
 
 ```bash
 # Analyze slide
-POST /api/analyzeSlide
-Body: { sessionId, imageData }
+POST /api/sessions/{sessionId}/quiz/analyze-slide
+Body: { image: "base64..." } or { imageUrl: "https://..." }
+Response: { slideId, imageUrl, analysis: { topic, title, keyPoints, ... } }
 
 # Generate questions
-POST /api/generateQuestions
-Body: { sessionId, slideContent, difficulty }
+POST /api/sessions/{sessionId}/quiz/generate-questions
+Body: { slideId, analysis, difficulty, count }
+Response: { questions: [{ questionId, text, type, difficulty, options, ... }] }
 
 # Send question to student
-POST /api/sendQuizQuestion
-Body: { sessionId, questionId, timeLimit }
+POST /api/sessions/{sessionId}/quiz/send-question
+Body: { questionId, timeLimit }
+Response: { responseId, studentId, sentAt, expiresAt }
 ```
 
 ### Student Endpoints
 
 ```bash
 # Submit answer
-POST /api/submitQuizAnswer
-Body: { sessionId, questionId, answer }
-
-# Get metrics
-GET /api/getQuizMetrics?sessionId={id}&studentId={email}
+POST /api/sessions/{sessionId}/quiz/submit-answer
+Body: { responseId, answer }
+Response: { isCorrect, score, feedback, correctAnswer }
 ```
 
 ---
@@ -363,17 +383,19 @@ curl https://your-function-app.azurewebsites.net/api/getQuizMetrics?sessionId={i
 
 ```bash
 # Test slide analysis
-curl -X POST https://your-app.azurewebsites.net/api/analyzeSlide \
+curl -X POST http://localhost:7071/api/sessions/test-session/quiz/analyze-slide \
   -H "Content-Type: application/json" \
-  -d '{"sessionId":"test","imageData":"base64..."}'
+  -d '{"image":"data:image/jpeg;base64,..."}'
 
 # Test question generation
-curl -X POST https://your-app.azurewebsites.net/api/generateQuestions \
+curl -X POST http://localhost:7071/api/sessions/test-session/quiz/generate-questions \
   -H "Content-Type: application/json" \
-  -d '{"sessionId":"test","slideContent":"..."}'
+  -d '{"slideId":"slide-123","analysis":{...},"difficulty":"MEDIUM","count":3}'
 
-# View metrics
-curl https://your-app.azurewebsites.net/api/getQuizMetrics?sessionId=test
+# Test send question
+curl -X POST http://localhost:7071/api/sessions/test-session/quiz/send-question \
+  -H "Content-Type: application/json" \
+  -d '{"questionId":"q-123","timeLimit":60}'
 ```
 
 ---

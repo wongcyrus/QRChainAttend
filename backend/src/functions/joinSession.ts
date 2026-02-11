@@ -92,13 +92,18 @@ export async function joinSession(
 
     const principal = parseUserPrincipal(principalHeader);
     
+    context.log('User principal:', JSON.stringify(principal, null, 2));
+    
     // Require Student role
     if (!hasRole(principal, 'Student') && !hasRole(principal, 'student')) {
+      context.log('Access denied: User does not have Student role');
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
       };
     }
+    
+    context.log('Student role verified for user:', getUserId(principal));
 
     const studentId = getUserId(principal);
     const sessionId = request.params.sessionId;
@@ -246,11 +251,15 @@ export async function joinSession(
     } catch (error: any) {
       if (error.statusCode === 404) {
         // Create new enrollment with join timestamp and location data
+        const joinTimestamp = Math.floor(Date.now() / 1000);
         const entity: any = {
           partitionKey: sessionId,
           rowKey: studentId,
           exitVerified: false,
-          joinedAt: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
+          joinedAt: joinTimestamp,
+          entryStatus: 'PRESENT_ENTRY', // Set entry status for quiz system
+          isOnline: true,
+          lastSeen: joinTimestamp
         };
 
         // Save location data if provided

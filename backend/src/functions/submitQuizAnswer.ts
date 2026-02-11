@@ -37,7 +37,7 @@ function getTableClient(tableName: string): TableClient {
   return TableClient.fromConnectionString(connectionString, tableName, { allowInsecureConnection: isLocal });
 }
 
-// AI answer evaluation
+// Simple answer evaluation - multiple choice only
 async function evaluateAnswer(
   question: string,
   correctAnswer: string,
@@ -46,106 +46,16 @@ async function evaluateAnswer(
   context: InvocationContext
 ): Promise<{ isCorrect: boolean; score: number; feedback: string }> {
   
-  // For multiple choice, simple exact match
-  if (questionType === 'MULTIPLE_CHOICE') {
-    const isCorrect = studentAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
-    return {
-      isCorrect,
-      score: isCorrect ? 100 : 0,
-      feedback: isCorrect 
-        ? 'Correct! Well done.' 
-        : `Incorrect. The correct answer is: ${correctAnswer}`
-    };
-  }
-
-  // For short answer, use AI evaluation
-  const openaiEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
-  const openaiKey = process.env.AZURE_OPENAI_KEY;
-  const openaiDeployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4';
-
-  if (!openaiEndpoint || !openaiKey) {
-    // Fallback to simple comparison
-    const isCorrect = studentAnswer.toLowerCase().includes(correctAnswer.toLowerCase());
-    return {
-      isCorrect,
-      score: isCorrect ? 80 : 20,
-      feedback: 'Answer recorded. Teacher will review.'
-    };
-  }
-
-  try {
-    const apiUrl = `${openaiEndpoint}/openai/deployments/${openaiDeployment}/chat/completions?api-version=2024-02-15-preview`;
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': openaiKey
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: 'system',
-            content: `You are evaluating student answers. Be fair and consider partial credit.
-Provide constructive feedback that helps students learn.`
-          },
-          {
-            role: 'user',
-            content: `Question: ${question}
-
-Expected Answer: ${correctAnswer}
-
-Student Answer: ${studentAnswer}
-
-Evaluate the student's answer and return ONLY valid JSON (no markdown):
-{
-  "isCorrect": true or false,
-  "score": 0-100,
-  "feedback": "1-2 sentences of constructive feedback"
-}
-
-Consider:
-- Is the core concept correct?
-- Are key points mentioned?
-- Is it partially correct?
-- Provide specific feedback`
-          }
-        ],
-        max_tokens: 300,
-        temperature: 0.3,
-        response_format: { type: "json_object" }
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const aiResponse = await response.json();
-    const content = aiResponse.choices[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No content in OpenAI response');
-    }
-
-    const evaluation = JSON.parse(content);
-    
-    return {
-      isCorrect: evaluation.isCorrect || false,
-      score: evaluation.score || 0,
-      feedback: evaluation.feedback || 'Answer evaluated.'
-    };
-
-  } catch (error: any) {
-    context.error('AI evaluation failed:', error);
-    // Fallback
-    const isCorrect = studentAnswer.toLowerCase().includes(correctAnswer.toLowerCase());
-    return {
-      isCorrect,
-      score: isCorrect ? 70 : 30,
-      feedback: 'Answer recorded. Teacher will review.'
-    };
-  }
+  // Exact match comparison
+  const isCorrect = studentAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+  
+  return {
+    isCorrect,
+    score: isCorrect ? 100 : 0,
+    feedback: isCorrect 
+      ? 'Correct!' 
+      : `Incorrect. The correct answer is: ${correctAnswer}`
+  };
 }
 
 export async function submitQuizAnswer(
@@ -211,6 +121,15 @@ export async function submitQuizAnswer(
     }
 
     // Check if expired
+    context.log('Time check:', {
+      now,
+      expiresAt: response.expiresAt,
+      sentAt: response.sentAt,
+      timeLimit: (response.expiresAt as number) - (response.sentAt as number),
+      timeElapsed: now - (response.sentAt as number),
+      isExpired: now > (response.expiresAt as number)
+    });
+    
     if (now > (response.expiresAt as number)) {
       await responsesTable.updateEntity({
         partitionKey: sessionId,

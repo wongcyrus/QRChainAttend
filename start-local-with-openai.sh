@@ -169,7 +169,7 @@ open_terminal() {
         echo -e "${YELLOW}⚠️  Could not detect terminal. Please run manually:${NC}"
         echo ""
         echo "Terminal 1 (Azurite):"
-        echo "  azurite --silent --location ./azurite"
+        echo "  azurite --silent --location ./azurite --skipApiVersionCheck"
         echo ""
         echo "Terminal 2 (Backend):"
         echo "  cd backend && npm start"
@@ -186,7 +186,7 @@ echo ""
 
 # Start Azurite
 echo -e "${BLUE}Starting Azurite (Local Database)...${NC}"
-open_terminal "Azurite - Local DB" "azurite --silent --location ./azurite"
+open_terminal "Azurite - Local DB" "azurite --silent --location ./azurite --skipApiVersionCheck"
 sleep 2
 
 # Start backend

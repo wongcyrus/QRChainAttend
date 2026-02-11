@@ -132,6 +132,7 @@ export async function sendQuizQuestion(
     // Parse authentication
     const principalHeader = request.headers.get('x-ms-client-principal');
     if (!principalHeader) {
+      context.log('Missing authentication header');
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
@@ -139,9 +140,11 @@ export async function sendQuizQuestion(
     }
 
     const principal = parseUserPrincipal(principalHeader);
+    context.log('User:', principal.userDetails);
     
     // Require Teacher role
     if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
+      context.log('User does not have Teacher role');
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
@@ -152,7 +155,10 @@ export async function sendQuizQuestion(
     const body = await request.json() as any;
     const { questionId, studentId, timeLimit = 60 } = body;
     
+    context.log('Request body:', { questionId, studentId, timeLimit });
+    
     if (!sessionId || !questionId) {
+      context.log('Missing sessionId or questionId');
       return {
         status: 400,
         jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId or questionId', timestamp: Date.now() } }
@@ -166,7 +172,9 @@ export async function sendQuizQuestion(
     const attendanceTable = getTableClient('Attendance');
 
     // Get question details
+    context.log('Fetching question:', questionId);
     const question = await questionsTable.getEntity(sessionId, questionId);
+    context.log('Question found:', question.question);
 
     // Determine target student
     let targetStudent: string;
@@ -174,31 +182,75 @@ export async function sendQuizQuestion(
     if (studentId) {
       // Teacher specified a student
       targetStudent = studentId;
+      context.log('Using specified student:', targetStudent);
     } else {
       // Select student fairly
-      // Get all present students
+      context.log('Selecting student fairly...');
+      
+      // First, let's see ALL attendance records for debugging
+      context.log('Checking ALL attendance records for session:', sessionId);
+      const allRecords = attendanceTable.listEntities({
+        queryOptions: { filter: `PartitionKey eq '${sessionId}'` }
+      });
+      
+      let recordCount = 0;
+      for await (const record of allRecords) {
+        recordCount++;
+        context.log(`Attendance record ${recordCount}:`, { 
+          studentId: record.rowKey, 
+          entryStatus: record.entryStatus,
+          joinedAt: record.joinedAt,
+          isOnline: record.isOnline,
+          exitVerified: record.exitVerified,
+          lastSeen: record.lastSeen
+        });
+      }
+      context.log(`Total attendance records found: ${recordCount}`);
+      
+      // Get all present students (those who have joined)
       const attendees = [];
       const attendanceRecords = attendanceTable.listEntities({
-        queryOptions: { filter: `PartitionKey eq '${sessionId}' and entryStatus ne null` }
+        queryOptions: { filter: `PartitionKey eq '${sessionId}'` }
       });
 
       for await (const record of attendanceRecords) {
-        attendees.push(record.rowKey as string);
+        // Filter in code: check if joinedAt exists and is not null/undefined
+        if (record.joinedAt != null && record.joinedAt !== undefined) {
+          attendees.push(record.rowKey as string);
+        }
       }
 
+      context.log('Found attendees with joinedAt:', attendees);
+
       if (attendees.length === 0) {
+        context.log('No students present - silently skipping question send');
+        // Don't return error, just skip silently
         return {
-          status: 400,
-          jsonBody: { error: { code: 'NO_STUDENTS', message: 'No students present in session', timestamp: now } }
+          status: 200,
+          jsonBody: { 
+            skipped: true,
+            reason: 'No students present',
+            timestamp: now 
+          }
         };
       }
 
       targetStudent = await selectStudentFairly(sessionId, attendees, metricsTable, context);
+      context.log('Selected student:', targetStudent);
     }
 
     // Create response record
     const responseId = randomUUID();
     const expiresAt = now + timeLimit;
+
+    context.log('Creating quiz response:', {
+      responseId,
+      now,
+      timeLimit,
+      expiresAt,
+      nowDate: new Date(now * 1000).toISOString(),
+      expiresAtDate: new Date(expiresAt * 1000).toISOString()
+    });
 
     await responsesTable.createEntity({
       partitionKey: sessionId,
