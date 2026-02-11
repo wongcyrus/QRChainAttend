@@ -1,206 +1,194 @@
 # Documentation Quick Reference
 
-**Last Updated**: February 10, 2026
+**Last Updated**: February 11, 2026  
+**Total Files**: 18 (consolidated from 40)
 
 ---
 
-## 🚀 Getting Started
+## Core Documentation (5)
 
-### For New Developers
-1. **README.md** - Project overview and quick start
-2. **GETTING_STARTED.md** - Detailed setup instructions
-3. **LOCAL_DEVELOPMENT_SETUP.md** - Local environment setup
-
-### For Teachers/Users
-1. **README.md** - System overview and usage
-2. **GETTING_STARTED.md** - Complete setup and testing guide
+- **README.md** - Project overview and quick start
+- **GETTING_STARTED.md** - Complete setup and testing guide
+- **DOCS_QUICK_REFERENCE.md** - This file
+- **PROJECT_STATUS.md** - Current project status
+- **SYSTEM_ARCHITECTURE.md** - System design and architecture
 
 ---
 
-## 📊 Database & Infrastructure
+## Features (2)
 
-### Database
-- **DATABASE_TABLES.md** - Table schemas and structure (9 tables)
-- **DATABASE_MANAGEMENT.md** - Database operations and queries
-- **TABLES_CONFIG_REFERENCE.md** - Centralized table configuration
-
-### Architecture
-- **SYSTEM_ARCHITECTURE.md** ⭐ **NEW** - Complete system architecture and design decisions
-
-### Deployment
-- **DEPLOYMENT_GUIDE.md** - Full deployment instructions
-- **DEPLOYMENT_CHECKLIST.md** - Pre-deployment checklist
-- **DEPLOYMENT_SCRIPTS_GUIDE.md** - Script usage guide
-
----
-
-## 🔧 Development & Operations
-
-### Development
-- **DEV_TOOLS.md** - Development tools and commands
-- **LOCAL_DEVELOPMENT_SETUP.md** - Local setup guide
+- **LIVE_QUIZ.md** - AI-powered live quiz system (setup, usage, API)
 - **ENTRY_EXIT_METHODS.md** - Entry/exit method tracking system
 
-### Azure & Infrastructure
+---
+
+## Development (3)
+
+- **LOCAL_DEVELOPMENT.md** - All local development scenarios (pure local, local+prod backend, local+prod Azure)
+- **ENVIRONMENTS.md** - Environment scripts and production access
+- **DEV_TOOLS.md** - Development commands and tools
+
+---
+
+## Deployment (1)
+
+- **DEPLOYMENT.md** - Complete deployment guide (automated script, manual steps, troubleshooting)
+
+---
+
+## Database (2)
+
+- **DATABASE_TABLES.md** - Table schemas and structure (11 tables)
+- **DATABASE_MANAGEMENT.md** - Database operations and queries
+
+---
+
+## Configuration (4)
+
 - **AZURE_ENVIRONMENT.md** - Azure resources and configuration
+- **TABLES_CONFIG_REFERENCE.md** - Table configuration reference
 - **ROLE_ASSIGNMENT.md** - User role management
-- **SECURITY.md** - Security best practices
+- **STATIC_WEB_APP_SETUP.md** - Static Web App configuration
 
 ---
 
-## 🗂️ Project Organization
+## Security (1)
 
-### Main Documentation (Root)
-```
-README.md                          - Project overview
-GETTING_STARTED.md                 - Setup and testing guide
-SYSTEM_ARCHITECTURE.md             - System architecture and design
-DATABASE_TABLES.md                 - Database schema (9 tables)
-DATABASE_MANAGEMENT.md             - Database operations
-TABLES_CONFIG_REFERENCE.md         - Table configuration
-ENTRY_EXIT_METHODS.md              - Method tracking system
-DEPLOYMENT_GUIDE.md                - Deployment instructions
-DEPLOYMENT_CHECKLIST.md            - Pre-deployment checks
-DEPLOYMENT_SCRIPTS_GUIDE.md        - Script reference
-DEV_TOOLS.md                       - Development commands
-LOCAL_DEVELOPMENT_SETUP.md         - Local environment setup
-AZURE_ENVIRONMENT.md               - Azure resources
-ROLE_ASSIGNMENT.md                 - Role system
-SECURITY.md                        - Security practices
-```
-
-### Archived Documentation
-```
-.archive/old-docs/                 - Historical documentation and removed features
-```
+- **SECURITY.md** - Complete security guide (Git security, Azure security, authentication, best practices)
 
 ---
 
-## 🔍 Finding Information
+## Quick Navigation
 
 ### "How do I...?"
 
-**Setup the project locally**
-→ GETTING_STARTED.md → LOCAL_DEVELOPMENT_SETUP.md
+**Setup locally**
+→ LOCAL_DEVELOPMENT.md
 
-**Deploy to Azure**
-→ DEPLOYMENT_GUIDE.md → DEPLOYMENT_CHECKLIST.md → DEPLOYMENT_SCRIPTS_GUIDE.md
+**Deploy to production**
+→ DEPLOYMENT.md
 
-**Test the system**
-→ GETTING_STARTED.md (includes testing guide)
+**Use live quiz feature**
+→ LIVE_QUIZ.md
 
-**Manage the database**
-→ DATABASE_TABLES.md → DATABASE_MANAGEMENT.md → TABLES_CONFIG_REFERENCE.md
+**Access production**
+→ ENVIRONMENTS.md
 
-**Troubleshoot issues**
-→ DEV_TOOLS.md → DATABASE_MANAGEMENT.md
-
-**Understand the system architecture**
-→ SYSTEM_ARCHITECTURE.md
-
-**Understand entry/exit tracking**
-→ ENTRY_EXIT_METHODS.md
-
-**Assign user roles**
-→ ROLE_ASSIGNMENT.md
-
-**Use development tools**
-→ DEV_TOOLS.md
+**Manage database**
+→ DATABASE_TABLES.md → DATABASE_MANAGEMENT.md
 
 **Understand security**
 → SECURITY.md
 
-**Configure table names**
-→ TABLES_CONFIG_REFERENCE.md
+**Assign user roles**
+→ ROLE_ASSIGNMENT.md
+
+**Use dev tools**
+→ DEV_TOOLS.md
 
 ---
 
-## 📌 Most Important Documents
+## Production URLs
 
-### Top 5 for Developers
-1. **GETTING_STARTED.md** - Complete setup and testing guide
-2. **SYSTEM_ARCHITECTURE.md** - System design and architecture
-3. **DATABASE_TABLES.md** - Database schema (9 tables)
-4. **ENTRY_EXIT_METHODS.md** - Method tracking system
-5. **DEPLOYMENT_GUIDE.md** - How to deploy
-
-### Top 3 for Users
-1. **README.md** - System overview
-2. **GETTING_STARTED.md** - How to use the system
-3. **ROLE_ASSIGNMENT.md** - Understanding roles
-
----
-
-## 🗑️ Archived Documents
-
-The following documents were moved to `.archive/old-docs/`:
-- Historical status and analysis documents
-- Removed feature documentation (challenge codes)
-- Redundant guides (consolidated into main docs)
-- Outdated test flows
-
----
-
-## 📞 Quick Links
-
-### Production URLs
-- **Frontend**: https://red-grass-0f8bc910f.4.azurestaticapps.net
-- **Backend**: https://func-qrattendance-dev.azurewebsites.net
-
-### Development
-- **Local Frontend**: http://localhost:3002
-- **Local Backend**: http://localhost:7071
-- **Azurite**: http://127.0.0.1:10002
+### Application
+- **Frontend**: https://ashy-desert-0fc9a700f.6.azurestaticapps.net
+- **Backend**: https://func-qrattendance-prod.azurewebsites.net/api
 
 ### Azure Portal
-- **Resource Group**: rg-qr-attendance-dev
-- **Function App**: func-qrattendance-dev
-- **Static Web App**: red-grass-0f8bc910f
-- **Storage Account**: stqrattendancedev
+- **Resource Group**: rg-qr-attendance-prod
 
 ---
 
-## 🔄 Document Maintenance
+## Quick Commands
 
-### When to Update
+```bash
+# Local development
+./scripts/start-local-dev.sh          # Pure local (port 3000)
+./start-local-with-prod.sh            # Local FE + Prod BE (port 3002)
+./start-local-prod.sh                 # Local + Prod Azure (port 3001)
 
-**SYSTEM_ARCHITECTURE.md**:
-- When system design changes
-- When new components are added
-- When design decisions are made
+# Production
+./start-production.sh                 # Open production URLs
+./deploy-full-production.sh           # Deploy to production
 
-**ENTRY_EXIT_METHODS.md**:
-- When method tracking logic changes
-- When new verification methods are added
+# Database
+./scripts/tables-config.sh list prod  # List tables
+./scripts/tables-config.sh create prod # Create tables
 
-**DATABASE_TABLES.md**:
-- When table schemas change
-- When new tables are added
-- When fields are modified
-
-**TABLES_CONFIG_REFERENCE.md**:
-- When tables are added or removed
-- When table configuration changes
-
-**DEPLOYMENT_GUIDE.md**:
-- When deployment process changes
-- When new Azure resources are added
-- When configuration changes
-
-**GETTING_STARTED.md**:
-- When setup process changes
-- When new features are added
-- When testing procedures change
+# Monitoring
+az functionapp log tail --name func-qrattendance-prod --resource-group rg-qr-attendance-prod
+```
 
 ---
 
-## 📚 Additional Resources
+## Documentation Changes
 
-### External Documentation
-- [Azure Functions Docs](https://docs.microsoft.com/en-us/azure/azure-functions/)
-- [Next.js Docs](https://nextjs.org/docs)
-- [Azure Table Storage](https://docs.microsoft.com/en-us/azure/storage/tables/)
+### Consolidated (40 → 18 files)
+
+**Removed**:
+- Temporary status files (deployment success, cleanup summaries)
+- Redundant security files (combined into SECURITY.md)
+- Old fix notes (auth headers, session persistence, token fixes)
+
+**Combined**:
+- LOCAL_DEVELOPMENT.md (3 files → 1)
+- LIVE_QUIZ.md (3 files → 1)
+- DEPLOYMENT.md (3 files → 1)
+- ENVIRONMENTS.md (2 files → 1)
+- SECURITY.md (3 files → 1)
 
 ---
 
-**Need help?** Check the relevant document above or contact the development team.
+## File Structure
+
+```
+Root Documentation (18 files):
+├── Core (5)
+│   ├── README.md
+│   ├── GETTING_STARTED.md
+│   ├── DOCS_QUICK_REFERENCE.md
+│   ├── PROJECT_STATUS.md
+│   └── SYSTEM_ARCHITECTURE.md
+├── Features (2)
+│   ├── LIVE_QUIZ.md
+│   └── ENTRY_EXIT_METHODS.md
+├── Development (3)
+│   ├── LOCAL_DEVELOPMENT.md
+│   ├── ENVIRONMENTS.md
+│   └── DEV_TOOLS.md
+├── Deployment (1)
+│   └── DEPLOYMENT.md
+├── Database (2)
+│   ├── DATABASE_TABLES.md
+│   └── DATABASE_MANAGEMENT.md
+├── Configuration (4)
+│   ├── AZURE_ENVIRONMENT.md
+│   ├── TABLES_CONFIG_REFERENCE.md
+│   ├── ROLE_ASSIGNMENT.md
+│   └── STATIC_WEB_APP_SETUP.md
+└── Security (1)
+    └── SECURITY.md
+
+Archived:
+└── .archive/old-docs/ (historical documentation)
+```
+
+---
+
+## Top 5 Documents
+
+### For Developers
+1. **LOCAL_DEVELOPMENT.md** - Start developing
+2. **DEPLOYMENT.md** - Deploy to production
+3. **DATABASE_TABLES.md** - Database schema
+4. **LIVE_QUIZ.md** - Live quiz feature
+5. **SECURITY.md** - Security guidelines
+
+### For Users
+1. **README.md** - System overview
+2. **GETTING_STARTED.md** - How to use
+3. **LIVE_QUIZ.md** - How to use live quiz
+
+---
+
+**Need help?** Check the relevant document above or use the quick commands.

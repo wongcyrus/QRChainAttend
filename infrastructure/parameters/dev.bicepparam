@@ -20,11 +20,15 @@ param deployStaticWebApp = false
 param aadClientId = ''
 param aadClientSecret = ''
 
-// Optional: Deploy Azure OpenAI for AI insights
-param deployAzureOpenAI = false
-param openAIModelDeployment = 'gpt-4'
-param openAIModelName = 'gpt-4'
-param openAIModelVersion = '0613'
+// Optional: Deploy Azure OpenAI for AI insights and Live Quiz feature
+param deployAzureOpenAI = true  // Changed to true for Live Quiz feature
+param gpt4DeploymentName = 'gpt-4'
+param gpt4ModelName = 'gpt-4'
+param gpt4ModelVersion = '1106-Preview'  // Updated to latest version
+param gpt4VisionDeploymentName = 'gpt-4-vision'
+param gpt4VisionModelName = 'gpt-4'
+param gpt4VisionModelVersion = 'vision-preview'
+param deployVisionModel = true  // Required for Live Quiz slide analysis
 
 // Tags
 param tags = {

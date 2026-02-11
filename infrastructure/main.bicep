@@ -50,14 +50,26 @@ param deployAzureOpenAI bool = false
 @description('Deploy Azure Static Web App (optional, requires GitHub repo)')
 param deployStaticWebApp bool = true
 
-@description('Azure OpenAI model deployment name')
-param openAIModelDeployment string = 'gpt-4'
+@description('GPT-4 model deployment name')
+param gpt4DeploymentName string = 'gpt-4'
 
-@description('Azure OpenAI model name')
-param openAIModelName string = 'gpt-4'
+@description('GPT-4 model name')
+param gpt4ModelName string = 'gpt-4'
 
-@description('Azure OpenAI model version')
-param openAIModelVersion string = '0613'
+@description('GPT-4 model version')
+param gpt4ModelVersion string = '0613'
+
+@description('GPT-4 Vision model deployment name')
+param gpt4VisionDeploymentName string = 'gpt-4-vision'
+
+@description('GPT-4 Vision model name')
+param gpt4VisionModelName string = 'gpt-4'
+
+@description('GPT-4 Vision model version')
+param gpt4VisionModelVersion string = 'vision-preview'
+
+@description('Deploy GPT-4 Vision model (required for Live Quiz feature)')
+param deployVisionModel bool = true
 
 @description('Tags to apply to all resources')
 param tags object = {
@@ -114,6 +126,23 @@ module appInsights 'modules/appinsights.bicep' = {
   }
 }
 
+// Azure OpenAI (Optional) - Must be deployed before Functions
+module openai 'modules/openai.bicep' = if (deployAzureOpenAI) {
+  name: 'openai-deployment'
+  params: {
+    openAIName: openAIName
+    location: location
+    gpt4DeploymentName: gpt4DeploymentName
+    gpt4ModelName: gpt4ModelName
+    gpt4ModelVersion: gpt4ModelVersion
+    gpt4VisionDeploymentName: gpt4VisionDeploymentName
+    gpt4VisionModelName: gpt4VisionModelName
+    gpt4VisionModelVersion: gpt4VisionModelVersion
+    deployVisionModel: deployVisionModel
+    tags: tags
+  }
+}
+
 // Azure Functions (Backend API)
 module functions 'modules/functions.bicep' = {
   name: 'functions-deployment'
@@ -125,11 +154,16 @@ module functions 'modules/functions.bicep' = {
     storageAccountUri: storage.outputs.tableEndpoint
     signalRConnectionString: signalr.outputs.connectionString
     appInsightsConnectionString: appInsights.outputs.connectionString
+    azureOpenAIEndpoint: deployAzureOpenAI ? openai.outputs.endpoint : ''
+    azureOpenAIKey: deployAzureOpenAI ? openai.outputs.primaryKey : ''
+    azureOpenAIDeployment: deployAzureOpenAI ? openai.outputs.gpt4DeploymentName : ''
+    azureOpenAIVisionDeployment: deployAzureOpenAI ? openai.outputs.gpt4VisionDeploymentName : ''
     tags: tags
   }
 }
 
 // Azure Static Web App (Frontend) - Optional
+// Use GitHub CI/CD module if repository URL provided, otherwise manual deployment
 module staticWebApp 'modules/staticwebapp.bicep' = if (deployStaticWebApp && repositoryUrl != '') {
   name: 'staticwebapp-deployment'
   params: {
@@ -145,15 +179,15 @@ module staticWebApp 'modules/staticwebapp.bicep' = if (deployStaticWebApp && rep
   }
 }
 
-// Azure OpenAI (Optional)
-module openai 'modules/openai.bicep' = if (deployAzureOpenAI) {
-  name: 'openai-deployment'
+// Azure Static Web App (Manual Deployment) - No GitHub CI/CD
+module staticWebAppManual 'modules/staticwebapp-manual.bicep' = if (deployStaticWebApp && repositoryUrl == '') {
+  name: 'staticwebapp-manual-deployment'
   params: {
-    openAIName: openAIName
+    staticWebAppName: staticWebAppName
     location: location
-    modelDeploymentName: openAIModelDeployment
-    modelName: openAIModelName
-    modelVersion: openAIModelVersion
+    tenantId: tenantId
+    aadClientId: aadClientId
+    aadClientSecret: aadClientSecret
     tags: tags
   }
 }
@@ -164,7 +198,7 @@ module rbac 'modules/rbac.bicep' = {
   params: {
     storageAccountName: storage.outputs.storageAccountName
     signalRName: signalr.outputs.signalRName
-    staticWebAppPrincipalId: deployStaticWebApp && repositoryUrl != '' ? staticWebApp.outputs.principalId : ''
+    staticWebAppPrincipalId: deployStaticWebApp ? (repositoryUrl != '' ? staticWebApp.outputs.principalId : staticWebAppManual.outputs.principalId) : ''
     functionAppPrincipalId: functions.outputs.principalId
     deployAzureOpenAI: deployAzureOpenAI
     openAIName: deployAzureOpenAI ? openai.outputs.openAIName : ''
@@ -193,10 +227,13 @@ output signalRName string = signalr.outputs.signalRName
 output signalREndpoint string = signalr.outputs.endpoint
 
 @description('Static Web App name (if deployed)')
-output staticWebAppName string = deployStaticWebApp && repositoryUrl != '' ? staticWebApp.outputs.staticWebAppName : ''
+output staticWebAppName string = deployStaticWebApp ? (repositoryUrl != '' ? staticWebApp.outputs.staticWebAppName : staticWebAppManual.outputs.staticWebAppName) : ''
 
 @description('Static Web App default hostname (if deployed)')
-output staticWebAppUrl string = deployStaticWebApp && repositoryUrl != '' ? staticWebApp.outputs.defaultHostname : ''
+output staticWebAppUrl string = deployStaticWebApp ? (repositoryUrl != '' ? staticWebApp.outputs.defaultHostname : staticWebAppManual.outputs.defaultHostname) : ''
+
+@description('Static Web App deployment token (for manual deployment)')
+output staticWebAppDeploymentToken string = deployStaticWebApp && repositoryUrl == '' ? staticWebAppManual.outputs.deploymentToken : ''
 
 @description('Function App name')
 output functionAppName string = functions.outputs.functionAppName
@@ -216,13 +253,19 @@ output openAIName string = deployAzureOpenAI ? openai.outputs.openAIName : ''
 @description('Azure OpenAI endpoint (if deployed)')
 output openAIEndpoint string = deployAzureOpenAI ? openai.outputs.endpoint : ''
 
+@description('GPT-4 deployment name (if deployed)')
+output gpt4DeploymentName string = deployAzureOpenAI ? openai.outputs.gpt4DeploymentName : ''
+
+@description('GPT-4 Vision deployment name (if deployed)')
+output gpt4VisionDeploymentName string = deployAzureOpenAI ? openai.outputs.gpt4VisionDeploymentName : ''
+
 @description('Deployment summary')
 output deploymentSummary object = {
   environment: environment
   location: location
   storageAccount: storage.outputs.storageAccountName
   signalR: signalr.outputs.signalRName
-  staticWebApp: deployStaticWebApp && repositoryUrl != '' ? staticWebApp.outputs.staticWebAppName : 'Not deployed'
+  staticWebApp: deployStaticWebApp ? (repositoryUrl != '' ? staticWebApp.outputs.staticWebAppName : staticWebAppManual.outputs.staticWebAppName) : 'Not deployed'
   functionApp: functions.outputs.functionAppName
   appInsights: appInsights.outputs.appInsightsName
   openAI: deployAzureOpenAI ? openai.outputs.openAIName : 'Not deployed'

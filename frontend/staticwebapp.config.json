@@ -20,7 +20,23 @@
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/*.css", "/*.scss", "/*.js", "/*.png", "/*.gif", "/*.ico", "/*.jpg", "/*.jpeg", "/*.svg", "/*.webp", "/*.woff", "/*.woff2", "/*.ttf", "/*.eot"]
+    "exclude": [
+      "/api/*",
+      "/*.css",
+      "/*.scss",
+      "/*.js",
+      "/*.png",
+      "/*.gif",
+      "/*.ico",
+      "/*.jpg",
+      "/*.jpeg",
+      "/*.svg",
+      "/*.webp",
+      "/*.woff",
+      "/*.woff2",
+      "/*.ttf",
+      "/*.eot"
+    ]
   },
   "responseOverrides": {
     "401": {
@@ -46,7 +62,10 @@
           "clientSecretSettingName": "AAD_CLIENT_SECRET"
         },
         "login": {
-          "loginParameters": ["scope=openid profile email", "prompt=select_account"]
+          "loginParameters": [
+            "scope=openid profile email",
+            "prompt=select_account"
+          ]
         },
         "userDetailsClaim": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
       }

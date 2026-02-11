@@ -24,6 +24,19 @@ param signalRConnectionString string
 @secure()
 param appInsightsConnectionString string
 
+@description('Azure OpenAI endpoint (optional)')
+param azureOpenAIEndpoint string = ''
+
+@description('Azure OpenAI key (optional)')
+@secure()
+param azureOpenAIKey string = ''
+
+@description('Azure OpenAI GPT-4 deployment name (optional)')
+param azureOpenAIDeployment string = ''
+
+@description('Azure OpenAI GPT-4 Vision deployment name (optional)')
+param azureOpenAIVisionDeployment string = ''
+
 @description('Tags to apply to the resource')
 param tags object
 
@@ -88,8 +101,28 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           value: 'node'
         }
         {
+          name: 'FUNCTIONS_WORKER_RUNTIME_VERSION'
+          value: '~4'
+        }
+        {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
           value: '~20'
+        }
+        {
+          name: 'FUNCTIONS_NODE_BLOCK_ON_ENTRY_POINT_ERROR'
+          value: 'true'
+        }
+        {
+          name: 'WEBSITE_MOUNT_ENABLED'
+          value: '1'
+        }
+        {
+          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
+          value: 'false'
+        }
+        {
+          name: 'ENABLE_ORYX_BUILD'
+          value: 'false'
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -118,7 +151,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         }
         {
           name: 'CHAIN_TOKEN_TTL_SECONDS'
-          value: '20'
+          value: '10'
         }
         {
           name: 'OWNER_TRANSFER'
@@ -129,16 +162,33 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           value: ''
         }
         {
+          name: 'AZURE_OPENAI_ENDPOINT'
+          value: azureOpenAIEndpoint
+        }
+        {
+          name: 'AZURE_OPENAI_KEY'
+          value: azureOpenAIKey
+        }
+        {
+          name: 'AZURE_OPENAI_DEPLOYMENT'
+          value: azureOpenAIDeployment
+        }
+        {
+          name: 'AZURE_OPENAI_VISION_DEPLOYMENT'
+          value: azureOpenAIVisionDeployment
+        }
+        // Legacy AOAI settings (kept for backward compatibility)
+        {
           name: 'AOAI_ENDPOINT'
-          value: ''
+          value: azureOpenAIEndpoint
         }
         {
           name: 'AOAI_KEY'
-          value: ''
+          value: azureOpenAIKey
         }
         {
           name: 'AOAI_DEPLOYMENT'
-          value: ''
+          value: azureOpenAIDeployment
         }
         {
           name: 'QR_ENCRYPTION_KEY'

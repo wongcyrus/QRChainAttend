@@ -75,9 +75,12 @@ test-swa-deploy.sh
 .deployment-config
 *.secret
 deployment.log
+deployment*.log
+deployment*.json
 COMPLETE_DEPLOYMENT_SUMMARY.md
 DEPLOYMENT_SUCCESS.md
 QUICK_DEPLOY_GUIDE.md
 github-token.txt
 azure-cicd-credentials.json
 backend-deploy.zip
+backend-deploy-*.zip

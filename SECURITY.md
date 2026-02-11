@@ -1,320 +1,302 @@
 # Security Guidelines
 
-## Secrets Management
+Complete security guide for the QR Chain Attendance System.
 
-### ✅ Files That Should NEVER Be Committed
+---
 
-The following files contain sensitive information and must NEVER be committed to Git:
+## Git Security - VERIFIED ✓
 
-```
-.deployment-config       # Deployment credentials
-*.secret                 # Any secret files
-credential.json          # Azure credentials
-github-token.txt         # GitHub personal access token
-ad-apps.json            # Azure AD app details
-azure-ad-summary.md     # May contain sensitive IDs
-deploy-now.sh           # May contain hardcoded secrets
-test-swa-deploy.sh      # May contain hardcoded secrets
-roles.json              # Temporary file with UUIDs
-local.settings.json     # Local Azure Functions settings
-.env                    # Environment variables
-.env.local              # Local environment variables
-deployment.log          # May contain secrets in output
-```
+### Files Properly Ignored
 
-### ⚠️ SWA_DEPLOYMENT_TOKEN Security
+All sensitive files are correctly ignored by `.gitignore`:
+- `.env`, `.env.local` - Environment variables
+- `backend/local.settings.json` - Azure Functions settings
+- `*.secret` - Secret files
+- `deployment*.log`, `deployment*.json` - Deployment outputs
+- `github-token.txt` - GitHub tokens
+- `credential.json`, `ad-apps.json` - Azure credentials
 
-**The Static Web App deployment token is automatically fetched from Azure:**
+### Safe to Commit
 
+**Public Values** (in `frontend/.env.production`):
+- `NEXT_PUBLIC_AAD_CLIENT_ID` - Azure AD Client ID (public)
+- `NEXT_PUBLIC_AAD_TENANT_ID` - Azure AD Tenant ID (public)
+- `NEXT_PUBLIC_API_URL` - Public API endpoint
+- `NEXT_PUBLIC_SIGNALR_URL` - Public SignalR endpoint
+
+These are meant to be exposed to browsers and are safe to commit.
+
+**Template Files**:
+- `backend/local.settings.json.template` - Placeholders only
+- `backend/.env.example` - Documentation only
+
+### Never Commit
+
+**Secrets** (must never be in Git):
+- `AAD_CLIENT_SECRET` - Azure AD client secret
+- `AZURE_OPENAI_KEY` - OpenAI API key
+- `SIGNALR_CONNECTION_STRING` - SignalR connection (contains AccessKey)
+- `STORAGE_ACCOUNT_KEY` - Storage access key
+- `AzureWebJobsStorage` - Storage connection string
+
+---
+
+## Verification Commands
+
+### Check Git Ignore
 ```bash
-# Scripts automatically fetch the token:
-az staticwebapp secrets list \
-  --name swa-qrattendance-dev2 \
-  --resource-group rg-qr-attendance-dev \
-  --query 'properties.apiKey' -o tsv
+# Verify files are ignored
+git check-ignore -v .env frontend/.env.local backend/local.settings.json
+
+# Find tracked sensitive files
+git ls-files | grep -E '\.(env|secret|key|credential|token)' | grep -v '.example' | grep -v '.template'
+
+# Should only return: frontend/.env.production (which is safe)
 ```
 
-**No need to set environment variables - just ensure you're logged in:**
-```bash
-az login
-```
-
-**If token is exposed (committed to Git), reset it immediately:**
-```bash
-az staticwebapp secrets reset-api-key \
-  --name swa-qrattendance-dev2 \
-  --resource-group rg-qr-attendance-dev
-```
-
-**All deployment scripts now automatically fetch fresh tokens on each run.**
-
-### ✅ Safe to Commit (Local Development Only)
-
-**These are safe because they're for local Azurite emulator only:**
-- Azurite connection strings (well-known public key: `Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==`)
-- Local development configuration templates
-- Template files with placeholder values
-
-### ✅ Verify .gitignore
-
-Before committing, always verify these files are in `.gitignore`:
-
-```bash
-# Check if sensitive files are ignored
-git check-ignore .deployment-config credential.json github-token.txt
-
-# Should output the filenames if properly ignored
-```
-
-### ✅ Check for Accidentally Committed Secrets
-
+### Check for Secrets
 ```bash
 # Search for potential secrets in tracked files
-git ls-files | xargs grep -l "github_pat_\|ghp_\|password\|secret\|key" 2>/dev/null
+git ls-files | xargs grep -l "password\|secret\|key" 2>/dev/null | grep -v ".md"
 
-# If any files are found, remove them from Git history
+# Check Git history
+git log --all --full-history --source --find-renames --diff-filter=D -- "*.env" "local.settings.json"
 ```
 
-## Removing Secrets from Git History
+---
 
-If you accidentally committed secrets:
+## Azure Security
 
-### Option 1: Using BFG Repo-Cleaner (Recommended)
+### Managed Identity (Recommended)
+
+Use Managed Identity instead of connection strings in production:
 
 ```bash
-# Install BFG
-# macOS: brew install bfg
-# Linux: Download from https://rtyley.github.io/bfg-repo-cleaner/
+# Enable Managed Identity
+az functionapp identity assign \
+  --name func-qrattendance-prod \
+  --resource-group rg-qr-attendance-prod
 
-# Remove file from history
-bfg --delete-files credential.json
-bfg --delete-files github-token.txt
-
-# Clean up
-git reflog expire --expire=now --all
-git gc --prune=now --aggressive
-
-# Force push (WARNING: Rewrites history)
-git push --force
+# Grant access to Storage
+az role assignment create \
+  --assignee <managed-identity-id> \
+  --role "Storage Table Data Contributor" \
+  --scope /subscriptions/.../stqrattendanceprod
 ```
 
-### Option 2: Using git filter-branch
+### Key Vault (Recommended)
+
+Store secrets in Azure Key Vault:
 
 ```bash
-# Remove specific file from all commits
-git filter-branch --force --index-filter \
-  "git rm --cached --ignore-unmatch credential.json" \
-  --prune-empty --tag-name-filter cat -- --all
+# Create Key Vault
+az keyvault create \
+  --name kv-qrattendance-prod \
+  --resource-group rg-qr-attendance-prod
 
-# Force push (WARNING: Rewrites history)
-git push --force
-```
-
-### Option 3: Rotate Secrets (Safest)
-
-If secrets were exposed:
-
-1. **Immediately rotate all secrets:**
-   ```bash
-   # Rotate Azure AD client secret
-   az ad app credential reset --id <app-id>
-   
-   # Revoke and create new GitHub token
-   # Go to https://github.com/settings/tokens
-   ```
-
-2. **Update deployment configuration**
-3. **Redeploy with new secrets**
-
-## Secure Configuration Management
-
-### Using Environment Variables
-
-```bash
-# Create secure configuration file
-cat > .deployment-config << 'EOF'
-export AAD_CLIENT_ID="your-client-id"
-export AAD_CLIENT_SECRET="your-client-secret"
-export AAD_TENANT_ID="your-tenant-id"
-export GITHUB_TOKEN="your-github-token"
-EOF
-
-# Secure the file (owner read/write only)
-chmod 600 .deployment-config
-
-# Load when needed
-source .deployment-config
-```
-
-### Using Azure Key Vault (Production)
-
-```bash
-# Store secrets in Key Vault
+# Store secret
 az keyvault secret set \
-  --vault-name "kv-qrattendance" \
-  --name "AAD-CLIENT-SECRET" \
-  --value "your-secret"
+  --vault-name kv-qrattendance-prod \
+  --name "OpenAI-Key" \
+  --value "your-key"
 
-# Retrieve when needed
-AAD_CLIENT_SECRET=$(az keyvault secret show \
-  --vault-name "kv-qrattendance" \
-  --name "AAD-CLIENT-SECRET" \
-  --query value -o tsv)
+# Reference in Function App
+az functionapp config appsettings set \
+  --name func-qrattendance-prod \
+  --resource-group rg-qr-attendance-prod \
+  --settings AZURE_OPENAI_KEY="@Microsoft.KeyVault(SecretUri=https://kv-qrattendance-prod.vault.azure.net/secrets/OpenAI-Key/)"
 ```
 
-## Security Best Practices
+---
 
-### ✅ DO
+## Session Security
 
-- ✅ Use `.deployment-config` for local secrets
-- ✅ Use Azure Key Vault for production secrets
-- ✅ Use managed identities where possible
-- ✅ Rotate secrets every 6-12 months
-- ✅ Use `chmod 600` on configuration files
-- ✅ Review `.gitignore` before every commit
-- ✅ Use GitHub secret scanning
-- ✅ Enable Azure AD Conditional Access
-- ✅ Monitor sign-in logs regularly
-- ✅ Use HTTPS only
-- ✅ Enable Application Insights
-- ✅ Set up budget alerts
+### QR Code Requirements
 
-### ❌ DON'T
+**Students MUST scan QR code to initially join sessions.**
 
-- ❌ Commit secrets to Git
-- ❌ Share secrets via email/chat
-- ❌ Use the same secret across environments
-- ❌ Hardcode secrets in code
-- ❌ Store secrets in plain text files
-- ❌ Disable authentication
-- ❌ Grant admin rights to all users
-- ❌ Ignore security updates
-- ❌ Use weak passwords
-- ❌ Share Azure AD credentials
+**First Time Join**:
+1. Student scans teacher's entry QR code
+2. Backend validates token (10-second expiry)
+3. Student marked as joined
+4. Session ID stored in localStorage
 
-## GitHub Security Features
+**After Refresh**:
+1. localStorage restores session view
+2. No QR code needed (already joined)
+3. Cannot join new sessions without QR code
 
-### Enable Secret Scanning
+### Token Security
 
-1. Go to repository Settings → Security → Code security and analysis
-2. Enable **Secret scanning**
-3. Enable **Push protection**
+**QR Tokens**:
+- Encrypted with `QR_ENCRYPTION_KEY`
+- 10-second expiry
+- Single-use (validated on backend)
+- Cannot be reused or shared
 
-### Use GitHub Secrets for CI/CD
+**Chain Tokens**:
+- 20-second TTL (configurable)
+- Rotates after each scan
+- Prevents screenshot sharing
 
-```yaml
-# .github/workflows/deploy.yml
-env:
-  AAD_CLIENT_ID: ${{ secrets.AAD_CLIENT_ID }}
-  AAD_CLIENT_SECRET: ${{ secrets.AAD_CLIENT_SECRET }}
-```
+---
 
-## Azure Security Features
+## Authentication Security
 
-### Enable Managed Identity
+### Azure AD Integration
 
-Already configured in Bicep templates:
-- Function App uses managed identity for Storage
-- Function App uses managed identity for SignalR
-- No connection strings in code
+**Production**:
+- Uses Azure Static Web Apps built-in auth
+- `/.auth/login/aad` - Login endpoint
+- `/.auth/me` - User info endpoint
+- HTTP-only cookies (secure)
 
-### Enable Application Insights
+**Local Development**:
+- Mock authentication for testing
+- Disabled in production
+- Uses `NEXT_PUBLIC_ENVIRONMENT=local` flag
 
-Already configured - monitors:
-- Failed authentication attempts
-- API errors
-- Performance issues
-- Security events
+### Role-Based Access
 
-### Review Access Regularly
+**Teacher Role**:
+- Email domain: `@vtc.edu.hk` (excluding `@stu.vtc.edu.hk`)
+- Can create sessions, view attendance, export data
 
+**Student Role**:
+- Email domain: `@stu.vtc.edu.hk`
+- Can join sessions, scan QR codes
+
+---
+
+## API Security
+
+### CORS Configuration
+
+**Function App CORS**:
 ```bash
-# List role assignments
-az role assignment list \
-  --resource-group rg-qr-attendance-dev \
-  --output table
-
-# Review Azure AD sign-ins
-az ad user list --query "[].{Name:displayName, Email:userPrincipalName}"
+az functionapp cors add \
+  --name func-qrattendance-prod \
+  --resource-group rg-qr-attendance-prod \
+  --allowed-origins "https://ashy-desert-0fc9a700f.6.azurestaticapps.net"
 ```
+
+### Authentication Headers
+
+All API calls include:
+- `x-ms-client-principal` - User identity
+- `x-ms-client-principal-id` - User ID
+- `x-ms-client-principal-name` - User email
+
+---
+
+## Best Practices
+
+### Development
+
+1. **Never commit secrets** - Use `.gitignore`
+2. **Use templates** - `.env.example`, `local.settings.json.template`
+3. **Local secrets** - Keep in `.env.local` (ignored)
+4. **Test accounts** - Use test users, not real students
+
+### Production
+
+1. **Managed Identity** - Avoid connection strings
+2. **Key Vault** - Store all secrets
+3. **HTTPS only** - Enforce SSL/TLS
+4. **Monitor logs** - Watch for suspicious activity
+5. **Regular updates** - Keep dependencies current
+
+### Deployment
+
+1. **Automated scripts** - Use `deploy-full-production.sh`
+2. **No manual secrets** - Fetch from Azure automatically
+3. **Verify deployment** - Check all resources
+4. **Rollback plan** - Keep previous versions
+
+---
 
 ## Incident Response
 
 ### If Secrets Are Exposed
 
-1. **Immediately rotate all secrets**
-2. **Review access logs** for unauthorized access
-3. **Check Application Insights** for suspicious activity
-4. **Notify affected users** if data was accessed
-5. **Update security procedures** to prevent recurrence
+1. **Rotate immediately**:
+   ```bash
+   # Rotate Storage key
+   az storage account keys renew \
+     --account-name stqrattendanceprod \
+     --key primary
+   
+   # Rotate SignalR key
+   az signalr key renew \
+     --name signalr-qrattendance-prod \
+     --resource-group rg-qr-attendance-prod \
+     --key-type primary
+   
+   # Rotate OpenAI key
+   az cognitiveservices account keys regenerate \
+     --name oai-qrattendance-prod \
+     --resource-group rg-qr-attendance-prod \
+     --key-name key1
+   ```
 
-### If Unauthorized Access Detected
+2. **Update Function App settings** with new keys
 
-1. **Revoke compromised credentials**
-2. **Review Azure AD sign-in logs**
-3. **Check Application Insights for API calls**
-4. **Review Storage Account access logs**
-5. **Reset affected user passwords**
-6. **Enable MFA if not already enabled**
+3. **Remove from Git history**:
+   ```bash
+   # Use BFG Repo-Cleaner
+   bfg --delete-files credential.json
+   git reflog expire --expire=now --all
+   git gc --prune=now --aggressive
+   git push --force
+   ```
 
-## Compliance
-
-### Data Protection
-
-- User data stored in Azure Table Storage (encrypted at rest)
-- HTTPS only (TLS 1.2+)
-- Azure AD authentication required
-- Role-based access control (RBAC)
-- Audit logs in Application Insights
-
-### GDPR Compliance
-
-- User consent required for data collection
-- Right to access: Users can view their data
-- Right to deletion: Admins can delete user data
-- Data minimization: Only necessary data collected
-- Audit trail: All access logged
-
-## Security Checklist
-
-Before going to production:
-
-- [ ] All secrets removed from Git
-- [ ] `.gitignore` properly configured
-- [ ] Secrets stored in Azure Key Vault
-- [ ] Managed identities enabled
-- [ ] HTTPS only enforced
-- [ ] Azure AD authentication required
-- [ ] Role-based access control configured
-- [ ] Application Insights enabled
-- [ ] Secret scanning enabled on GitHub
-- [ ] Budget alerts configured
-- [ ] Backup strategy in place
-- [ ] Incident response plan documented
-- [ ] Security review completed
-- [ ] Penetration testing performed (if required)
-
-## Reporting Security Issues
-
-If you discover a security vulnerability:
-
-1. **DO NOT** create a public GitHub issue
-2. **DO NOT** disclose publicly
-3. Email security concerns to: [your-security-email]
-4. Include:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Suggested fix (if any)
-
-## Resources
-
-- [Azure Security Best Practices](https://docs.microsoft.com/azure/security/fundamentals/best-practices-and-patterns)
-- [GitHub Security Best Practices](https://docs.github.com/en/code-security)
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [Azure AD Security](https://docs.microsoft.com/azure/active-directory/fundamentals/security-operations-introduction)
+4. **Notify team** and review access logs
 
 ---
 
-**Last Updated**: February 3, 2026  
-**Review Frequency**: Quarterly
+## Security Checklist
+
+### Before Deployment
+- [ ] No secrets in code
+- [ ] `.gitignore` properly configured
+- [ ] Environment variables set in Azure
+- [ ] CORS configured correctly
+- [ ] Authentication working
+- [ ] Role-based access tested
+
+### After Deployment
+- [ ] All resources running
+- [ ] Secrets in Key Vault
+- [ ] Managed Identity enabled
+- [ ] Logs monitored
+- [ ] Backup configured
+
+---
+
+## Related Documentation
+
+- **DEPLOYMENT.md** - Deployment guide
+- **AZURE_ENVIRONMENT.md** - Azure resources
+- **LOCAL_DEVELOPMENT.md** - Local dev setup
+
+---
+
+## Quick Reference
+
+```bash
+# Verify Git security
+git check-ignore -v .env backend/local.settings.json
+
+# Rotate Storage key
+az storage account keys renew --account-name stqrattendanceprod --key primary
+
+# Rotate SignalR key
+az signalr key renew --name signalr-qrattendance-prod --resource-group rg-qr-attendance-prod --key-type primary
+
+# Check Function App settings
+az functionapp config appsettings list --name func-qrattendance-prod --resource-group rg-qr-attendance-prod
+```
+
+---
+
+**Your repository is secure!** ✓

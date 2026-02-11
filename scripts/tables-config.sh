@@ -17,6 +17,9 @@ TABLES=(
   "ChainHistory"
   "ScanLogs"
   "DeletionLog"
+  "QuizQuestions"
+  "QuizResponses"
+  "QuizMetrics"
 )
 
 # Export for use in other scripts

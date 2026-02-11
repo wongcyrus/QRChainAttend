@@ -247,3 +247,166 @@ export async function broadcastStallAlert(
     context.log(`Stall alert broadcast error: ${error.message}`);
   }
 }
+
+export async function broadcastQuizQuestion(
+  sessionId: string,
+  question: {
+    responseId: string;
+    questionId: string;
+    studentId: string;
+    question: string;
+    questionType: string;
+    options: string[] | null;
+    timeLimit: number;
+    expiresAt: number;
+  },
+  context: InvocationContext
+): Promise<void> {
+  try {
+    const signalRConnectionString = process.env.SIGNALR_CONNECTION_STRING;
+    if (!signalRConnectionString || signalRConnectionString.includes('dummy')) {
+      context.log('SignalR not configured, skipping quiz question broadcast');
+      return;
+    }
+
+    const endpointMatch = signalRConnectionString.match(/Endpoint=([^;]+)/);
+    const accessKeyMatch = signalRConnectionString.match(/AccessKey=([^;]+)/);
+    
+    if (!endpointMatch || !accessKeyMatch) {
+      context.log('Invalid SignalR connection string format');
+      return;
+    }
+
+    const endpoint = endpointMatch[1];
+    const accessKey = accessKeyMatch[1];
+    const hubName = `dashboard${sessionId.replace(/-/g, '')}`;
+    
+    const crypto = require('crypto');
+    const now = Math.floor(Date.now() / 1000);
+    const expiry = now + 3600;
+    
+    const payload = {
+      aud: `${endpoint}/api/v1/hubs/${hubName}`,
+      iat: now,
+      exp: expiry
+    };
+    
+    const header = {
+      typ: 'JWT',
+      alg: 'HS256'
+    };
+    
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = crypto
+      .createHmac('sha256', accessKey)
+      .update(`${encodedHeader}.${encodedPayload}`)
+      .digest('base64url');
+    
+    const token = `${encodedHeader}.${encodedPayload}.${signature}`;
+
+    const signalRUrl = `${endpoint}/api/v1/hubs/${hubName}`;
+    context.log(`Broadcasting quiz question to: ${signalRUrl}`);
+    
+    const response = await fetch(signalRUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        target: 'quizQuestion',
+        arguments: [question]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      context.log(`Quiz question broadcast failed: ${response.status} - ${errorText}`);
+    } else {
+      context.log('Quiz question broadcast successful');
+    }
+  } catch (error: any) {
+    context.log(`Quiz question broadcast error: ${error.message}`);
+  }
+}
+
+export async function broadcastQuizResult(
+  sessionId: string,
+  result: {
+    responseId: string;
+    studentId: string;
+    isCorrect: boolean;
+    score: number;
+    responseTime: number;
+  },
+  context: InvocationContext
+): Promise<void> {
+  try {
+    const signalRConnectionString = process.env.SIGNALR_CONNECTION_STRING;
+    if (!signalRConnectionString || signalRConnectionString.includes('dummy')) {
+      context.log('SignalR not configured, skipping quiz result broadcast');
+      return;
+    }
+
+    const endpointMatch = signalRConnectionString.match(/Endpoint=([^;]+)/);
+    const accessKeyMatch = signalRConnectionString.match(/AccessKey=([^;]+)/);
+    
+    if (!endpointMatch || !accessKeyMatch) {
+      context.log('Invalid SignalR connection string format');
+      return;
+    }
+
+    const endpoint = endpointMatch[1];
+    const accessKey = accessKeyMatch[1];
+    const hubName = `dashboard${sessionId.replace(/-/g, '')}`;
+    
+    const crypto = require('crypto');
+    const now = Math.floor(Date.now() / 1000);
+    const expiry = now + 3600;
+    
+    const payload = {
+      aud: `${endpoint}/api/v1/hubs/${hubName}`,
+      iat: now,
+      exp: expiry
+    };
+    
+    const header = {
+      typ: 'JWT',
+      alg: 'HS256'
+    };
+    
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = crypto
+      .createHmac('sha256', accessKey)
+      .update(`${encodedHeader}.${encodedPayload}`)
+      .digest('base64url');
+    
+    const token = `${encodedHeader}.${encodedPayload}.${signature}`;
+
+    const signalRUrl = `${endpoint}/api/v1/hubs/${hubName}`;
+    context.log(`Broadcasting quiz result to: ${signalRUrl}`);
+    
+    const response = await fetch(signalRUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        target: 'quizResult',
+        arguments: [result]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      context.log(`Quiz result broadcast failed: ${response.status} - ${errorText}`);
+    } else {
+      context.log('Quiz result broadcast successful');
+    }
+  } catch (error: any) {
+    context.log(`Quiz result broadcast error: ${error.message}`);
+  }
+}
