@@ -85,5 +85,11 @@ azure-cicd-credentials.json
 backend-deploy.zip
 backend-deploy-*.zip
 
+# Deployment tokens (sensitive)
+*token*.txt
+deployment-token.txt
+production-token.txt
+*.token
+
 # Azure AD credentials
 .azure-ad-credentials
