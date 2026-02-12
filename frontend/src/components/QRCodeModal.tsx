@@ -20,15 +20,41 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    if (!studentUrl) return;
+    if (!studentUrl) {
+      console.error('QRCodeModal: Cannot copy - studentUrl is missing');
+      alert('Cannot copy URL - missing student URL data');
+      return;
+    }
     
     try {
-      // Copy the student URL to clipboard
-      await navigator.clipboard.writeText(studentUrl);
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(studentUrl);
+      } else {
+        // Fallback for browsers without clipboard API or non-HTTPS
+        const textArea = document.createElement('textarea');
+        textArea.value = studentUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (!successful) {
+          throw new Error('Failed to copy using fallback method');
+        }
+      }
+      
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
+      // Show user-friendly error message
+      alert('Failed to copy URL. Please manually copy: ' + studentUrl);
     }
   };
 
@@ -100,7 +126,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
         </div>
         
         {/* Copy Button - Below QR Code */}
-        {studentUrl && (
+        {studentUrl ? (
           <div style={{ display: 'block', marginBottom: '1.5rem' }}>
             <button
               onClick={handleCopy}
@@ -138,6 +164,19 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             >
               {copied ? '✓ Copied' : '📋 Copy URL'}
             </button>
+          </div>
+        ) : (
+          <div style={{ 
+            display: 'block', 
+            marginBottom: '1.5rem',
+            padding: '0.5rem',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            color: '#dc2626',
+            fontSize: '0.875rem'
+          }}>
+            ⚠️ URL not available for copying
           </div>
         )}
         <p style={{ 
