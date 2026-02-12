@@ -7,9 +7,6 @@ param storageAccountName string
 @description('SignalR Service name')
 param signalRName string
 
-@description('Static Web App principal ID')
-param staticWebAppPrincipalId string
-
 @description('Function App principal ID')
 param functionAppPrincipalId string
 
@@ -51,17 +48,6 @@ resource openAI 'Microsoft.CognitiveServices/accounts@2023-05-01' existing = if 
 // ============================================================================
 // ROLE ASSIGNMENTS - STORAGE TABLE DATA CONTRIBUTOR
 // ============================================================================
-
-// Requirement 19.4: Assign Storage Table Data Contributor to Static Web App (if deployed)
-resource staticWebAppStorageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (staticWebAppPrincipalId != '') {
-  name: guid(storageAccount.id, staticWebAppPrincipalId, storageTableDataContributorRoleId)
-  scope: storageAccount
-  properties: {
-    roleDefinitionId: storageTableDataContributorRoleId
-    principalId: staticWebAppPrincipalId
-    principalType: 'ServicePrincipal'
-  }
-}
 
 // Requirement 19.4: Assign Storage Table Data Contributor to Function App
 resource functionAppStorageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
@@ -107,9 +93,6 @@ resource functionAppOpenAIRoleAssignment 'Microsoft.Authorization/roleAssignment
 // ============================================================================
 // OUTPUTS
 // ============================================================================
-
-@description('Storage role assignment for Static Web App (if deployed)')
-output staticWebAppStorageRoleAssignmentId string = staticWebAppPrincipalId != '' ? staticWebAppStorageRoleAssignment.id : ''
 
 @description('Storage role assignment for Function App')
 output functionAppStorageRoleAssignmentId string = functionAppStorageRoleAssignment.id

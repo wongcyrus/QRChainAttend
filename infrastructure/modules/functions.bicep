@@ -37,6 +37,9 @@ param azureOpenAIDeployment string = ''
 @description('Azure OpenAI GPT-4 Vision deployment name (optional)')
 param azureOpenAIVisionDeployment string = ''
 
+@description('Frontend URLs for CORS configuration')
+param frontendUrls array = []
+
 @description('Tags to apply to the resource')
 param tags object
 
@@ -196,8 +199,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         }
       ]
       cors: {
-        allowedOrigins: [
-          '*' // Will be restricted to Static Web App domain in production
+        allowedOrigins: length(frontendUrls) > 0 ? frontendUrls : [
+          '*' // Fallback to all origins if no frontend URLs provided
         ]
         supportCredentials: false
       }
@@ -205,6 +208,27 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       http20Enabled: true
+    }
+  }
+}
+
+// ============================================================================
+// FUNCTION APP AUTHENTICATION (DISABLED)
+// ============================================================================
+// Per Microsoft Learn: When using with Static Web Apps, 
+// authentication should be handled by SWA, not the Function App
+// https://learn.microsoft.com/azure/static-web-apps/functions-bring-your-own
+
+resource functionAppAuth 'Microsoft.Web/sites/config@2023-01-01' = {
+  parent: functionApp
+  name: 'authsettingsV2'
+  properties: {
+    platform: {
+      enabled: false
+    }
+    globalValidation: {
+      requireAuthentication: false
+      unauthenticatedClientAction: 'AllowAnonymous'
     }
   }
 }

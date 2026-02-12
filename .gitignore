@@ -84,3 +84,6 @@ github-token.txt
 azure-cicd-credentials.json
 backend-deploy.zip
 backend-deploy-*.zip
+
+# Azure AD credentials
+.azure-ad-credentials

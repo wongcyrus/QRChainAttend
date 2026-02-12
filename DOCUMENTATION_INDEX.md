@@ -11,6 +11,8 @@ Quick reference to all documentation files in the QR Chain Attendance System.
 2. `GETTING_STARTED.md` - Setup and first steps
 3. `PROJECT_STATUS.md` - Current deployment status
 
+**Getting 403 error?** See: `FIX_403_ERROR.md`
+
 ---
 
 ## 📦 Deployment

@@ -7,9 +7,43 @@
 
 ## Quick Start
 
-### Deploy to Production
+### First Time Setup
+
+**1. Create Azure AD App Registration**
 ```bash
+./setup-azure-ad-app.sh
+```
+
+This creates the Azure AD app and saves credentials to `.azure-ad-credentials`.
+
+**2. Deploy to Production**
+```bash
+source .azure-ad-credentials
 ./deploy-full-production.sh
+```
+
+### Subsequent Deployments
+
+```bash
+source .azure-ad-credentials
+./deploy-full-production.sh
+```
+
+### Clean Up Everything
+
+**Delete Azure resources:**
+```bash
+./cleanup-production.sh
+```
+
+**Delete Azure AD app:**
+```bash
+./cleanup-azure-ad-app.sh
+```
+
+Or delete both at once:
+```bash
+./cleanup-production.sh && ./cleanup-azure-ad-app.sh
 ```
 
 ### Verify Deployment
@@ -56,10 +90,23 @@ jq --version          # JSON processor
 az login
 ```
 
-### Step-by-Step Deployment
+### Complete Deployment Workflow
 
-**1. Run Deployment Script**
+**Step 1: Create Azure AD App (First Time Only)**
 ```bash
+./setup-azure-ad-app.sh
+```
+
+This script will:
+- Check for existing "QR Chain Attendance" app
+- Create new app or reuse existing one
+- Configure redirect URIs for Static Web App
+- Create client secret (2-year expiry)
+- Save credentials to `.azure-ad-credentials` file
+
+**Step 2: Deploy Infrastructure and Application**
+```bash
+source .azure-ad-credentials
 ./deploy-full-production.sh
 ```
 
@@ -71,10 +118,11 @@ az login
 - Builds and deploys backend (44 functions)
 - Creates database tables (12 tables)
 - Configures CORS
+- Configures Azure AD authentication (Client ID, Secret, Tenant ID)
 - Builds and deploys frontend
 - Verifies deployment
 
-**2. Verify Deployment**
+**Step 3: Verify Deployment**
 ```bash
 ./verify-production.sh
 ```
@@ -85,13 +133,38 @@ az login
 - ✅ Azure OpenAI (AIServices kind)
 - ✅ Static Web App deployed
 - ✅ All 12 tables created
+- ✅ Azure AD configured
+
+**Step 4: Test Production**
+- ✅ All 12 tables created
 - ✅ SignalR connection configured
 
-**3. Test Production**
-1. Open: https://ashy-desert-0fc9a700f.6.azurestaticapps.net
-2. Login with Azure AD
-3. Check browser console for "SignalR connected"
-4. Create a session and test quiz feature
+**Step 4: Test Production**
+1. Wait 2-3 minutes for Azure AD settings to propagate
+2. Open: https://ashy-desert-0fc9a700f.6.azurestaticapps.net
+3. You should be redirected to Azure AD login
+4. Login with VTC credentials
+5. Check browser console for "SignalR connected"
+6. Create a session and test quiz feature
+
+### Clean Up Production
+
+**Delete all Azure resources:**
+```bash
+./cleanup-production.sh
+```
+
+**Delete Azure AD app registration:**
+```bash
+./cleanup-azure-ad-app.sh
+```
+
+**Delete everything:**
+```bash
+./cleanup-production.sh && ./cleanup-azure-ad-app.sh
+```
+
+This ensures complete cleanup with no lingering resources or AD apps.
 
 ---
 
@@ -155,6 +228,30 @@ Then redeploy:
 ---
 
 ## Troubleshooting
+
+### 403 Forbidden Error
+
+**Problem**: Getting "403: Forbidden - You don't have permissions for this page"
+
+**Cause**: Azure AD authentication not configured properly
+
+**Solution**:
+```bash
+# Check if AAD_CLIENT_SECRET is set
+az staticwebapp appsettings list \
+  --name swa-qrattendance-prod2 \
+  --resource-group rg-qr-attendance-prod \
+  --query "properties.{AAD_CLIENT_ID:AAD_CLIENT_ID, TENANT_ID:TENANT_ID}"
+
+# If AAD_CLIENT_SECRET is empty, configure it:
+./configure-azure-ad.sh <your-client-secret>
+```
+
+**Get the client secret**:
+1. Azure Portal > Azure Active Directory > App registrations
+2. Find app: `dc482c34-ebaa-4239-aca3-2810a4f51728`
+3. Certificates & secrets > New client secret
+4. Copy the value and run the configure script
 
 ### Deployment Issues
 

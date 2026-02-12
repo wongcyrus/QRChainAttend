@@ -24,34 +24,17 @@ param location string = resourceGroup().location
 @maxLength(20)
 param baseName string = 'qrattendance'
 
-@description('GitHub repository URL for Static Web App')
-param repositoryUrl string = ''
-
-@description('GitHub repository branch')
-param repositoryBranch string = 'main'
-
-@description('GitHub repository token for Static Web App deployment')
-@secure()
-param repositoryToken string = ''
-
-@description('Azure AD Tenant ID for authentication')
-param tenantId string = subscription().tenantId
-
-@description('Azure AD Client ID for authentication')
-param aadClientId string = ''
-
-@description('Azure AD Client Secret for authentication')
-@secure()
-param aadClientSecret string = ''
+@description('Frontend URLs for CORS configuration (manually deployed Static Web App)')
+param frontendUrls array = [
+  'https://agreeable-pebble-05aa6201e.1.azurestaticapps.net'
+  'http://localhost:3000'  // For local development
+]
 
 @description('Deploy Azure OpenAI resource (optional)')
 param deployAzureOpenAI bool = false
 
 @description('Deploy SignalR Service (optional, system works with polling fallback)')
 param deploySignalR bool = false
-
-@description('Deploy Azure Static Web App (optional, requires GitHub repo)')
-param deployStaticWebApp bool = true
 
 @description('GPT-4 model deployment name')
 param gpt4DeploymentName string = 'gpt-4'
@@ -88,11 +71,13 @@ param tags object = {
 var resourceSuffix = '${baseName}-${environment}'
 var storageAccountName = replace('st${resourceSuffix}', '-', '')
 var signalRName = 'signalr-${resourceSuffix}'
-var staticWebAppName = 'swa-${resourceSuffix}2'  // Added '2' to avoid conflict with pending deletion
 var functionAppName = 'func-${resourceSuffix}'
 var appServicePlanName = 'asp-${resourceSuffix}'
 var appInsightsName = 'appi-${resourceSuffix}'
 var openAIName = 'openai-${resourceSuffix}'
+
+// CORS URLs for Function App (using CLI-deployed Static Web App)
+var corsUrls = frontendUrls
 
 // ============================================================================
 // MODULES
@@ -162,36 +147,7 @@ module functions 'modules/functions.bicep' = {
     azureOpenAIKey: deployAzureOpenAI ? openai.outputs.primaryKey : ''
     azureOpenAIDeployment: deployAzureOpenAI ? openai.outputs.gpt4DeploymentName : ''
     azureOpenAIVisionDeployment: deployAzureOpenAI ? openai.outputs.gpt4VisionDeploymentName : ''
-    tags: tags
-  }
-}
-
-// Azure Static Web App (Frontend) - Optional
-// Use GitHub CI/CD module if repository URL provided, otherwise manual deployment
-module staticWebApp 'modules/staticwebapp.bicep' = if (deployStaticWebApp && repositoryUrl != '') {
-  name: 'staticwebapp-deployment'
-  params: {
-    staticWebAppName: staticWebAppName
-    location: location
-    repositoryUrl: repositoryUrl
-    repositoryBranch: repositoryBranch
-    repositoryToken: repositoryToken
-    tenantId: tenantId
-    aadClientId: aadClientId
-    aadClientSecret: aadClientSecret
-    tags: tags
-  }
-}
-
-// Azure Static Web App (Manual Deployment) - No GitHub CI/CD
-module staticWebAppManual 'modules/staticwebapp-manual.bicep' = if (deployStaticWebApp && repositoryUrl == '') {
-  name: 'staticwebapp-manual-deployment'
-  params: {
-    staticWebAppName: staticWebAppName
-    location: location
-    tenantId: tenantId
-    aadClientId: aadClientId
-    aadClientSecret: aadClientSecret
+    frontendUrls: corsUrls
     tags: tags
   }
 }
@@ -202,7 +158,6 @@ module rbac 'modules/rbac.bicep' = {
   params: {
     storageAccountName: storage.outputs.storageAccountName
     signalRName: signalr.outputs.signalRName
-    staticWebAppPrincipalId: deployStaticWebApp ? (repositoryUrl != '' ? staticWebApp.outputs.principalId : staticWebAppManual.outputs.principalId) : ''
     functionAppPrincipalId: functions.outputs.principalId
     deployAzureOpenAI: deployAzureOpenAI
     openAIName: deployAzureOpenAI ? openai.outputs.openAIName : ''
@@ -230,14 +185,8 @@ output signalRName string = signalr.outputs.signalRName
 @description('SignalR Service endpoint')
 output signalREndpoint string = signalr.outputs.endpoint
 
-@description('Static Web App name (if deployed)')
-output staticWebAppName string = deployStaticWebApp ? (repositoryUrl != '' ? staticWebApp.outputs.staticWebAppName : staticWebAppManual.outputs.staticWebAppName) : ''
-
-@description('Static Web App default hostname (if deployed)')
-output staticWebAppUrl string = deployStaticWebApp ? (repositoryUrl != '' ? staticWebApp.outputs.defaultHostname : staticWebAppManual.outputs.defaultHostname) : ''
-
-@description('Static Web App deployment token (for manual deployment)')
-output staticWebAppDeploymentToken string = deployStaticWebApp && repositoryUrl == '' ? staticWebAppManual.outputs.deploymentToken : ''
+@description('Frontend URL (manually deployed)')
+output frontendUrl string = 'https://agreeable-pebble-05aa6201e.1.azurestaticapps.net'
 
 @description('Function App name')
 output functionAppName string = functions.outputs.functionAppName
@@ -269,8 +218,7 @@ output deploymentSummary object = {
   location: location
   storageAccount: storage.outputs.storageAccountName
   signalR: signalr.outputs.signalRName
-  staticWebApp: deployStaticWebApp ? (repositoryUrl != '' ? staticWebApp.outputs.staticWebAppName : staticWebAppManual.outputs.staticWebAppName) : 'Not deployed'
+  frontend: 'CLI-deployed (https://agreeable-pebble-05aa6201e.1.azurestaticapps.net)'
   functionApp: functions.outputs.functionAppName
   appInsights: appInsights.outputs.appInsightsName
-  openAI: deployAzureOpenAI ? openai.outputs.openAIName : 'Not deployed'
 }
