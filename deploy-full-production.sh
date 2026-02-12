@@ -292,6 +292,40 @@ if echo "$CORS_ORIGINS" | grep -q "$STATIC_WEB_APP_HOSTNAME"; then
 else
     echo -e "${YELLOW}⚠ CORS configuration may need manual verification${NC}"
 fi
+
+# Enable CORS credentials support
+echo "Enabling CORS credentials support..."
+az functionapp cors credentials \
+    --name $FUNCTION_APP \
+    --resource-group $RESOURCE_GROUP \
+    --enable \
+    --output none
+
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✓ CORS credentials enabled${NC}"
+else
+    echo -e "${YELLOW}⚠ Failed to enable CORS credentials${NC}"
+fi
+
+# Verify Function App authentication is disabled
+echo "Verifying Function App authentication is disabled..."
+AUTH_ENABLED=$(az webapp auth-classic show \
+    --name $FUNCTION_APP \
+    --resource-group $RESOURCE_GROUP \
+    --query "enabled" -o tsv 2>/dev/null || echo "false")
+
+if [ "$AUTH_ENABLED" = "true" ]; then
+    echo -e "${YELLOW}⚠ Function App authentication is enabled, disabling it...${NC}"
+    az webapp auth-classic update \
+        --name $FUNCTION_APP \
+        --resource-group $RESOURCE_GROUP \
+        --enabled false \
+        --action AllowAnonymous \
+        --output none
+    echo -e "${GREEN}✓ Function App authentication disabled${NC}"
+else
+    echo -e "${GREEN}✓ Function App authentication already disabled${NC}"
+fi
 echo ""
 
 # Step 7.5: Verify and update Azure AD configuration
@@ -542,6 +576,7 @@ cat > deployment-info.json << EOF
     "staticWebAppDeployment": "cli-created",
     "functionAppAuthDisabled": true,
     "corsConfigured": true,
+    "corsCredentialsEnabled": true,
     "multiTenantAuth": $([ "$TENANT_ID" = "organizations" ] && echo "true" || echo "false")
   }
 }
