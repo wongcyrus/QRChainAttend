@@ -92,5 +92,6 @@ production-token.txt
 *.token
 
 # Azure AD client secrets (sensitive)
+.azure-ad-credentials
 *client*secret*
 *.secret
