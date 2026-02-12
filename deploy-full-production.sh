@@ -24,7 +24,26 @@ echo ""
 # Step 0: Get Azure AD credentials
 echo -e "${BLUE}Step 0: Azure AD Configuration${NC}"
 
+# Load Azure AD Client ID from environment file (safe to commit)
+if [ -f ".env.azure-ad" ]; then
+    echo "Loading Azure AD configuration from .env.azure-ad..."
+    source .env.azure-ad
+    echo -e "${GREEN}✓ Azure AD Client ID loaded from file${NC}"
+fi
+
 # Check if AAD credentials are provided via environment variables
+if [ -z "$AAD_CLIENT_ID" ]; then
+    echo -e "${YELLOW}Azure AD Client ID not found${NC}"
+    echo "Please provide Azure AD Client ID (or press Enter to skip and configure later):"
+    read -r AAD_CLIENT_ID
+    if [ -z "$AAD_CLIENT_ID" ]; then
+        echo -e "${YELLOW}⚠ Skipping Azure AD configuration - you'll need to configure manually later${NC}"
+        AAD_CLIENT_ID=""
+        AAD_CLIENT_SECRET=""
+    fi
+fi
+
+# Note: Client Secret is always requested interactively (never stored in files)
 if [ -z "$AAD_CLIENT_ID" ]; then
     echo -e "${YELLOW}Azure AD Client ID not found in environment${NC}"
     echo "Please provide Azure AD Client ID (or press Enter to skip and configure later):"
@@ -223,45 +242,58 @@ fi
 echo -e "${GREEN}✓ Backend deployed and ready${NC}"
 echo ""
 
-# Step 5.5: Create Azure Static Web App
-echo -e "${BLUE}Step 5.5: Creating Azure Static Web App...${NC}"
+# Step 5.5: Create or use existing Azure Static Web App
+echo -e "${BLUE}Step 5.5: Setting up Azure Static Web App...${NC}"
 
-# Generate Static Web App name
-STATIC_WEB_APP="swa-qrattendance-prod-$(date +%s)"
+# Check if Static Web App already exists
+EXISTING_SWA=$(az staticwebapp list --resource-group $RESOURCE_GROUP --query "[0].{name:name, hostname:defaultHostname}" -o json 2>/dev/null)
 
-# Create Static Web App without GitHub integration (manual deployment)
-echo "Creating Static Web App: $STATIC_WEB_APP"
-SWA_CREATE_OUTPUT=$(az staticwebapp create \
-    --name $STATIC_WEB_APP \
-    --resource-group $RESOURCE_GROUP \
-    --location $LOCATION \
-    --tags Environment=Production Application="QR Chain Attendance" \
-    --query '{name: name, defaultHostname: defaultHostname}' \
-    --output json)
-
-if [ $? -eq 0 ] && [ -n "$SWA_CREATE_OUTPUT" ]; then
-    STATIC_WEB_APP_URL="https://$(echo "$SWA_CREATE_OUTPUT" | jq -r '.defaultHostname')"
-    STATIC_WEB_APP_HOSTNAME=$(echo "$SWA_CREATE_OUTPUT" | jq -r '.defaultHostname')
+if [ -n "$EXISTING_SWA" ] && [ "$EXISTING_SWA" != "null" ] && [ "$EXISTING_SWA" != "[]" ]; then
+    # Use existing Static Web App
+    STATIC_WEB_APP=$(echo "$EXISTING_SWA" | jq -r '.name')
+    STATIC_WEB_APP_HOSTNAME=$(echo "$EXISTING_SWA" | jq -r '.hostname')
+    STATIC_WEB_APP_URL="https://$STATIC_WEB_APP_HOSTNAME"
     
-    echo -e "${GREEN}✓ Static Web App created${NC}"
+    echo -e "${GREEN}✓ Using existing Static Web App${NC}"
     echo "  Name: $STATIC_WEB_APP"
     echo "  URL: $STATIC_WEB_APP_URL"
+else
+    # Create new Static Web App
+    STATIC_WEB_APP="swa-qrattendance-prod-$(date +%s)"
     
-    # Get deployment token
-    echo "Retrieving deployment token..."
-    SWA_TOKEN=$(az staticwebapp secrets list \
+    echo "Creating Static Web App: $STATIC_WEB_APP"
+    SWA_CREATE_OUTPUT=$(az staticwebapp create \
         --name $STATIC_WEB_APP \
         --resource-group $RESOURCE_GROUP \
-        --query 'properties.apiKey' -o tsv 2>/dev/null)
-    
-    if [ -n "$SWA_TOKEN" ] && [ "$SWA_TOKEN" != "null" ]; then
-        echo -e "${GREEN}✓ Deployment token retrieved${NC}"
+        --location $LOCATION \
+        --tags Environment=Production Application="QR Chain Attendance" \
+        --query '{name: name, defaultHostname: defaultHostname}' \
+        --output json)
+
+    if [ $? -eq 0 ] && [ -n "$SWA_CREATE_OUTPUT" ]; then
+        STATIC_WEB_APP_URL="https://$(echo "$SWA_CREATE_OUTPUT" | jq -r '.defaultHostname')"
+        STATIC_WEB_APP_HOSTNAME=$(echo "$SWA_CREATE_OUTPUT" | jq -r '.defaultHostname')
+        
+        echo -e "${GREEN}✓ Static Web App created${NC}"
+        echo "  Name: $STATIC_WEB_APP"
+        echo "  URL: $STATIC_WEB_APP_URL"
     else
-        echo -e "${YELLOW}⚠ Could not retrieve deployment token - will attempt manual deployment${NC}"
+        echo -e "${RED}✗ Failed to create Static Web App${NC}"
+        exit 1
     fi
+fi
+
+# Get deployment token
+echo "Retrieving deployment token..."
+SWA_TOKEN=$(az staticwebapp secrets list \
+    --name $STATIC_WEB_APP \
+    --resource-group $RESOURCE_GROUP \
+    --query 'properties.apiKey' -o tsv 2>/dev/null)
+
+if [ -n "$SWA_TOKEN" ] && [ "$SWA_TOKEN" != "null" ]; then
+    echo -e "${GREEN}✓ Deployment token retrieved${NC}"
 else
-    echo -e "${RED}✗ Failed to create Static Web App${NC}"
-    exit 1
+    echo -e "${YELLOW}⚠ Could not retrieve deployment token - will attempt manual deployment${NC}"
 fi
 echo ""
 
