@@ -5,29 +5,24 @@ param environment = 'dev'
 param baseName = 'qrattendance'
 param location = 'eastus2'  // Changed from eastus - Static Web Apps not available in eastus
 
-// GitHub repository configuration
-// These should be provided at deployment time or via environment variables
-param repositoryUrl = ''
-param repositoryBranch = 'main'
-param repositoryToken = ''
-
-// Deploy Static Web App (set to false to skip frontend deployment)
-// Already deployed via direct module deployment - see swa-qrattendance-dev2
-param deployStaticWebApp = false
-
-// Azure AD configuration
-// These should be provided at deployment time or via environment variables
-param aadClientId = ''
-param aadClientSecret = ''
+// Frontend URLs for CORS configuration
+param frontendUrls = [
+  'http://localhost:3000'  // For local development
+  'https://localhost:3000' // For HTTPS local development
+]
 
 // Optional: Deploy Azure OpenAI for AI insights and Live Quiz feature
 param deployAzureOpenAI = true  // Changed to true for Live Quiz feature
-param gpt4DeploymentName = 'gpt-4'
-param gpt4ModelName = 'gpt-4'
-param gpt4ModelVersion = '1106-Preview'  // Updated to latest version
-param gpt4VisionDeploymentName = 'gpt-4-vision'
-param gpt4VisionModelName = 'gpt-4'
-param gpt4VisionModelVersion = 'vision-preview'
+
+// Optional: Deploy SignalR Service for real-time features
+param deploySignalR = true  // Enable SignalR for development
+
+param gpt4DeploymentName = 'gpt-4o'
+param gpt4ModelName = 'gpt-4o'
+param gpt4ModelVersion = '2024-08-06'  // Current GPT-4o version
+param gpt4VisionDeploymentName = 'gpt-4o-vision'
+param gpt4VisionModelName = 'gpt-4o'
+param gpt4VisionModelVersion = '2024-08-06' // GPT-4o has built-in vision
 param deployVisionModel = true  // Required for Live Quiz slide analysis
 
 // Tags
