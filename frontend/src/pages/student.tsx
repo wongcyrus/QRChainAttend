@@ -34,9 +34,23 @@ export default function StudentPage() {
   const [error, setError] = useState<string | null>(null);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [hasAutoJoined, setHasAutoJoined] = useState(false);
-  const { sessionId, type, token, chainId, tokenId } = router.query;
+  const [mounted, setMounted] = useState(false);
+  
+  // Get query params safely (only after mounting)
+  const sessionId = mounted ? router.query.sessionId : undefined;
+  const type = mounted ? router.query.type : undefined;
+  const token = mounted ? router.query.token : undefined;
+  const chainId = mounted ? router.query.chainId : undefined;
+  const tokenId = mounted ? router.query.tokenId : undefined;
+
+  // Handle mounting to prevent SSR issues
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!mounted) return; // Don't run on server-side
+    
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
     const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
     
@@ -66,7 +80,7 @@ export default function StudentPage() {
             router.push('/');
           } else {
             // If no sessionId in URL, check localStorage for active session
-            if (!sessionId) {
+            if (!sessionId && typeof window !== 'undefined') {
               const storedSessionId = localStorage.getItem('activeSessionId');
               if (storedSessionId) {
                 // Restore session from localStorage
@@ -84,19 +98,23 @@ export default function StudentPage() {
         setLoading(false);
         router.push('/');
       });
-  }, [router, sessionId]);
+  }, [router, sessionId, mounted]);
 
   // Reset hasAutoJoined when token changes (new QR scan)
   useEffect(() => {
+    if (!mounted) return; // Don't run on server-side
+    
     if (token) {
       console.log('[StudentPage] Token changed, resetting hasAutoJoined:', token);
       setHasAutoJoined(false);
     }
-  }, [token]);
+  }, [token, mounted]);
 
   // Separate effect for auto-join to avoid infinite loop
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
+    if (!mounted) return; // Don't run on server-side
+    
     // Check if this is a chain scan URL (has chainId and tokenId)
     const isChainScan = chainId && tokenId;
     
@@ -120,7 +138,7 @@ export default function StudentPage() {
       const qrToken = typeof token === 'string' ? token : undefined;
       handleJoinSession(sessionId, qrType, qrToken);
     }
-  }, [user, sessionId, type, token, chainId, tokenId, hasAutoJoined, joining]);
+  }, [user, sessionId, type, token, chainId, tokenId, hasAutoJoined, joining, mounted]);
 
   const handleJoinSession = async (sessionIdToJoin: string, qrType?: string, qrToken?: string) => {
     if (!user) return;
@@ -167,7 +185,9 @@ export default function StudentPage() {
         }
         
         // Store session in localStorage for persistence across refreshes
-        localStorage.setItem('activeSessionId', sessionIdToJoin);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('activeSessionId', sessionIdToJoin);
+        }
         
         // Successfully joined - navigate to session view (without token in URL)
         router.push(`/student?sessionId=${sessionIdToJoin}`);
@@ -189,7 +209,9 @@ export default function StudentPage() {
         }
         
         // Clear session from localStorage when exiting
-        localStorage.removeItem('activeSessionId');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('activeSessionId');
+        }
         
         // Successfully marked exit - show success message and redirect
         alert('Exit marked successfully! You can now leave.');
@@ -209,7 +231,9 @@ export default function StudentPage() {
         }
         
         // Store session in localStorage for persistence across refreshes
-        localStorage.setItem('activeSessionId', sessionIdToJoin);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('activeSessionId', sessionIdToJoin);
+        }
         
         // Successfully joined - navigate to session view
         router.push(`/student?sessionId=${sessionIdToJoin}`);
@@ -272,7 +296,9 @@ export default function StudentPage() {
         studentId={user.userDetails}
         onLeaveSession={() => {
           // Clear stored session when leaving
-          localStorage.removeItem('activeSessionId');
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('activeSessionId');
+          }
           router.push('/student');
         }}
       />

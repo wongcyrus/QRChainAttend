@@ -9,6 +9,19 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Fix for static export build issues
+  async generateBuildId() {
+    return 'build-' + Date.now();
+  },
+  // Ensure proper static export
+  async exportPathMap(defaultPathMap, { dev, dir, outDir, distDir, buildId }) {
+    return {
+      '/': { page: '/' },
+      '/teacher': { page: '/teacher' },
+      '/student': { page: '/student' },
+      '/dev-config': { page: '/dev-config' }
+    };
+  },
   // Improve dev experience - prevent browser tab closing
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {

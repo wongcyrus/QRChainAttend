@@ -81,7 +81,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
     httpsOnly: true
     clientAffinityEnabled: false
     siteConfig: {
-      linuxFxVersion: 'NODE|20'
+      linuxFxVersion: 'NODE|22'
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
@@ -109,7 +109,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         }
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~20'
+          value: '~22'
         }
         {
           name: 'FUNCTIONS_NODE_BLOCK_ON_ENTRY_POINT_ERROR'
