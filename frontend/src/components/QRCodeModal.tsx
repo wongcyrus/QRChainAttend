@@ -20,6 +20,10 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
+    console.log('QRCodeModal: handleCopy called');
+    console.log('QRCodeModal: studentUrl prop:', studentUrl);
+    console.log('QRCodeModal: studentUrl length:', studentUrl?.length);
+    
     if (!studentUrl) {
       console.error('QRCodeModal: Cannot copy - studentUrl is missing');
       alert('Cannot copy URL - missing student URL data');

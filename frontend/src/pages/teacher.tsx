@@ -47,6 +47,19 @@ function getRolesFromEmail(email: string): string[] {
 
 export default function TeacherPage() {
   const router = useRouter();
+
+  // Helper function to get the correct base URL for QR codes
+  const getQRBaseUrl = () => {
+    const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+    const currentOrigin = window.location.origin;
+    
+    console.log('getQRBaseUrl debug:', { isLocal, currentOrigin });
+    
+    // Always use the current origin - it will be the network IP if accessed via network IP
+    console.log('Using current origin:', currentOrigin);
+    return currentOrigin;
+  };
+
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -225,8 +238,11 @@ export default function TeacherPage() {
           return;
         }
         
-        const baseUrl = window.location.origin;
+        const baseUrl = getQRBaseUrl();
         const studentUrl = `${baseUrl}/student?sessionId=${qrCodeData.sessionId}&type=${qrCodeData.type}&token=${data.token}`;
+        console.log('QR REFRESH - baseUrl:', baseUrl);
+        console.log('QR REFRESH - studentUrl:', studentUrl);
+        console.log('QR REFRESH - token from Azure:', data.token);
         
         const qrDataUrl = await QRCode.toDataURL(studentUrl, {
           width: 300,
@@ -289,8 +305,11 @@ export default function TeacherPage() {
       }
       
       // Create URL for students to scan
-      const baseUrl = window.location.origin;
+      const baseUrl = getQRBaseUrl();
       const studentUrl = `${baseUrl}/student?sessionId=${session.sessionId}&type=ENTRY&token=${data.token}`;
+      console.log('ENTRY QR - baseUrl:', baseUrl);
+      console.log('ENTRY QR - studentUrl:', studentUrl);
+      console.log('ENTRY QR - token from Azure:', data.token);
       
       // Generate QR code with the URL
       const qrDataUrl = await QRCode.toDataURL(studentUrl, {
@@ -302,6 +321,13 @@ export default function TeacherPage() {
         }
       });
       
+      console.log('ENTRY QR - Final qrCodeData:', {
+        sessionId: session.sessionId,
+        classId: session.classId,
+        type: 'ENTRY',
+        qrDataUrl: qrDataUrl.substring(0, 50) + '...',
+        studentUrl
+      });
       setQrCodeData({
         sessionId: session.sessionId,
         classId: session.classId,
@@ -353,8 +379,11 @@ export default function TeacherPage() {
       }
       
       // Create URL for students to scan
-      const baseUrl = window.location.origin;
+      const baseUrl = getQRBaseUrl();
       const studentUrl = `${baseUrl}/student?sessionId=${session.sessionId}&type=EXIT&token=${data.token}`;
+      console.log('EXIT QR - baseUrl:', baseUrl);
+      console.log('EXIT QR - studentUrl:', studentUrl);
+      console.log('EXIT QR - token from Azure:', data.token);
       
       // Generate QR code with the URL
       const qrDataUrl = await QRCode.toDataURL(studentUrl, {
@@ -366,6 +395,13 @@ export default function TeacherPage() {
         }
       });
       
+      console.log('EXIT QR - Final qrCodeData:', {
+        sessionId: session.sessionId,
+        classId: session.classId,
+        type: 'EXIT',
+        qrDataUrl: qrDataUrl.substring(0, 50) + '...',
+        studentUrl
+      });
       setQrCodeData({
         sessionId: session.sessionId,
         classId: session.classId,
