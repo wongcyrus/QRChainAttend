@@ -21,59 +21,30 @@ echo "QR Chain Attendance - Full Production Deployment"
 echo -e "==========================================${NC}"
 echo ""
 
-# Step 0: Get Azure AD credentials
+# Step 0: Get Azure AD credentials automatically
 echo -e "${BLUE}Step 0: Azure AD Configuration${NC}"
 
-# Load Azure AD Client ID from environment file (safe to commit)
-if [ -f ".env.azure-ad" ]; then
-    echo "Loading Azure AD configuration from .env.azure-ad..."
-    source .env.azure-ad
-    echo -e "${GREEN}✓ Azure AD Client ID loaded from file${NC}"
-fi
+# Auto-discover existing Azure AD app registration
+AAD_APP_INFO=$(az ad app list --display-name "QR Chain Attendance System" --query "[0].{appId:appId, displayName:displayName}" -o json 2>/dev/null || echo "{}")
+AAD_CLIENT_ID=$(echo "$AAD_APP_INFO" | jq -r '.appId // empty' 2>/dev/null || echo "")
 
-# Check if AAD credentials are provided via environment variables
-if [ -z "$AAD_CLIENT_ID" ]; then
-    echo -e "${YELLOW}Azure AD Client ID not found${NC}"
-    echo "Please provide Azure AD Client ID (or press Enter to skip and configure later):"
-    read -r AAD_CLIENT_ID
-    if [ -z "$AAD_CLIENT_ID" ]; then
-        echo -e "${YELLOW}⚠ Skipping Azure AD configuration - you'll need to configure manually later${NC}"
-        AAD_CLIENT_ID=""
-        AAD_CLIENT_SECRET=""
-    fi
-fi
-
-# Note: Client Secret is always requested interactively (never stored in files)
-if [ -z "$AAD_CLIENT_ID" ]; then
-    echo -e "${YELLOW}Azure AD Client ID not found in environment${NC}"
-    echo "Please provide Azure AD Client ID (or press Enter to skip and configure later):"
-    read -r AAD_CLIENT_ID
-    if [ -z "$AAD_CLIENT_ID" ]; then
-        echo -e "${YELLOW}⚠ Skipping Azure AD configuration - you'll need to configure manually later${NC}"
-        AAD_CLIENT_ID=""
-        AAD_CLIENT_SECRET=""
-    fi
-fi
-
-if [ -n "$AAD_CLIENT_ID" ] && [ -z "$AAD_CLIENT_SECRET" ]; then
-    echo "Please provide Azure AD Client Secret (or press Enter to skip):"
-    read -rs AAD_CLIENT_SECRET
-    echo ""
-    if [ -z "$AAD_CLIENT_SECRET" ]; then
-        echo -e "${YELLOW}⚠ Client Secret not provided - you'll need to configure manually later${NC}"
-    fi
+if [ -n "$AAD_CLIENT_ID" ] && [ "$AAD_CLIENT_ID" != "null" ]; then
+    echo -e "${GREEN}✓ Found existing Azure AD app registration${NC}"
+    echo "  Client ID: $AAD_CLIENT_ID"
+    echo "  App Name: QR Chain Attendance System"
+else
+    echo -e "${YELLOW}⚠ Azure AD app registration not found - will deploy without authentication${NC}"
+    AAD_CLIENT_ID=""
 fi
 
 # Get Tenant ID from Azure CLI
 TENANT_ID="organizations" # Multi-tenant by default
-SPECIFIC_TENANT_ID=$(az account show --query tenantId -o tsv 2>/dev/null || echo "organizations")
 
 if [ -n "$AAD_CLIENT_ID" ]; then
-    echo -e "${GREEN}✓ Azure AD credentials provided${NC}"
-    echo "  Client ID: $AAD_CLIENT_ID"
+    echo -e "${GREEN}✓ Azure AD available for authentication${NC}"
     echo "  Tenant ID: $TENANT_ID"
 else
-    echo -e "${YELLOW}⚠ Azure AD will need manual configuration after deployment${NC}"
+    echo -e "${YELLOW}⚠ Deploying without Azure AD authentication${NC}"
 fi
 echo ""
 
@@ -92,6 +63,40 @@ fi
 
 if ! command -v npm &> /dev/null; then
     echo -e "${RED}✗ npm not installed${NC}"
+    exit 1
+fi
+
+# Ensure Node.js 22 is active for consistent builds
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    source "$HOME/.nvm/nvm.sh"
+fi
+
+if command -v nvm &> /dev/null; then
+    nvm use 22 >/dev/null 2>&1 || nvm install 22
+elif [ -d "$HOME/.nvm" ]; then
+    bash "$HOME/.nvm/nvm.sh" --version > /dev/null && {
+        source "$HOME/.nvm/nvm.sh"
+        nvm use 22 >/dev/null 2>&1 || nvm install 22
+    }
+fi
+
+NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo "")
+if [ "$NODE_MAJOR" != "22" ]; then
+    echo -e "${RED}✗ Node.js 22 required. Current: $(node --version)${NC}"
+    echo -e "${YELLOW}⚠ Trying to use Node.js 22 via NVM...${NC}"
+    if [ -s "$HOME/.nvm/nvm.sh" ]; then
+        source "$HOME/.nvm/nvm.sh"
+        if nvm install 22 && nvm use 22; then
+            NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]")
+            echo -e "${GREEN}✓ Switched to Node.js $(node --version)${NC}"
+        fi
+    fi
+fi
+
+NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo "")
+if [ "$NODE_MAJOR" != "22" ]; then
+    echo -e "${RED}✗ Node.js 22 required. Current: $(node --version)${NC}"
+    echo -e "${YELLOW}Tip: Try 'nvm install 22 && nvm use 22' manually${NC}"
     exit 1
 fi
 

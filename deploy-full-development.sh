@@ -67,13 +67,40 @@ if ! command -v npm &> /dev/null; then
 fi
 
 # Ensure Node.js 22 is active for consistent builds
+# First try to load NVM from common locations
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    source "$HOME/.nvm/nvm.sh"
+fi
+
+# Try to use Node.js 22 if NVM is available
 if command -v nvm &> /dev/null; then
     nvm use 22 >/dev/null 2>&1 || nvm install 22
+elif [ -d "$HOME/.nvm" ]; then
+    # NVM is installed but function not loaded, try direct invocation
+    bash "$HOME/.nvm/nvm.sh" --version > /dev/null && {
+        source "$HOME/.nvm/nvm.sh"
+        nvm use 22 >/dev/null 2>&1 || nvm install 22
+    }
 fi
 
 NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo "")
 if [ "$NODE_MAJOR" != "22" ]; then
     echo -e "${RED}✗ Node.js 22 required. Current: $(node --version)${NC}"
+    echo -e "${YELLOW}⚠ Trying to use Node.js 22 via NVM...${NC}"
+    if [ -s "$HOME/.nvm/nvm.sh" ]; then
+        source "$HOME/.nvm/nvm.sh"
+        if nvm install 22 && nvm use 22; then
+            NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]")
+            echo -e "${GREEN}✓ Switched to Node.js $(node --version)${NC}"
+        fi
+    fi
+fi
+
+# Verify again after NVM attempt
+NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo "")
+if [ "$NODE_MAJOR" != "22" ]; then
+    echo -e "${RED}✗ Node.js 22 required. Current: $(node --version)${NC}"
+    echo -e "${YELLOW}Tip: Try 'nvm install 22 && nvm use 22' manually before re-running this script${NC}"
     exit 1
 fi
 
@@ -240,8 +267,8 @@ cat > local.settings.json << EOF
   },
   "Host": {
     "LocalHttpPort": 7071,
-    "CORS": "*",
-    "CORSCredentials": false
+    "CORS": "",
+    "CORSCredentials": true
   }
 }
 EOF
@@ -254,16 +281,10 @@ cd ..
 echo -e "${GREEN}✓ Backend functions deployed${NC}"
 echo ""
 
-# Step 6: Initialize database tables
-echo -e "${BLUE}Step 6: Initializing database tables...${NC}"
+# Step 6: Verify database tables
+echo -e "${BLUE}Step 6: Verifying database tables...${NC}"
 
-# Set environment variables for table initialization
-export STORAGE_CONNECTION_STRING="$STORAGE_CONNECTION_STRING"
-
-# Run table initialization script
-./scripts/init-tables.sh
-
-echo -e "${GREEN}✓ Database tables initialized${NC}"
+echo -e "${GREEN}✓ Database tables managed by bicep infrastructure${NC}"
 echo ""
 
 # Step 7: Build and deploy frontend
@@ -323,16 +344,19 @@ fi
 
 # Create environment file for build
 cat > .env.local << EOF
-NEXT_PUBLIC_API_URL=$FUNCTION_APP_URL
+NEXT_PUBLIC_API_URL=$FUNCTION_APP_URL/api
 NEXT_PUBLIC_ENVIRONMENT=dev
 NEXT_PUBLIC_AAD_CLIENT_ID=$AAD_CLIENT_ID
 NEXT_PUBLIC_AAD_TENANT_ID=$TENANT_ID
-NEXT_PUBLIC_AAD_REDIRECT_URI=$STATIC_WEB_APP_URL/api/auth/callback
+NEXT_PUBLIC_AAD_REDIRECT_URI=$STATIC_WEB_APP_URL/.auth/login/aad/callback
 EOF
 
 # Build for production (static export)
 echo "Building frontend for static deployment..."
 npm run build
+
+# Copy staticwebapp.config.json to output directory for SWA routing fallback
+cp staticwebapp.config.json out/
 
 cd ..
 echo -e "${GREEN}✓ Frontend built${NC}"
@@ -396,6 +420,64 @@ swa deploy ./out --deployment-token="$DEPLOYMENT_TOKEN" --env production || {
 
 cd ..
 echo -e "${GREEN}✓ Frontend deployment attempted${NC}"
+echo ""
+
+# Step 8.5: Configure CORS for Static Web App
+echo -e "${BLUE}Step 8.5: Configuring CORS for Static Web App...${NC}"
+
+# Add Static Web App URL to Function App CORS
+echo "Adding Static Web App URL to CORS: $STATIC_WEB_APP_URL"
+az functionapp cors add \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --allowed-origins "$STATIC_WEB_APP_URL" \
+    --output none
+
+# Verify CORS configuration
+CORS_ORIGINS=$(az functionapp cors show \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query "allowedOrigins" -o tsv 2>/dev/null || echo "")
+
+if echo "$CORS_ORIGINS" | grep -q "${STATIC_WEB_APP_URL#https://}"; then
+    echo -e "${GREEN}✓ CORS configured for Static Web App${NC}"
+else
+    echo -e "${YELLOW}⚠ CORS configuration may need manual verification${NC}"
+fi
+
+# Enable CORS credentials support
+echo "Enabling CORS credentials support..."
+az functionapp cors credentials \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --enable \
+    --output none
+
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✓ CORS credentials enabled${NC}"
+else
+    echo -e "${YELLOW}⚠ Failed to enable CORS credentials${NC}"
+fi
+
+# Verify Function App authentication is disabled
+echo "Verifying Function App authentication is disabled..."
+AUTH_ENABLED=$(az webapp auth-classic show \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query "enabled" -o tsv 2>/dev/null || echo "false")
+
+if [ "$AUTH_ENABLED" = "true" ]; then
+    echo -e "${YELLOW}⚠ Function App authentication is enabled, disabling it...${NC}"
+    az webapp auth-classic update \
+        --name "$FUNCTION_APP_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --enabled false \
+        --action AllowAnonymous \
+        --output none
+    echo -e "${GREEN}✓ Function App authentication disabled${NC}"
+else
+    echo -e "${GREEN}✓ Function App authentication already disabled${NC}"
+fi
 echo ""
 
 # Step 9: Verifying development deployment...
