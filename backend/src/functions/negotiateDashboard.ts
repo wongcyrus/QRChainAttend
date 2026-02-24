@@ -4,6 +4,27 @@
  */
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
+function parseUserPrincipal(header: string): any {
+  try {
+    const decoded = Buffer.from(header, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    throw new Error('Invalid authentication header');
+  }
+}
+
+function hasRole(principal: any, role: string): boolean {
+  const email = principal?.userDetails || '';
+  const emailLower = email.toLowerCase();
+
+  if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
+    return true;
+  }
+
+  const roles = principal?.userRoles || [];
+  return roles.some((r: string) => r.toLowerCase() === role.toLowerCase());
+}
+
 export async function negotiateDashboard(
   request: HttpRequest,
   context: InvocationContext
@@ -11,6 +32,34 @@ export async function negotiateDashboard(
   context.log('SignalR dashboard negotiate called');
   
   try {
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
+    if (!principalHeader) {
+      return {
+        status: 401,
+        jsonBody: {
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Missing authentication header',
+            timestamp: Date.now()
+          }
+        }
+      };
+    }
+
+    const principal = parseUserPrincipal(principalHeader);
+    if (!hasRole(principal, 'teacher')) {
+      return {
+        status: 403,
+        jsonBody: {
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Teacher role required',
+            timestamp: Date.now()
+          }
+        }
+      };
+    }
+
     // Get session ID from route
     const sessionId = request.params.sessionId;
     if (!sessionId) {
@@ -67,7 +116,7 @@ export async function negotiateDashboard(
     // Generate access token for the client
     // Hub name must be alphanumeric only (no hyphens or special chars)
     const hubName = `dashboard${sessionId.replace(/-/g, '')}`; // Remove hyphens from session ID
-    const userId = request.headers.get('x-ms-client-principal-id') || 'teacher';
+    const userId = principal.userId || principal.userDetails || 'teacher';
     
     // Create JWT token for SignalR
     const crypto = require('crypto');

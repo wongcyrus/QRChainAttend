@@ -96,9 +96,9 @@ export async function getTeacherSessions(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal');
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
     if (!principalHeader) {
-      context.log('Missing x-ms-client-principal header');
+      context.log('Missing client principal header (x-ms-client-principal or x-client-principal)');
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }

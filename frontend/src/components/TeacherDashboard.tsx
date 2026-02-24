@@ -534,8 +534,10 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       
       // Negotiate connection with backend
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const headers = await getAuthHeaders();
       const negotiateResponse = await fetch(`${apiUrl}/sessions/${sessionId}/dashboard/negotiate`, { credentials: 'include',
         method: 'POST',
+        headers
       });
       
       if (!negotiateResponse.ok) {

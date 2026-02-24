@@ -85,21 +85,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      // Get authentication
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
-      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
-      const authData = await authResponse.json();
-      
-      if (!authData.clientPrincipal) {
-        throw new Error('Not authenticated');
-      }
-      
-      // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
-      };
+      const headers = await getAuthHeaders();
       
       const response = await fetch(`${apiUrl}/sessions/${sessionId}/end`, { credentials: 'include',
         method: 'POST',
@@ -145,21 +131,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      // Get authentication
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
-      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
-      const authData = await authResponse.json();
-      
-      if (!authData.clientPrincipal) {
-        throw new Error('Not authenticated');
-      }
-      
-      // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
-      };
+      const headers = await getAuthHeaders();
       
       const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, { credentials: 'include',
         headers
@@ -214,21 +186,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      // Get authentication
-      const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
-      const authEndpoint = isLocal ? '/api/auth/me' : '/.auth/me';
-      const authResponse = await fetch(authEndpoint, { credentials: 'include' });
-      const authData = await authResponse.json();
-      
-      if (!authData.clientPrincipal) {
-        throw new Error('Not authenticated');
-      }
-      
-      // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
-      };
+      const headers = await getAuthHeaders();
       
       const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance`, { credentials: 'include',
         headers

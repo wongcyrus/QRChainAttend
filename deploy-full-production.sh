@@ -27,6 +27,12 @@ echo -e "${BLUE}Step 0: Azure AD Configuration${NC}"
 # Auto-discover existing Azure AD app registration
 AAD_APP_INFO=$(az ad app list --display-name "QR Chain Attendance System" --query "[0].{appId:appId, displayName:displayName}" -o json 2>/dev/null || echo "{}")
 AAD_CLIENT_ID=$(echo "$AAD_APP_INFO" | jq -r '.appId // empty' 2>/dev/null || echo "")
+AAD_CLIENT_SECRET=""
+
+# Load explicit Azure AD credentials if available
+if [ -f ".azure-ad-credentials" ]; then
+    source ./.azure-ad-credentials
+fi
 
 if [ -n "$AAD_CLIENT_ID" ] && [ "$AAD_CLIENT_ID" != "null" ]; then
     echo -e "${GREEN}✓ Found existing Azure AD app registration${NC}"
@@ -37,8 +43,10 @@ else
     AAD_CLIENT_ID=""
 fi
 
-# Get Tenant ID from Azure CLI
-TENANT_ID="organizations" # Multi-tenant by default
+# Get tenant ID (prefer credentials file, fallback to current Azure CLI tenant)
+if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "organizations" ]; then
+    TENANT_ID=$(az account show --query tenantId -o tsv 2>/dev/null || echo "organizations")
+fi
 
 if [ -n "$AAD_CLIENT_ID" ]; then
     echo -e "${GREEN}✓ Azure AD available for authentication${NC}"
@@ -302,6 +310,21 @@ else
 fi
 echo ""
 
+echo "Ensure the Function App is linked to this Static Web App in the Azure portal:"
+echo "  Static Web App -> APIs -> Link -> select $FUNCTION_APP"
+
+# Best-effort check for SWA linked backend (official source of truth)
+echo "Checking for Static Web Apps link on Static Web App..."
+SWA_LINKED=$(az staticwebapp show --name "$STATIC_WEB_APP" --resource-group "$RESOURCE_GROUP" --query "linkedBackends[].backendResourceId" -o tsv 2>/dev/null | grep -i "/sites/$FUNCTION_APP" || true)
+if [ -z "$SWA_LINKED" ]; then
+    echo -e "${YELLOW}⚠ Static Web App link not detected on Static Web App${NC}"
+    echo "  Link it in the Azure portal to enable SWA /api auth context"
+    echo -e "${RED}✗ Stopping deployment: Function App is not linked to Static Web App${NC}"
+    exit 1
+else
+    echo -e "${GREEN}✓ Static Web App link detected on Static Web App${NC}"
+fi
+
 # Step 6: Database tables (managed by bicep)
 echo -e "${BLUE}Step 6: Verifying database tables...${NC}"
 echo -e "${GREEN}✓ Database tables managed by bicep infrastructure${NC}"
@@ -371,7 +394,7 @@ echo -e "${BLUE}Step 7.5: Configuring Azure AD for Static Web App...${NC}"
 if [ -n "$AAD_CLIENT_ID" ]; then
     echo -e "${GREEN}✓ Azure AD credentials provided${NC}"
     echo "  Client ID: $AAD_CLIENT_ID"
-    echo "  Tenant: $TENANT_ID (multi-tenant)"
+    echo "  Tenant: $TENANT_ID"
     
     # Update Azure AD redirect URI for the new Static Web App
     echo -e "${BLUE}Updating Azure AD redirect URI...${NC}"
@@ -391,13 +414,21 @@ if [ -n "$AAD_CLIENT_ID" ]; then
     
     # Configure Static Web App application settings
     echo -e "${BLUE}Configuring Static Web App AAD settings...${NC}"
+    SWA_AUTH_SETTINGS=(
+        "AAD_CLIENT_ID=$AAD_CLIENT_ID"
+        "TENANT_ID=$TENANT_ID"
+    )
+
+    if [ -n "$AAD_CLIENT_SECRET" ]; then
+        SWA_AUTH_SETTINGS+=("AAD_CLIENT_SECRET=$AAD_CLIENT_SECRET")
+    else
+        echo -e "${YELLOW}⚠ AAD_CLIENT_SECRET not provided; keeping existing SWA secret${NC}"
+    fi
+
     az staticwebapp appsettings set \
         --name $STATIC_WEB_APP \
         --resource-group $RESOURCE_GROUP \
-        --setting-names \
-            AAD_CLIENT_ID="$AAD_CLIENT_ID" \
-            AAD_CLIENT_SECRET="$AAD_CLIENT_SECRET" \
-            TENANT_ID="$TENANT_ID" \
+        --setting-names "${SWA_AUTH_SETTINGS[@]}" \
         --output none
     
     if [ $? -eq 0 ]; then
@@ -427,7 +458,7 @@ echo -e "${BLUE}Step 8: Building and deploying frontend...${NC}"
 FRONTEND_AAD_CLIENT_ID="${AAD_CLIENT_ID:-YOUR_AAD_CLIENT_ID}"
 
 # Export environment variables for Next.js build
-export NEXT_PUBLIC_API_URL="https://$FUNCTION_APP.azurewebsites.net/api"
+export NEXT_PUBLIC_API_URL="$STATIC_WEB_APP_URL/api"
 export NEXT_PUBLIC_AAD_CLIENT_ID="$FRONTEND_AAD_CLIENT_ID"
 export NEXT_PUBLIC_AAD_TENANT_ID="$TENANT_ID"
 export NEXT_PUBLIC_AAD_REDIRECT_URI="$STATIC_WEB_APP_URL/.auth/login/aad/callback"
@@ -438,7 +469,7 @@ export NEXT_PUBLIC_FRONTEND_URL="$STATIC_WEB_APP_URL"
 # Also create .env.production file as backup
 cat > frontend/.env.production << EOF
 # Production Environment Configuration
-NEXT_PUBLIC_API_URL=https://$FUNCTION_APP.azurewebsites.net/api
+NEXT_PUBLIC_API_URL=$STATIC_WEB_APP_URL/api
 NEXT_PUBLIC_AAD_CLIENT_ID=$FRONTEND_AAD_CLIENT_ID
 NEXT_PUBLIC_AAD_TENANT_ID=$TENANT_ID
 NEXT_PUBLIC_AAD_REDIRECT_URI=$STATIC_WEB_APP_URL/.auth/login/aad/callback

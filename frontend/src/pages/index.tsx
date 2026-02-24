@@ -115,10 +115,7 @@ export default function Home() {
     if (isLocal) {
       window.location.href = '/api/auth/logout';
     } else {
-      // Method 1: Purge user data from Azure Static Web Apps first, then logout
-      // This ensures the Microsoft session is also cleared
-      window.location.href = 'https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=' + 
-        encodeURIComponent(window.location.origin + '/.auth/logout?post_logout_redirect_uri=/');
+      window.location.href = '/.auth/logout?post_logout_redirect_uri=/';
     }
   };
 
@@ -127,10 +124,7 @@ export default function Home() {
     if (isLocal) {
       window.location.href = '/dev-config';
     } else {
-      // Clear Microsoft Entra ID session first, then redirect to login with account picker
-      // This forces the account selection dialog to appear
-      window.location.href = 'https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=' + 
-        encodeURIComponent(window.location.origin + '/.auth/login/aad?prompt=select_account');
+      window.location.href = '/.auth/logout?post_logout_redirect_uri=/.auth/login/aad?prompt=select_account';
     }
   };
 

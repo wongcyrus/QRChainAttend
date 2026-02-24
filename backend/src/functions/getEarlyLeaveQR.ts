@@ -17,6 +17,11 @@ function parseUserPrincipal(header: string): any {
   }
 }
 
+function hasRole(principal: any, role: string): boolean {
+  const roles = principal?.userRoles || [];
+  return roles.some((r: string) => r.toLowerCase() === role.toLowerCase());
+}
+
 function getTableClient(tableName: string): TableClient {
   const connectionString = process.env.AzureWebJobsStorage;
   if (!connectionString) {
@@ -39,6 +44,22 @@ function encryptToken(data: any): string {
 
 async function getEarlyLeaveQR(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
+    if (!principalHeader) {
+      return {
+        status: 401,
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
+      };
+    }
+
+    const principal = parseUserPrincipal(principalHeader);
+    if (!hasRole(principal, 'teacher')) {
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+      };
+    }
+
     const sessionId = request.params.sessionId;
     
     if (!sessionId) {

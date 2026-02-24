@@ -19,7 +19,7 @@ interface RoleResponse {
 
 export default function handler(req: NextApiRequest, res: NextApiResponse<RoleResponse>) {
   // Get the authenticated user info from the header
-  const clientPrincipalHeader = req.headers['x-ms-client-principal'] as string;
+  const clientPrincipalHeader = (req.headers['x-ms-client-principal'] || req.headers['x-client-principal']) as string;
   
   if (!clientPrincipalHeader) {
     // Not authenticated - return only anonymous role

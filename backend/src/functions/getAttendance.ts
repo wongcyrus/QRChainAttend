@@ -56,7 +56,7 @@ export async function getAttendance(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal');
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
     if (!principalHeader) {
       return {
         status: 401,

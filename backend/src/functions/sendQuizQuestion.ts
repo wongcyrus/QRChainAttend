@@ -46,7 +46,7 @@ export async function sendQuizQuestion(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal');
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
     if (!principalHeader) {
       context.log('Missing authentication header');
       return {

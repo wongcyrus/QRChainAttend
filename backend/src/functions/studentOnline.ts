@@ -17,6 +17,11 @@ function parseUserPrincipal(header: string): any {
   }
 }
 
+function hasRole(principal: any, role: string): boolean {
+  const roles = principal?.userRoles || [];
+  return roles.some((r: string) => r.toLowerCase() === role.toLowerCase());
+}
+
 function getTableClient(tableName: string): TableClient {
   const connectionString = process.env.AzureWebJobsStorage;
   if (!connectionString) {
@@ -33,7 +38,7 @@ export async function studentOnline(
   context.log('Processing POST /api/sessions/{sessionId}/student-online request');
 
   try {
-    const principalHeader = request.headers.get('x-ms-client-principal');
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
     if (!principalHeader) {
       return {
         status: 401,
@@ -42,6 +47,12 @@ export async function studentOnline(
     }
 
     const principal = parseUserPrincipal(principalHeader);
+    if (!hasRole(principal, 'student')) {
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
+      };
+    }
     const sessionId = request.params.sessionId;
     const studentEmail = principal.userDetails;
     

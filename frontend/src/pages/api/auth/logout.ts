@@ -20,12 +20,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const userEmail = mockUser.clientPrincipal?.userDetails;
       
       if (userEmail) {
+        const principal = mockUser.clientPrincipal || null;
+        const principalHeader = principal ? Buffer.from(JSON.stringify(principal)).toString('base64') : '';
+
         // Clear session from backend
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7071/api';
         await fetch(`${apiUrl}/auth/clear-session`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(principalHeader ? { 'x-ms-client-principal': principalHeader, 'x-client-principal': principalHeader } : {})
           },
           body: JSON.stringify({ email: userEmail })
         }).catch(err => console.error('Failed to clear session:', err));

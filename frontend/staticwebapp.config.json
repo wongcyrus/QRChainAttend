@@ -3,7 +3,7 @@
   "routes": [
     {
       "route": "/teacher",
-      "allowedRoles": ["teacher"]
+      "allowedRoles": ["authenticated"]
     },
     {
       "route": "/student",
@@ -12,6 +12,14 @@
     {
       "route": "/dev-config",
       "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/api/auth/roles",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/api/*",
+      "allowedRoles": ["authenticated"]
     },
     {
       "route": "/*",
@@ -53,23 +61,13 @@
     }
   },
   "auth": {
-    "rolesSource": "/api/auth/roles",
     "identityProviders": {
       "azureActiveDirectory": {
         "registration": {
-          "openIdIssuer": "https://login.microsoftonline.com/8ff7db19-435d-4c3c-83d3-ca0a46234f51/v2.0",
+          "openIdIssuer": "https://login.microsoftonline.com/organizations/v2.0",
           "clientIdSettingName": "AAD_CLIENT_ID",
           "clientSecretSettingName": "AAD_CLIENT_SECRET"
-        },
-        "login": {
-          "loginParameters": [
-            "response_type=code",
-            "response_mode=query",
-            "scope=openid profile email",
-            "prompt=select_account"
-          ]
-        },
-        "userDetailsClaim": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+        }
       }
     }
   },
@@ -103,8 +101,5 @@
   "platform": {
     "apiRuntime": "node:20"
   },
-  "trailingSlash": "auto",
-  "networking": {
-    "allowedIpRanges": []
-  }
+  "trailingSlash": "auto"
 }

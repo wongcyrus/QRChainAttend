@@ -34,10 +34,10 @@ export async function getRoles(
 
   try {
     // Get the user principal from the header (provided by Static Web Apps)
-    const principalHeader = request.headers.get('x-ms-client-principal');
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
     
     if (!principalHeader) {
-      context.log('No x-ms-client-principal header found');
+      context.log('No client principal header found (x-ms-client-principal or x-client-principal)');
       return {
         status: 200,
         jsonBody: {

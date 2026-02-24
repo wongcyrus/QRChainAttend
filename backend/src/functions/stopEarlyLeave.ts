@@ -33,7 +33,7 @@ function getTableClient(tableName: string): TableClient {
 
 export async function stopEarlyLeave(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    const principalHeader = request.headers.get('x-ms-client-principal');
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
     if (!principalHeader) {
       return { status: 401, jsonBody: { error: 'Unauthorized' } };
     }

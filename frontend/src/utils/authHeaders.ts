@@ -9,8 +9,8 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes (increased from 5)
 
 /**
  * Get authentication headers for API requests
- * In production: Fetches from /.auth/me and formats as x-ms-client-principal
- * In local: Fetches from /api/auth/me and caches for 5 minutes
+ * In production: sends x-client-principal (non-reserved header) from /.auth/me
+ * In local: sends x-ms-client-principal for emulator compatibility
  */
 export async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
@@ -19,10 +19,14 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
 
   const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
 
-  // Check cache first (for both local and production)
+  // Check cache first
   const now = Date.now();
   if (cachedPrincipal && (now - cacheTimestamp) < CACHE_DURATION) {
-    headers['x-ms-client-principal'] = cachedPrincipal;
+    if (isLocal) {
+      headers['x-ms-client-principal'] = cachedPrincipal;
+    } else {
+      headers['x-client-principal'] = cachedPrincipal;
+    }
     return headers;
   }
 
@@ -49,10 +53,10 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
     } catch (error) {
       console.error('Failed to fetch local auth:', error);
     }
-  } else {
-    // Production - fetch from Azure Static Web Apps auth
+  }
+  else {
+    // Production - fetch auth and include non-reserved header
     try {
-      // Fetch fresh auth data
       const authResponse = await fetch('/.auth/me', {
         credentials: 'include',
         cache: 'no-store'
@@ -61,19 +65,16 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
       if (authResponse.ok) {
         const authData = await authResponse.json();
         if (authData.clientPrincipal) {
-          // Format as x-ms-client-principal header
           const principal = Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64');
-          
-          // Cache it
+
           cachedPrincipal = principal;
           cacheTimestamp = now;
-          
-          headers['x-ms-client-principal'] = principal;
+
+          headers['x-client-principal'] = principal;
         }
       }
     } catch (error) {
-      console.error('Failed to fetch auth headers:', error);
-      // Continue without auth header - backend will return 401
+      console.error('Failed to fetch production auth:', error);
     }
   }
 

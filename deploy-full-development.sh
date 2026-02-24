@@ -27,6 +27,12 @@ echo -e "${BLUE}Step 0: Azure AD Configuration${NC}"
 # Auto-discover existing Azure AD app registration
 AAD_APP_INFO=$(az ad app list --display-name "QR Chain Attendance System" --query "[0].{appId:appId, displayName:displayName}" -o json 2>/dev/null || echo "{}")
 AAD_CLIENT_ID=$(echo "$AAD_APP_INFO" | jq -r '.appId // empty' 2>/dev/null || echo "")
+AAD_CLIENT_SECRET=""
+
+# Load explicit Azure AD credentials if available
+if [ -f ".azure-ad-credentials" ]; then
+    source ./.azure-ad-credentials
+fi
 
 if [ -n "$AAD_CLIENT_ID" ] && [ "$AAD_CLIENT_ID" != "null" ]; then
     echo -e "${GREEN}✓ Found existing Azure AD app registration${NC}"
@@ -37,8 +43,10 @@ else
     AAD_CLIENT_ID=""
 fi
 
-# Get Tenant ID from Azure CLI (use actual tenant for production)
-TENANT_ID="organizations" # Multi-tenant by default
+# Get tenant ID (prefer credentials file, fallback to current Azure CLI tenant)
+if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "organizations" ]; then
+    TENANT_ID=$(az account show --query tenantId -o tsv 2>/dev/null || echo "organizations")
+fi
 
 if [ -n "$AAD_CLIENT_ID" ]; then
     echo -e "${GREEN}✓ Azure AD available for authentication${NC}"
@@ -337,6 +345,44 @@ else
     echo "⚠ Using fallback URL: $STATIC_WEB_APP_URL"
 fi
 
+# Ensure SWA has current Azure AD app settings (prevents stale secret login loops)
+if [ -n "$AAD_CLIENT_ID" ]; then
+    echo "Configuring Static Web App Azure AD settings..."
+    SWA_AUTH_SETTINGS=(
+        "AAD_CLIENT_ID=$AAD_CLIENT_ID"
+        "TENANT_ID=$TENANT_ID"
+    )
+
+    if [ -n "$AAD_CLIENT_SECRET" ]; then
+        SWA_AUTH_SETTINGS+=("AAD_CLIENT_SECRET=$AAD_CLIENT_SECRET")
+    else
+        echo -e "${YELLOW}⚠ AAD_CLIENT_SECRET not provided; keeping existing SWA secret${NC}"
+    fi
+
+    az staticwebapp appsettings set \
+        --name "$STATIC_WEB_APP_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --setting-names "${SWA_AUTH_SETTINGS[@]}" \
+        --output none
+
+    echo -e "${GREEN}✓ Static Web App Azure AD settings applied${NC}"
+fi
+
+echo "Link the Function App to this Static Web App in the Azure portal:"
+echo "  Static Web App -> APIs -> Link -> select $FUNCTION_APP_NAME"
+
+# Best-effort check for SWA linked backend (official source of truth)
+echo "Checking for Static Web Apps link on Static Web App..."
+SWA_LINKED=$(az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --query "linkedBackends[].backendResourceId" -o tsv 2>/dev/null | grep -i "/sites/$FUNCTION_APP_NAME" || true)
+if [ -z "$SWA_LINKED" ]; then
+    echo -e "${YELLOW}⚠ Static Web App link not detected on Static Web App${NC}"
+    echo "  Link it in the Azure portal to enable SWA /api auth context"
+    echo -e "${RED}✗ Stopping deployment: Function App is not linked to Static Web App${NC}"
+    exit 1
+else
+    echo -e "${GREEN}✓ Static Web App link detected on Static Web App${NC}"
+fi
+
 # Ensure Function App URL has proper protocol
 if [[ "$FUNCTION_APP_URL" != https://* ]]; then
     FUNCTION_APP_URL="https://$FUNCTION_APP_URL"
@@ -344,7 +390,7 @@ fi
 
 # Create environment file for build
 cat > .env.local << EOF
-NEXT_PUBLIC_API_URL=$FUNCTION_APP_URL/api
+NEXT_PUBLIC_API_URL=$STATIC_WEB_APP_URL/api
 NEXT_PUBLIC_ENVIRONMENT=dev
 NEXT_PUBLIC_AAD_CLIENT_ID=$AAD_CLIENT_ID
 NEXT_PUBLIC_AAD_TENANT_ID=$TENANT_ID

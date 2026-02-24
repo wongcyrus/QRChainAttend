@@ -148,19 +148,7 @@ export default function TeacherPage() {
         return;
       }
       
-      // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Create principal header for backend
-      const principal = {
-        userId: authData.clientPrincipal.userId,
-        userDetails: authData.clientPrincipal.userDetails,
-        userRoles: getRolesFromEmail(authData.clientPrincipal.userDetails),
-        identityProvider: authData.clientPrincipal.identityProvider || 'aad'
-      };
-      headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(principal)).toString('base64');
+      const headers = await getAuthHeaders();
       
       // Use email (userDetails) as teacher ID, not the generated userId
       const teacherId = authData.clientPrincipal.userDetails || authData.clientPrincipal.userId || '';
@@ -218,10 +206,7 @@ export default function TeacherPage() {
         
         if (!authData.clientPrincipal) return;
         
-        const headers: HeadersInit = {
-          'Content-Type': 'application/json',
-          'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
-        };
+        const headers = await getAuthHeaders();
         
         const endpoint = qrCodeData.type === 'ENTRY' ? 'entry-qr' : 'exit-qr';
         const response = await fetch(`${apiUrl}/sessions/${qrCodeData.sessionId}/${endpoint}`, { credentials: 'include', headers });
@@ -282,11 +267,7 @@ export default function TeacherPage() {
         return;
       }
       
-      // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
-      };
+      const headers = await getAuthHeaders();
       
       // Get entry QR token from backend
       const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/entry-qr`, { credentials: 'include', headers });
@@ -356,11 +337,7 @@ export default function TeacherPage() {
         return;
       }
       
-      // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
-      };
+      const headers = await getAuthHeaders();
       
       // Get exit QR token from backend
       const response = await fetch(`${apiUrl}/sessions/${session.sessionId}/exit-qr`, { credentials: 'include', headers });
@@ -452,11 +429,7 @@ export default function TeacherPage() {
         return;
       }
       
-      // Create headers with authentication
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        'x-ms-client-principal': Buffer.from(JSON.stringify(authData.clientPrincipal)).toString('base64')
-      };
+      const headers = await getAuthHeaders();
       
       // Call delete endpoint with scope parameter
       const url = new URL(`${apiUrl}/sessions/${sessionId}`, window.location.origin);

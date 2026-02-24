@@ -47,7 +47,7 @@ export async function getStudentQuestions(
   context.log('Processing GET /api/sessions/{sessionId}/student-questions request');
 
   try {
-    const principalHeader = request.headers.get('x-ms-client-principal');
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
     if (!principalHeader) {
       return {
         status: 401,

@@ -4,10 +4,52 @@
  */
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
+function parseUserPrincipal(header: string): any {
+  try {
+    const decoded = Buffer.from(header, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    throw new Error('Invalid authentication header');
+  }
+}
+
+function hasRole(principal: any, role: string): boolean {
+  const roles = principal?.userRoles || [];
+  return roles.some((r: string) => r.toLowerCase() === role.toLowerCase());
+}
+
 export async function negotiate(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   context.log('SignalR negotiate called');
   
   try {
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
+    if (!principalHeader) {
+      return {
+        status: 401,
+        jsonBody: {
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Missing authentication header',
+            timestamp: Date.now()
+          }
+        }
+      };
+    }
+
+    const principal = parseUserPrincipal(principalHeader);
+    if (!hasRole(principal, 'authenticated')) {
+      return {
+        status: 403,
+        jsonBody: {
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Authenticated role required',
+            timestamp: Date.now()
+          }
+        }
+      };
+    }
+
     // Get SignalR connection string from environment
     const connectionString = process.env.SIGNALR_CONNECTION_STRING;
     
@@ -48,7 +90,7 @@ export async function negotiate(request: HttpRequest, context: InvocationContext
     
     // Generate access token for the client
     const hubName = 'attendance'; // Hub name for attendance updates
-    const userId = request.headers.get('x-ms-client-principal-id') || 'anonymous';
+    const userId = principal.userId || principal.userDetails || 'unknown';
     
     // Create JWT token for SignalR
     const crypto = require('crypto');

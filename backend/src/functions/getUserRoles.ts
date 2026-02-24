@@ -29,7 +29,7 @@ export async function getUserRoles(
   context.log('Processing GET /api/auth/me request');
 
   try {
-    const principalHeader = request.headers.get('x-ms-client-principal');
+    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
     
     if (!principalHeader) {
       return {
