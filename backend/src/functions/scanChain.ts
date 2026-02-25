@@ -53,6 +53,7 @@ export async function scanChain(
     const chainsTable = getTableClient(TableNames.CHAINS);
     const attendanceTable = getTableClient(TableNames.ATTENDANCE);
     const sessionsTable = getTableClient(TableNames.SESSIONS);
+    const chainHistoryTable = getTableClient(TableNames.CHAIN_HISTORY);
 
     const hasStudentRole = hasRole(principal, 'Student') || hasRole(principal, 'student');
     context.log(`[scanChain] auth: hasStudentRole=${hasStudentRole}, scannerId=${studentEmail}`);
@@ -175,6 +176,29 @@ export async function scanChain(
     const scannerId = studentEmail; // Scanner is the one calling this endpoint
     context.log(`[scanChain] token validated: previousHolder=${previousHolder}, scannerId=${scannerId}, chainState=${(chainData as any).state || 'unknown'}`);
     
+    // Check if scanner was already a holder in THIS specific chain
+    try {
+      for await (const record of chainHistoryTable.listEntities({
+        queryOptions: { filter: `PartitionKey eq '${chainId}' and toHolder eq '${scannerId}'` }
+      })) {
+        // Scanner was already a holder in this chain
+        context.warn(`[scanChain] holder reuse blocked: scannerId=${scannerId} was already holder in chain ${chainId}`);
+        return {
+          status: 400,
+          jsonBody: { 
+            error: { 
+              code: 'ALREADY_HOLDER', 
+              message: 'You have already been a holder in this chain',
+              timestamp: now 
+            } 
+          }
+        };
+      }
+    } catch (error: any) {
+      context.error(`[scanChain] Error checking holder history: ${error.message}`);
+      // Don't block the scan if history check fails - log and continue
+    }
+    
     // Scanner should become the new holder
     
     // Mark previous holder's attendance if not already marked
@@ -273,7 +297,6 @@ export async function scanChain(
     }, 'Merge');
 
     // Record chain history for tracking
-    const chainHistoryTable = getTableClient(TableNames.CHAIN_HISTORY);
     try {
       await chainHistoryTable.createEntity({
         partitionKey: chainId,  // Group by chain

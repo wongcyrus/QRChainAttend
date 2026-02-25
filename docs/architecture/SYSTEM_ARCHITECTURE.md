@@ -237,7 +237,9 @@ Frontend ← Backend ← Success response
 
 3. Student B scans Student A's QR
    → Backend validates token
-   → Marks Student A as present (entryMethod: 'CHAIN')
+   → **Checks if Student B was already a holder in this chain** (NEW)
+   → If already holder: Returns error "Already been a holder in this chain"
+   → If not: Marks Student A as present (entryMethod: 'CHAIN')
    → Creates new token for Student B
    → Student B becomes new holder
    → Records transfer in ChainHistory
@@ -279,6 +281,49 @@ Teacher clicks "Take Snapshot"
    → Students see QR codes
    → Chains run normally
    → Records who was present at that moment
+```
+
+### Chain Holder Prevention
+
+**Purpose**: Prevent students from becoming chain holders multiple times in the same chain
+
+**Implementation**:
+```
+When student scans a QR code:
+1. Query ChainHistory table for current chainId
+2. Check if scannerId appears as 'toHolder' in any record
+3. If found: Return error "Already been a holder in this chain"
+4. If not found: Allow student to become new holder
+```
+
+**Behavior**:
+- ✅ Student can be holder once per chain
+- ✅ Student can be holder in entry chain AND exit chain AND snapshot chains
+- ❌ Student CANNOT be holder multiple times in the SAME chain
+- ✅ Ensures fair distribution within each chain
+- ✅ Prevents manipulation by becoming holder repeatedly
+
+**Example**:
+```
+Entry Chain:
+- Student A is holder at seq 1
+- Student B scans → becomes holder at seq 2 ✅
+- Student C scans → becomes holder at seq 3 ✅
+- Student A scans → BLOCKED (already was holder at seq 1) ❌
+
+Exit Chain (different chain):
+- Student A can be holder ✅ (different chain instance)
+```
+
+**Error Response**:
+```json
+{
+  "error": {
+    "code": "ALREADY_HOLDER",
+    "message": "You have already been a holder in this chain",
+    "timestamp": 1234567890
+  }
+}
 ```
 
 ---
