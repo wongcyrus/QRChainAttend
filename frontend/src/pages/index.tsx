@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { clearAuthCache } from '../utils/authHeaders';
 
 interface UserInfo {
   userId: string;
@@ -112,19 +113,22 @@ export default function Home() {
 
   const handleLogout = () => {
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+    clearAuthCache();
     if (isLocal) {
       window.location.href = '/api/auth/logout';
     } else {
-      window.location.href = '/.auth/logout?post_logout_redirect_uri=/';
+      window.location.href = '/.auth/logout?post_logout_redirect_uri=%2F';
     }
   };
 
   const handleSwitchAccount = () => {
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+    clearAuthCache();
     if (isLocal) {
       window.location.href = '/dev-config';
     } else {
-      window.location.href = '/.auth/logout?post_logout_redirect_uri=/.auth/login/aad?prompt=select_account';
+      const nextLoginUrl = '/.auth/login/aad?prompt=select_account';
+      window.location.href = `/.auth/logout?post_logout_redirect_uri=${encodeURIComponent(nextLoginUrl)}`;
     }
   };
 
@@ -192,7 +196,7 @@ export default function Home() {
               fontWeight: 'bold'
             }}
           >
-            Login with Azure AD
+            Login
           </button>
         )}
       </div>

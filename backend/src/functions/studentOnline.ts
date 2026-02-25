@@ -18,6 +18,17 @@ function parseUserPrincipal(header: string): any {
 }
 
 function hasRole(principal: any, role: string): boolean {
+  const email = principal?.userDetails || '';
+  const emailLower = email.toLowerCase();
+
+  if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
+    return true;
+  }
+
+  if (role.toLowerCase() === 'student' && emailLower.endsWith('@stu.vtc.edu.hk')) {
+    return true;
+  }
+
   const roles = principal?.userRoles || [];
   return roles.some((r: string) => r.toLowerCase() === role.toLowerCase());
 }
@@ -54,9 +65,9 @@ export async function studentOnline(
       };
     }
     const sessionId = request.params.sessionId;
-    const studentEmail = principal.userDetails;
+    const studentId = principal.userDetails || principal.userId;
     
-    if (!sessionId || !studentEmail) {
+    if (!sessionId || !studentId) {
       return {
         status: 400,
         jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId or email', timestamp: Date.now() } }
@@ -70,21 +81,21 @@ export async function studentOnline(
     const attendanceTable = getTableClient('Attendance');
     
     try {
-      const record = await attendanceTable.getEntity(sessionId, studentEmail);
+      const record = await attendanceTable.getEntity(sessionId, studentId);
       
       // Update online status and last seen timestamp
       await attendanceTable.updateEntity({
         partitionKey: sessionId,
-        rowKey: studentEmail,
+        rowKey: studentId,
         isOnline: isOnline,
-        lastSeen: Date.now()
+        lastSeen: Math.floor(Date.now() / 1000)
       }, 'Merge');
 
-      context.log(`Updated online status for ${studentEmail}: ${isOnline}`);
+      context.log(`Updated online status for ${studentId}: ${isOnline}`);
 
       // Broadcast to SignalR so teacher dashboard updates in real-time
       await broadcastAttendanceUpdate(sessionId, {
-        studentId: studentEmail,
+        studentId: studentId,
         isOnline: isOnline,
       }, context);
 
