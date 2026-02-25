@@ -17,7 +17,7 @@ function parseUserPrincipal(header: string): any {
 }
 
 function hasRole(principal: any, role: string): boolean {
-  const email = principal.userDetails || '';
+  const email = principal.userDetails || principal.userId || '';
   const emailLower = email.toLowerCase();
   
   if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {

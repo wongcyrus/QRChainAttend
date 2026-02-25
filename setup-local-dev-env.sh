@@ -117,8 +117,10 @@ configure_frontend() {
     
     cd frontend
     
-    # Load Azure AD config
-    source ../.env.azure-ad 2>/dev/null || true
+    # Load auth config (preferred: External ID)
+    if [ -f "../.external-id-credentials" ]; then
+        source ../.external-id-credentials
+    fi
     
     # Create .env.local for local frontend development
     cat > .env.local << EOF
@@ -126,7 +128,7 @@ configure_frontend() {
 NEXT_PUBLIC_API_URL=http://localhost:7071
 NEXT_PUBLIC_ENVIRONMENT=local-dev
 NEXT_PUBLIC_AAD_CLIENT_ID=$AAD_CLIENT_ID
-NEXT_PUBLIC_AAD_TENANT_ID=organizations
+NEXT_PUBLIC_AAD_TENANT_ID=${TENANT_ID:-organizations}
 NEXT_PUBLIC_AAD_REDIRECT_URI=http://localhost:3000/api/auth/callback
 
 # Development URLs for reference

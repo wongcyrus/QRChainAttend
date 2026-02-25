@@ -19,7 +19,7 @@ function parseUserPrincipal(header: string): any {
 }
 
 function hasRole(principal: any, role: string): boolean {
-  const email = principal.userDetails || '';
+  const email = principal.userDetails || principal.userId || '';
   const emailLower = email.toLowerCase();
   
   // Check VTC domain-based roles
@@ -62,13 +62,11 @@ export async function scanChain(
     }
 
     const principal = parseUserPrincipal(principalHeader);
-    const studentEmail = principal.userDetails;
-    
-    // Require Student role
-    if (!hasRole(principal, 'Student') && !hasRole(principal, 'student')) {
+    const studentEmail = principal.userDetails || principal.userId;
+    if (!studentEmail) {
       return {
-        status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
+        status: 401,
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Invalid authentication principal', timestamp: Date.now() } }
       };
     }
 
@@ -77,6 +75,7 @@ export async function scanChain(
     const body = await request.json() as any;
     const tokenId = body.tokenId;
     const scannerLocation = body.location || body.metadata?.gps; // Student's GPS location
+    context.log(`[scanChain] request: sessionId=${sessionId || 'missing'}, chainId=${chainId || 'missing'}, tokenId=${tokenId || 'missing'}, scannerId=${studentEmail}`);
     
     if (!sessionId || !chainId || !tokenId) {
       return {
@@ -91,11 +90,30 @@ export async function scanChain(
     const attendanceTable = getTableClient('Attendance');
     const sessionsTable = getTableClient('Sessions');
 
+    const hasStudentRole = hasRole(principal, 'Student') || hasRole(principal, 'student');
+    context.log(`[scanChain] auth: hasStudentRole=${hasStudentRole}, scannerId=${studentEmail}`);
+    if (!hasStudentRole) {
+      try {
+        await attendanceTable.getEntity(sessionId, studentEmail);
+        context.log(`[scanChain] role fallback: scanner found in attendance for session ${sessionId}`);
+      } catch (error: any) {
+        if (error.statusCode === 404) {
+          context.warn(`[scanChain] forbidden: scanner not in attendance and no student role. session=${sessionId}, scannerId=${studentEmail}`);
+          return {
+            status: 403,
+            jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
+          };
+        }
+        throw error;
+      }
+    }
+
     // Verify session exists and is active
     let session;
     try {
       session = await sessionsTable.getEntity('SESSION', sessionId);
       if (session.status !== 'ACTIVE') {
+        context.warn(`[scanChain] session not active: session=${sessionId}, status=${session.status}`);
         return {
           status: 400,
           jsonBody: { error: { code: 'SESSION_ENDED', message: 'Session has ended', timestamp: now } }
@@ -140,6 +158,7 @@ export async function scanChain(
 
     // Block scan if geofence is enforced and student is out of bounds
     if (geoCheck.shouldBlock) {
+      context.warn(`[scanChain] geofence blocked: session=${sessionId}, chain=${chainId}, scannerId=${studentEmail}, distance=${geoCheck.distance ?? 'n/a'}`);
       return {
         status: 403,
         jsonBody: {
@@ -162,6 +181,7 @@ export async function scanChain(
       
       // Check if token has expired
       if (token.expiresAt && (token.expiresAt as number) < now) {
+        context.warn(`[scanChain] token expired: tokenId=${tokenId}, expiresAt=${token.expiresAt}, now=${now}`);
         return {
           status: 400,
           jsonBody: { error: { code: 'TOKEN_EXPIRED', message: 'Token has expired', timestamp: now } }
@@ -170,6 +190,7 @@ export async function scanChain(
       
       // Verify token belongs to the correct chain
       if (token.chainId !== chainId) {
+        context.warn(`[scanChain] token-chain mismatch: tokenId=${tokenId}, token.chainId=${token.chainId}, request.chainId=${chainId}`);
         return {
           status: 400,
           jsonBody: { error: { code: 'INVALID_TOKEN', message: 'Token does not belong to this chain', timestamp: now } }
@@ -188,6 +209,7 @@ export async function scanChain(
     // Get the previous holder and the scanner
     const previousHolder = token.holderId as string;
     const scannerId = studentEmail; // Scanner is the one calling this endpoint
+    context.log(`[scanChain] token validated: previousHolder=${previousHolder}, scannerId=${scannerId}, chainState=${(chainData as any).state || 'unknown'}`);
     
     // Scanner should become the new holder
     
@@ -331,7 +353,7 @@ export async function scanChain(
     };
 
   } catch (error: any) {
-    context.error('Error scanning chain:', error);
+    context.error('[scanChain] Error scanning chain:', error);
     
     return {
       status: 500,

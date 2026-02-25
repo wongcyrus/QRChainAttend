@@ -101,18 +101,18 @@ az ad app permission add \
 echo -e "${GREEN}✓ API permissions configured${NC}"
 echo ""
 
-# Save credentials to file
-cat > .azure-ad-credentials << EOF
-# Azure AD App Registration Credentials
+# Save credentials to preferred file
+cat > .external-id-credentials << EOF
+# External ID App Registration Credentials
 # Created: $(date)
 # DO NOT COMMIT THIS FILE TO GIT!
 
 export AAD_CLIENT_ID="$APP_ID"
 export AAD_CLIENT_SECRET="$CLIENT_SECRET"
-export AAD_TENANT_ID="$TENANT_ID"
+export TENANT_ID="$TENANT_ID"
 EOF
 
-chmod 600 .azure-ad-credentials
+chmod 600 .external-id-credentials
 
 echo -e "${GREEN}=========================================="
 echo "Azure AD App Registration Complete!"
@@ -122,22 +122,22 @@ echo -e "${BLUE}Credentials:${NC}"
 echo "  App Name:      $APP_NAME"
 echo "  Client ID:     $APP_ID"
 echo "  Tenant ID:     $TENANT_ID"
-echo "  Client Secret: ${CLIENT_SECRET:0:10}... (saved to .azure-ad-credentials)"
+echo "  Client Secret: ${CLIENT_SECRET:0:10}... (saved to .external-id-credentials)"
 echo ""
 echo -e "${BLUE}Redirect URIs (works for all environments):${NC}"
 for uri in "${REDIRECT_URIS[@]}"; do
     echo "  - $uri"
 done
 echo ""
-echo -e "${YELLOW}⚠ IMPORTANT: Credentials saved to .azure-ad-credentials${NC}"
+echo -e "${YELLOW}⚠ IMPORTANT: Credentials saved to .external-id-credentials (preferred)${NC}"
 echo "  This file is in .gitignore and should NOT be committed"
 echo ""
 echo -e "${BLUE}Next steps:${NC}"
 echo "  1. Deploy infrastructure:"
-echo "     source .azure-ad-credentials"
+echo "     source .external-id-credentials"
 echo "     ./deploy-full-production.sh"
 echo ""
 echo "  2. Or configure existing deployment:"
-echo "     source .azure-ad-credentials"
+echo "     source .external-id-credentials"
 echo "     ./configure-azure-ad.sh \$AAD_CLIENT_ID \$AAD_CLIENT_SECRET"
 echo ""

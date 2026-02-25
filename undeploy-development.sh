@@ -11,6 +11,14 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+load_auth_credentials() {
+    if [ -f ".external-id-credentials" ]; then
+        source .external-id-credentials
+        return 0
+    fi
+    return 1
+}
+
 echo -e "${BLUE}=========================================="
 echo "QR Chain Attendance - Development Environment Cleanup"
 echo -e "==========================================${NC}"
@@ -63,25 +71,25 @@ fi
 # Step 2: Clean up Azure AD redirect URIs (if configured)
 echo -e "${BLUE}Step 2: Cleaning up Azure AD configuration...${NC}"
 
-if [ -f ".env.azure-ad" ]; then
-    source .env.azure-ad
-    
-    if [ -n "$AAD_CLIENT_ID" ]; then
-        echo "Checking Azure AD app registration: $AAD_CLIENT_ID"
-        
+if load_auth_credentials; then
+    APP_ID="${AAD_CLIENT_ID:-$CLIENT_ID}"
+
+    if [ -n "$APP_ID" ]; then
+        echo "Checking Azure AD app registration: $APP_ID"
+
         # Get current redirect URIs
-        CURRENT_URIS=$(az ad app show --id "$AAD_CLIENT_ID" --query "web.redirectUris" -o json 2>/dev/null || echo "[]")
-        
+        CURRENT_URIS=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o json 2>/dev/null || echo "[]")
+
         if [ "$CURRENT_URIS" != "[]" ] && [ "$CURRENT_URIS" != "null" ]; then
             echo "Current redirect URIs:"
             echo "$CURRENT_URIS" | jq -r '.[]' | grep -E "https://.*-dev.*\.azurestaticapps\.net" || echo "  (no dev URIs found)"
-            
+
             # Filter out development URIs
             NEW_URIS=$(echo "$CURRENT_URIS" | jq -r 'map(select(test("https://.*-dev.*\\.azurestaticapps\\.net") | not))')
-            
+
             if [ "$NEW_URIS" != "$CURRENT_URIS" ]; then
                 echo "Updating Azure AD redirect URIs..."
-                az ad app update --id "$AAD_CLIENT_ID" --web-redirect-uris $(echo "$NEW_URIS" | jq -r '.[]') 2>/dev/null || true
+                az ad app update --id "$APP_ID" --web-redirect-uris $(echo "$NEW_URIS" | jq -r '.[]') 2>/dev/null || true
                 echo -e "${GREEN}✓ Development redirect URIs removed from Azure AD${NC}"
             else
                 echo "No development redirect URIs found in Azure AD"
@@ -123,9 +131,9 @@ echo -e "${BLUE}Step 4: Deleting resource group...${NC}"
 if az group show --name "$RESOURCE_GROUP" --output none 2>/dev/null; then
     echo "Deleting resource group: $RESOURCE_GROUP"
     echo "This may take several minutes..."
-    
+
     az group delete --name "$RESOURCE_GROUP" --yes --no-wait
-    
+
     # Wait for deletion to complete
     echo "Waiting for deletion to complete..."
     while az group show --name "$RESOURCE_GROUP" --output none 2>/dev/null; do
@@ -189,23 +197,20 @@ echo -e "${GREEN}✓ Soft-deleted resources check complete${NC}"
 # Step 6: Clean up Azure AD redirect URIs (if Azure AD credentials exist)
 echo -e "${BLUE}Step 6: Cleaning up Azure AD configuration...${NC}"
 
-if [ -f ".azure-ad-credentials" ]; then
-    echo "Azure AD credentials file found. Cleaning up redirect URIs..."
-    
-    # Load Azure AD configuration
-    source .azure-ad-credentials 2>/dev/null || {
-        echo -e "${YELLOW}⚠ Could not source Azure AD credentials${NC}"
-    }
-    
-    if [ -n "$CLIENT_ID" ]; then
-        echo "Cleaning up redirect URIs for Client ID: $CLIENT_ID"
-        
+if load_auth_credentials; then
+    echo "Credentials found. Cleaning up redirect URIs..."
+
+    APP_ID="${AAD_CLIENT_ID:-$CLIENT_ID}"
+
+    if [ -n "$APP_ID" ]; then
+        echo "Cleaning up redirect URIs for Client ID: $APP_ID"
+
         # Get existing redirect URIs to filter out development ones
-        EXISTING_URIS=$(az ad app show --id "$CLIENT_ID" --query "web.redirectUris" -o json 2>/dev/null || echo "[]")
-        
+        EXISTING_URIS=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o json 2>/dev/null || echo "[]")
+
         if [ "$EXISTING_URIS" != "[]" ] && [ "$EXISTING_URIS" != "null" ] && [ -n "$EXISTING_URIS" ]; then
             echo "Current redirect URIs found. Filtering out development URLs..."
-            
+
             # Filter out development-related URIs (containing 'dev', local hosts, etc.)
             FILTERED_URIS=$(echo "$EXISTING_URIS" | jq -r 'map(select(
                 (test("dev"; "i") | not) and
@@ -213,16 +218,16 @@ if [ -f ".azure-ad-credentials" ]; then
                 (test("127\\.0\\.0\\.1") | not) and
                 (test("ambitious-.*dev") | not)
             ))' 2>/dev/null || echo "[]")
-            
+
             # If the filtered list is different, update the app registration
             if [ "$EXISTING_URIS" != "$FILTERED_URIS" ]; then
                 echo "Updating Azure AD app redirect URIs..."
-                az ad app update --id "$CLIENT_ID" \
+                az ad app update --id "$APP_ID" \
                     --web-redirect-uris $(echo "$FILTERED_URIS" | jq -r '.[]' | tr '\n' ' ') \
                     2>/dev/null || {
                         echo -e "${YELLOW}⚠ Could not update redirect URIs automatically${NC}"
                         echo "  You may need to manually remove development redirect URIs from:"
-                        echo "  https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Authentication/appId/$CLIENT_ID"
+                        echo "  https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Authentication/appId/$APP_ID"
                     }
                 echo -e "${GREEN}✓ Azure AD redirect URIs cleaned${NC}"
             else
@@ -232,10 +237,10 @@ if [ -f ".azure-ad-credentials" ]; then
             echo "No existing redirect URIs found or could not query them"
         fi
     else
-        echo -e "${YELLOW}⚠ CLIENT_ID not found in credentials file${NC}"
+        echo -e "${YELLOW}⚠ AAD_CLIENT_ID not found in credentials file${NC}"
     fi
 else
-    echo "No Azure AD credentials file found (.azure-ad-credentials)"
+    echo "No credentials file found (.external-id-credentials preferred)"
     echo "Skipping Azure AD cleanup"
 fi
 

@@ -19,7 +19,7 @@ function parseUserPrincipal(header: string): any {
 }
 
 function hasRole(principal: any, role: string): boolean {
-  const email = principal.userDetails || '';
+  const email = principal.userDetails || principal.userId || '';
   const emailLower = email.toLowerCase();
   
   // Check VTC domain-based roles

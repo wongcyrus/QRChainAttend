@@ -19,7 +19,7 @@ function parseUserPrincipal(header: string): any {
 }
 
 function hasRole(principal: any, role: string): boolean {
-  const email = principal.userDetails || '';
+  const email = principal.userDetails || principal.userId || '';
   const emailLower = email.toLowerCase();
   
   // Check VTC domain-based roles
@@ -49,7 +49,8 @@ export async function seedEntry(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  context.log('Processing POST /api/sessions/{sessionId}/seed-entry request');
+  const traceId = randomUUID();
+  context.log(`[seedEntry][${traceId}] Processing POST /api/sessions/{sessionId}/seed-entry request`);
 
   try {
     // Parse authentication
@@ -62,30 +63,26 @@ export async function seedEntry(
     }
 
     const principal = parseUserPrincipal(principalHeader);
-    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
-      return {
-        status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
-      };
-    }
+    const principalId = principal.userDetails || principal.userId;
 
     const sessionId = request.params.sessionId;
     const countParam = request.query.get('count');
     const count = countParam ? parseInt(countParam) : 3;
+    context.log(`[seedEntry][${traceId}] request: sessionId=${sessionId || 'missing'}, count=${count}, principalId=${principalId || 'missing'}`);
     
     if (!sessionId) {
+      context.warn(`[seedEntry][${traceId}] invalid request: missing sessionId`);
       return {
         status: 400,
-        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId', traceId, details: { sessionId, count }, timestamp: Date.now() } }
       };
     }
 
     if (count <= 0 || count > 50) {
+      context.warn(`[seedEntry][${traceId}] invalid request: count out of range, count=${count}, countParam=${countParam}`);
       return {
         status: 400,
-        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Count must be between 1 and 50', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Count must be between 1 and 50', traceId, details: { count, countParam }, timestamp: Date.now() } }
       };
     }
 
@@ -104,6 +101,17 @@ export async function seedEntry(
       throw error;
     }
 
+    const hasTeacherRole = hasRole(principal, 'Teacher') || hasRole(principal, 'teacher');
+    const isSessionOwner = !!principalId && session.teacherId === principalId;
+    context.log(`[seedEntry][${traceId}] auth: hasTeacherRole=${hasTeacherRole}, isSessionOwner=${isSessionOwner}, sessionTeacherId=${session.teacherId || 'missing'}`);
+    if (!hasTeacherRole && !isSessionOwner) {
+      context.warn(`[seedEntry][${traceId}] forbidden: principalId=${principalId || 'missing'} is not teacher/owner for session ${sessionId}`);
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', traceId, details: { principalId, sessionTeacherId: session.teacherId }, timestamp: Date.now() } }
+      };
+    }
+
     // Get all students enrolled in the session
     const attendanceTable = getTableClient('Attendance');
     const attendanceRecords = attendanceTable.listEntities({
@@ -111,29 +119,52 @@ export async function seedEntry(
     });
 
     const students: string[] = [];
+    let totalAttendanceRecords = 0;
+    let onlineStudents = 0;
+    let eligibleStudents = 0;
     const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     const onlineThreshold = 30; // Consider online if seen in last 30 seconds
     
     for await (const record of attendanceRecords) {
-      // Only include students who:
-      // 1. Haven't been marked yet
-      // 2. Are currently online (or lastSeen within threshold)
+      totalAttendanceRecords += 1;
+
+      // Include students who are still in session and currently online/recently active.
+      // Note: entryStatus may already be set by direct join flow, so it cannot be used
+      // as the sole eligibility gate for starting entry chains.
       const isOnline = record.isOnline === true;
       const lastSeen = record.lastSeen ? (record.lastSeen as number) : 0;
       const isRecentlyActive = (now - lastSeen) < onlineThreshold;
-      
-      if (!record.entryStatus && (isOnline || isRecentlyActive)) {
+      const hasNotExited = !record.exitVerified && !(record as any).exitedAt;
+
+      if (isOnline || isRecentlyActive) {
+        onlineStudents += 1;
+      }
+
+      if (hasNotExited && (isOnline || isRecentlyActive)) {
         students.push(record.rowKey as string);
+        eligibleStudents += 1;
       }
     }
 
+    context.log(`[seedEntry][${traceId}] candidates: total=${totalAttendanceRecords}, online=${onlineStudents}, eligible=${eligibleStudents}`);
+
     if (students.length === 0) {
+      context.warn(`[seedEntry][${traceId}] no students: session=${sessionId}, total=${totalAttendanceRecords}, online=${onlineStudents}, eligible=${eligibleStudents}`);
       return {
         status: 400,
         jsonBody: { 
           error: { 
             code: 'NO_STUDENTS', 
-            message: 'No online unmarked students available to seed chains', 
+            message: 'No online students available to seed chains', 
+            traceId,
+            details: {
+              sessionId,
+              requestedCount: count,
+              totalAttendanceRecords,
+              onlineStudents,
+              eligibleStudents,
+              onlineThreshold
+            },
             timestamp: Date.now() 
           } 
         }
@@ -146,6 +177,7 @@ export async function seedEntry(
     // Randomly select initial holders
     const shuffled = students.sort(() => Math.random() - 0.5);
     const initialHolders = shuffled.slice(0, actualCount);
+    context.log(`[seedEntry][${traceId}] selected holders: session=${sessionId}, requested=${count}, created=${actualCount}, holders=${initialHolders.join(',')}`);
 
     // Create chains and tokens
     const chainsTable = getTableClient('Chains');
@@ -201,7 +233,7 @@ export async function seedEntry(
       };
       await tokensTable.createEntity(tokenEntity);
 
-      context.log(`Created entry chain ${chainId} with holder ${holderId}`);
+      context.log(`[seedEntry][${traceId}] created chain ${chainId} holder=${holderId}`);
       
       // Broadcast chain update so student knows they're a holder
       await broadcastChainUpdate(sessionId, {
@@ -217,12 +249,13 @@ export async function seedEntry(
       status: 201,
       jsonBody: {
         chainsCreated: actualCount,
-        initialHolders
+        initialHolders,
+        traceId
       }
     };
 
   } catch (error: any) {
-    context.error('Error seeding entry chains:', error);
+    context.error(`[seedEntry][${traceId}] Error seeding entry chains:`, error);
     
     return {
       status: 500,
@@ -230,6 +263,7 @@ export async function seedEntry(
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to seed entry chains',
+          traceId,
           details: error.message,
           timestamp: Date.now()
         }

@@ -16,7 +16,7 @@ function parseUserPrincipal(header: string): any {
 }
 
 function hasRole(principal: any, role: string): boolean {
-  const email = principal.userDetails || '';
+  const email = principal.userDetails || principal.userId || '';
   const emailLower = email.toLowerCase();
   
   if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
@@ -67,13 +67,11 @@ export async function requestChallenge(
     }
 
     const principal = parseUserPrincipal(principalHeader);
-    const scannerId = principal.userDetails; // Scanner's email
-    
-    // Require Student role
-    if (!hasRole(principal, 'Student') && !hasRole(principal, 'student')) {
+    const scannerId = principal.userDetails || principal.userId; // Scanner identity
+    if (!scannerId) {
       return {
-        status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
+        status: 401,
+        jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Invalid authentication principal', timestamp: Date.now() } }
       };
     }
 
@@ -81,6 +79,7 @@ export async function requestChallenge(
     const chainId = request.params.chainId;
     const body = await request.json() as any;
     const tokenId = body.tokenId;
+    context.log(`[requestChallenge] request: sessionId=${sessionId || 'missing'}, chainId=${chainId || 'missing'}, tokenId=${tokenId || 'missing'}, scannerId=${scannerId}`);
     
     if (!sessionId || !chainId || !tokenId) {
       return {
@@ -92,6 +91,25 @@ export async function requestChallenge(
     const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     const tokensTable = getTableClient('Tokens');
     const chainsTable = getTableClient('Chains');
+    const attendanceTable = getTableClient('Attendance');
+
+    const hasStudentRole = hasRole(principal, 'Student') || hasRole(principal, 'student');
+    context.log(`[requestChallenge] auth: hasStudentRole=${hasStudentRole}, scannerId=${scannerId}`);
+    if (!hasStudentRole) {
+      try {
+        await attendanceTable.getEntity(sessionId, scannerId);
+        context.log(`[requestChallenge] role fallback: scanner found in attendance for session ${sessionId}`);
+      } catch (error: any) {
+        if (error.statusCode === 404) {
+          context.warn(`[requestChallenge] forbidden: scanner not in attendance and no student role. session=${sessionId}, scannerId=${scannerId}`);
+          return {
+            status: 403,
+            jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
+          };
+        }
+        throw error;
+      }
+    }
 
     // Verify token exists and is valid
     let token;
@@ -102,6 +120,7 @@ export async function requestChallenge(
       
       // Check if token expired
       if (token.expiresAt && (token.expiresAt as number) < now) {
+        context.warn(`[requestChallenge] token expired: tokenId=${tokenId}, expiresAt=${token.expiresAt}, now=${now}`);
         return {
           status: 400,
           jsonBody: { error: { code: 'TOKEN_EXPIRED', message: 'Token has expired', timestamp: now } }
@@ -110,6 +129,7 @@ export async function requestChallenge(
       
       // Verify token belongs to this chain
       if (token.chainId !== chainId) {
+        context.warn(`[requestChallenge] token-chain mismatch: tokenId=${tokenId}, token.chainId=${token.chainId}, request.chainId=${chainId}`);
         return {
           status: 400,
           jsonBody: { error: { code: 'INVALID_TOKEN', message: 'Token does not belong to this chain', timestamp: now } }
@@ -129,6 +149,7 @@ export async function requestChallenge(
     
     // Cannot scan your own QR code
     if (holderId === scannerId) {
+      context.warn(`[requestChallenge] self-scan blocked: holderId=${holderId}, scannerId=${scannerId}, tokenId=${tokenId}`);
       return {
         status: 400,
         jsonBody: { error: { code: 'SELF_SCAN', message: 'Cannot scan your own QR code', timestamp: now } }
@@ -151,7 +172,7 @@ export async function requestChallenge(
       challengeExpiresAt
     }, 'Merge');
 
-    context.log(`Challenge generated for scanner ${scannerId} on token ${tokenId}, code: ${challengeCode}`);
+    context.log(`[requestChallenge] generated: scannerId=${scannerId}, holderId=${holderId}, tokenId=${tokenId}, expiresAt=${challengeExpiresAt}`);
 
     return {
       status: 200,
@@ -165,7 +186,7 @@ export async function requestChallenge(
     };
 
   } catch (error: any) {
-    context.error('Error generating challenge:', error);
+    context.error('[requestChallenge] Error generating challenge:', error);
     
     return {
       status: 500,

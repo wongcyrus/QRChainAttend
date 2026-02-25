@@ -22,10 +22,10 @@ Complete guide to all deployment and management scripts.
   - Local dev: `http://localhost:3000/.auth/login/aad/callback`
   - SWA CLI: `http://localhost:4280/.auth/login/aad/callback`
 - Creates 2-year client secret
-- Saves credentials to `.azure-ad-credentials`
+- Saves credentials to `.external-id-credentials`
 
 **Output**:
-- `.azure-ad-credentials` file with environment variables
+- `.external-id-credentials` file with environment variables
 - Client ID, Secret, and Tenant ID
 - Single app works for dev, staging, and production
 
@@ -44,7 +44,7 @@ Complete guide to all deployment and management scripts.
 **Usage**:
 ```bash
 # Interactive
-source .azure-ad-credentials
+source .external-id-credentials
 ./add-redirect-uri.sh
 
 # Direct
@@ -83,7 +83,7 @@ source .azure-ad-credentials
 - Finds app by name or uses provided Client ID
 - Shows app details for confirmation
 - Deletes app registration
-- Removes `.azure-ad-credentials` file
+- Removes `.external-id-credentials` file (when matching app ID)
 
 **When to use**:
 - Complete cleanup after deleting production
@@ -99,8 +99,8 @@ source .azure-ad-credentials
 
 **Usage**:
 ```bash
-# With Azure AD credentials
-source .azure-ad-credentials
+# Preferred credentials file
+source .external-id-credentials
 ./deploy-full-production.sh
 
 # Or with environment variables
@@ -113,6 +113,9 @@ export AAD_CLIENT_SECRET="..."
 ```
 
 **Duration**: 10-15 minutes
+
+**Credential loading order**:
+1. `.external-id-credentials` (preferred)
 
 **What it deploys**:
 1. Resource group
@@ -218,7 +221,7 @@ export AAD_CLIENT_SECRET="..."
 ./setup-azure-ad-app.sh
 
 # 2. Deploy everything
-source .azure-ad-credentials
+source .external-id-credentials
 ./deploy-full-production.sh
 
 # 3. Verify
@@ -233,7 +236,7 @@ source .azure-ad-credentials
 ### Update Deployment
 ```bash
 # Use existing credentials
-source .azure-ad-credentials
+source .external-id-credentials
 ./deploy-full-production.sh
 ```
 
@@ -248,7 +251,7 @@ source .azure-ad-credentials
 ./cleanup-azure-ad-app.sh
 
 # 3. Clean local files
-rm .azure-ad-credentials
+rm .external-id-credentials
 rm deployment-*.json
 rm frontend/.env.production
 ```
@@ -262,7 +265,7 @@ rm frontend/.env.production
 
 # Option 2: Create new app and redeploy
 ./setup-azure-ad-app.sh
-source .azure-ad-credentials
+source .external-id-credentials
 ./deploy-full-production.sh
 ```
 
@@ -284,10 +287,10 @@ source .azure-ad-credentials
 
 ### Generated Files
 
-**`.azure-ad-credentials`**
-- Contains: AAD_CLIENT_ID, AAD_CLIENT_SECRET, AAD_TENANT_ID
+**`.external-id-credentials`**
+- Contains: AAD_CLIENT_ID, AAD_CLIENT_SECRET, TENANT_ID
 - Created by: `setup-azure-ad-app.sh`
-- Usage: `source .azure-ad-credentials`
+- Usage: `source .external-id-credentials`
 - Security: In .gitignore, chmod 600
 
 **`deployment-output.json`**
@@ -352,7 +355,7 @@ az signalr show \
 ## Security Best Practices
 
 1. **Never commit credentials**
-   - `.azure-ad-credentials` is in .gitignore
+   - `.external-id-credentials` is in .gitignore
    - Always use environment variables or secure files
 
 2. **Rotate secrets regularly**
@@ -388,7 +391,7 @@ az signalr show \
 param deploySignalR = false
 
 # Redeploy
-source .azure-ad-credentials
+source .external-id-credentials
 ./deploy-full-production.sh
 ```
 

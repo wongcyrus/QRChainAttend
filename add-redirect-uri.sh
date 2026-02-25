@@ -19,8 +19,8 @@ echo ""
 if [ -n "$1" ]; then
     APP_ID="$1"
 else
-    if [ -f ".azure-ad-credentials" ]; then
-        source .azure-ad-credentials
+    if [ -f ".external-id-credentials" ]; then
+        source .external-id-credentials
         APP_ID="$AAD_CLIENT_ID"
     fi
 fi
@@ -28,8 +28,8 @@ fi
 if [ -z "$APP_ID" ]; then
     echo -e "${RED}Usage: $0 <client-id> [redirect-uri]${NC}"
     echo ""
-    echo "Or source .azure-ad-credentials first:"
-    echo "  source .azure-ad-credentials"
+    echo "Or source credentials first (preferred):"
+    echo "  source .external-id-credentials"
     echo "  $0"
     exit 1
 fi

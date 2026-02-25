@@ -24,16 +24,26 @@ The system uses Azure AD authentication with the following configuration:
 
 ## Configuration Files
 
-### `.env.azure-ad` ✅ Committed to Git
-Contains only the public Client ID and metadata. Safe to commit.
+### `.external-id-credentials` ❌ Not Committed (Preferred)
+Primary credentials file used by deployment and helper scripts.
+
+```bash
+export AAD_CLIENT_ID="your-client-id"
+export AAD_CLIENT_SECRET="your-secret"
+export TENANT_ID="your-tenant-id-or-organizations"
+```
+
+Use `.external-id-credentials.template` as the starting point, then create a local `.external-id-credentials` file.
+
+### Client Secret ❌ Never Store in Git
+The client secret must only exist in local secure files, environment variables, or CI/CD secrets.
 
 ```bash
 AAD_CLIENT_ID="dc482c34-ebaa-4239-aca3-2810a4f51728"
 TENANT_ID="organizations"
 ```
 
-### Client Secret ❌ Not Stored
-The Client Secret is never stored in files and must be provided during deployment:
+The client secret can be provided during deployment via:
 - Via environment variable: `export AAD_CLIENT_SECRET="your-secret"`
 - Interactive prompt during deployment
 - CI/CD secrets (GitHub Secrets, Azure DevOps Variables, etc.)
@@ -41,12 +51,12 @@ The Client Secret is never stored in files and must be provided during deploymen
 ## Deployment Usage
 
 The deployment scripts automatically:
-1. Load Client ID from `.env.azure-ad` if present
-2. Prompt for Client Secret interactively (never stored)
-3. Configure Azure resources with proper authentication
+1. Load credentials from `.external-id-credentials` (preferred)
+2. Configure Azure resources with proper authentication
 
 ```bash
-# Client ID is loaded automatically
+# Preferred
+source .external-id-credentials
 ./deploy-full-production.sh  
 
 # Or set Client Secret via environment

@@ -18,7 +18,7 @@ function parseUserPrincipal(header: string): any {
 }
 
 function hasRole(principal: any, role: string): boolean {
-  const email = principal.userDetails || '';
+  const email = principal.userDetails || principal.userId || '';
   const emailLower = email.toLowerCase();
   
   if (role.toLowerCase() === 'teacher' && emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
@@ -55,6 +55,7 @@ export async function setChainHolder(
     }
 
     const principal = parseUserPrincipal(principalHeader);
+    const principalId = principal.userDetails || principal.userId;
     
     // Require Teacher role
     if (!hasRole(principal, 'Teacher')) {
@@ -73,6 +74,8 @@ export async function setChainHolder(
         jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId or chainId', timestamp: Date.now() } }
       };
     }
+
+    context.log(`[setChainHolder] request: sessionId=${sessionId}, chainId=${chainId}, principalId=${principalId || 'missing'}`);
 
     // Parse request body
     const body = await request.json() as any;
@@ -104,6 +107,17 @@ export async function setChainHolder(
       throw error;
     }
 
+    const hasTeacherRole = hasRole(principal, 'Teacher') || hasRole(principal, 'teacher');
+    const isSessionOwner = !!principalId && session.teacherId === principalId;
+    context.log(`[setChainHolder] auth: hasTeacherRole=${hasTeacherRole}, isSessionOwner=${isSessionOwner}, sessionTeacherId=${session.teacherId || 'missing'}`);
+    if (!hasTeacherRole && !isSessionOwner) {
+      context.warn(`[setChainHolder] forbidden: principalId=${principalId || 'missing'} is not teacher/owner for session ${sessionId}`);
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+      };
+    }
+
     // Get chain
     let chain;
     try {
@@ -123,6 +137,7 @@ export async function setChainHolder(
       await attendanceTable.getEntity(sessionId, studentId);
     } catch (error: any) {
       if (error.statusCode === 404) {
+        context.warn(`[setChainHolder] student missing in attendance: session=${sessionId}, studentId=${studentId}`);
         return {
           status: 404,
           jsonBody: { error: { code: 'NOT_FOUND', message: 'Student not found in session', timestamp: now } }
@@ -144,7 +159,7 @@ export async function setChainHolder(
       state: 'ACTIVE'
     }, 'Merge');
 
-    context.log(`Manually set holder for chain ${chainId} to ${studentId} (seq ${newSeq})`);
+    context.log(`[setChainHolder] updated: chain=${chainId}, newHolder=${studentId}, seq=${newSeq}`);
 
     // Broadcast chain update
     await broadcastChainUpdate(sessionId, {
@@ -166,7 +181,7 @@ export async function setChainHolder(
     };
 
   } catch (error: any) {
-    context.error('Error setting chain holder:', error);
+    context.error('[setChainHolder] Error setting chain holder:', error);
     
     return {
       status: 500,

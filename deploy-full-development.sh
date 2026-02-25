@@ -29,9 +29,9 @@ AAD_APP_INFO=$(az ad app list --display-name "QR Chain Attendance System" --quer
 AAD_CLIENT_ID=$(echo "$AAD_APP_INFO" | jq -r '.appId // empty' 2>/dev/null || echo "")
 AAD_CLIENT_SECRET=""
 
-# Load explicit Azure AD credentials if available
-if [ -f ".azure-ad-credentials" ]; then
-    source ./.azure-ad-credentials
+# Load explicit auth credentials (preferred: External ID)
+if [ -f ".external-id-credentials" ]; then
+    source ./.external-id-credentials
 fi
 
 if [ -n "$AAD_CLIENT_ID" ] && [ "$AAD_CLIENT_ID" != "null" ]; then
@@ -376,9 +376,7 @@ echo "Checking for Static Web Apps link on Static Web App..."
 SWA_LINKED=$(az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --query "linkedBackends[].backendResourceId" -o tsv 2>/dev/null | grep -i "/sites/$FUNCTION_APP_NAME" || true)
 if [ -z "$SWA_LINKED" ]; then
     echo -e "${YELLOW}⚠ Static Web App link not detected on Static Web App${NC}"
-    echo "  Link it in the Azure portal to enable SWA /api auth context"
-    echo -e "${RED}✗ Stopping deployment: Function App is not linked to Static Web App${NC}"
-    exit 1
+    echo "  Free SKU does not support linked backends; frontend will use direct Function API URL"
 else
     echo -e "${GREEN}✓ Static Web App link detected on Static Web App${NC}"
 fi
@@ -388,9 +386,18 @@ if [[ "$FUNCTION_APP_URL" != https://* ]]; then
     FUNCTION_APP_URL="https://$FUNCTION_APP_URL"
 fi
 
+# Select frontend API URL strategy based on SWA link availability
+if [ -n "$SWA_LINKED" ]; then
+    FRONTEND_API_URL="$STATIC_WEB_APP_URL/api"
+    echo -e "${GREEN}✓ Frontend API via SWA route: $FRONTEND_API_URL${NC}"
+else
+    FRONTEND_API_URL="${FUNCTION_APP_URL%/}/api"
+    echo -e "${YELLOW}⚠ Frontend API via direct Function URL: $FRONTEND_API_URL${NC}"
+fi
+
 # Create environment file for build
 cat > .env.local << EOF
-NEXT_PUBLIC_API_URL=$STATIC_WEB_APP_URL/api
+NEXT_PUBLIC_API_URL=$FRONTEND_API_URL
 NEXT_PUBLIC_ENVIRONMENT=dev
 NEXT_PUBLIC_AAD_CLIENT_ID=$AAD_CLIENT_ID
 NEXT_PUBLIC_AAD_TENANT_ID=$TENANT_ID

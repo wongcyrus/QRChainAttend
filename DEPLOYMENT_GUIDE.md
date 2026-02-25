@@ -14,18 +14,18 @@
 ./setup-azure-ad-app.sh
 ```
 
-This creates the Azure AD app and saves credentials to `.azure-ad-credentials`.
+This creates the Azure AD app and saves credentials to `.external-id-credentials`.
 
 **2. Deploy to Production**
 ```bash
-source .azure-ad-credentials
+source .external-id-credentials
 ./deploy-full-production.sh
 ```
 
 ### Subsequent Deployments
 
 ```bash
-source .azure-ad-credentials
+source .external-id-credentials
 ./deploy-full-production.sh
 ```
 
@@ -102,11 +102,11 @@ This script will:
 - Create new app or reuse existing one
 - Configure redirect URIs for Static Web App
 - Create client secret (2-year expiry)
-- Save credentials to `.azure-ad-credentials` file
+- Save credentials to `.external-id-credentials` (preferred)
 
 **Step 2: Deploy Infrastructure and Application**
 ```bash
-source .azure-ad-credentials
+source .external-id-credentials
 ./deploy-full-production.sh
 ```
 

@@ -29,9 +29,9 @@ AAD_APP_INFO=$(az ad app list --display-name "QR Chain Attendance System" --quer
 AAD_CLIENT_ID=$(echo "$AAD_APP_INFO" | jq -r '.appId // empty' 2>/dev/null || echo "")
 AAD_CLIENT_SECRET=""
 
-# Load explicit Azure AD credentials if available
-if [ -f ".azure-ad-credentials" ]; then
-    source ./.azure-ad-credentials
+# Load explicit auth credentials (preferred: External ID)
+if [ -f ".external-id-credentials" ]; then
+    source ./.external-id-credentials
 fi
 
 if [ -n "$AAD_CLIENT_ID" ] && [ "$AAD_CLIENT_ID" != "null" ]; then
@@ -318,11 +318,18 @@ echo "Checking for Static Web Apps link on Static Web App..."
 SWA_LINKED=$(az staticwebapp show --name "$STATIC_WEB_APP" --resource-group "$RESOURCE_GROUP" --query "linkedBackends[].backendResourceId" -o tsv 2>/dev/null | grep -i "/sites/$FUNCTION_APP" || true)
 if [ -z "$SWA_LINKED" ]; then
     echo -e "${YELLOW}⚠ Static Web App link not detected on Static Web App${NC}"
-    echo "  Link it in the Azure portal to enable SWA /api auth context"
-    echo -e "${RED}✗ Stopping deployment: Function App is not linked to Static Web App${NC}"
-    exit 1
+    echo "  Free SKU does not support linked backends; frontend will use direct Function API URL"
 else
     echo -e "${GREEN}✓ Static Web App link detected on Static Web App${NC}"
+fi
+
+# Select frontend API URL strategy based on SWA link availability
+if [ -n "$SWA_LINKED" ]; then
+    FRONTEND_API_URL="$STATIC_WEB_APP_URL/api"
+    echo -e "${GREEN}✓ Frontend API via SWA route: $FRONTEND_API_URL${NC}"
+else
+    FRONTEND_API_URL="https://$FUNCTION_APP.azurewebsites.net/api"
+    echo -e "${YELLOW}⚠ Frontend API via direct Function URL: $FRONTEND_API_URL${NC}"
 fi
 
 # Step 6: Database tables (managed by bicep)
@@ -458,7 +465,7 @@ echo -e "${BLUE}Step 8: Building and deploying frontend...${NC}"
 FRONTEND_AAD_CLIENT_ID="${AAD_CLIENT_ID:-YOUR_AAD_CLIENT_ID}"
 
 # Export environment variables for Next.js build
-export NEXT_PUBLIC_API_URL="$STATIC_WEB_APP_URL/api"
+export NEXT_PUBLIC_API_URL="$FRONTEND_API_URL"
 export NEXT_PUBLIC_AAD_CLIENT_ID="$FRONTEND_AAD_CLIENT_ID"
 export NEXT_PUBLIC_AAD_TENANT_ID="$TENANT_ID"
 export NEXT_PUBLIC_AAD_REDIRECT_URI="$STATIC_WEB_APP_URL/.auth/login/aad/callback"
@@ -469,7 +476,7 @@ export NEXT_PUBLIC_FRONTEND_URL="$STATIC_WEB_APP_URL"
 # Also create .env.production file as backup
 cat > frontend/.env.production << EOF
 # Production Environment Configuration
-NEXT_PUBLIC_API_URL=$STATIC_WEB_APP_URL/api
+NEXT_PUBLIC_API_URL=$FRONTEND_API_URL
 NEXT_PUBLIC_AAD_CLIENT_ID=$FRONTEND_AAD_CLIENT_ID
 NEXT_PUBLIC_AAD_TENANT_ID=$TENANT_ID
 NEXT_PUBLIC_AAD_REDIRECT_URI=$STATIC_WEB_APP_URL/.auth/login/aad/callback

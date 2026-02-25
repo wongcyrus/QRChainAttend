@@ -76,11 +76,11 @@ az ad app delete --id "$APP_ID"
 echo -e "${GREEN}✓ App deleted: $APP_ID${NC}"
 echo ""
 
-# Clean up credentials file
-if [ -f ".azure-ad-credentials" ]; then
-    if grep -q "$APP_ID" .azure-ad-credentials; then
-        rm .azure-ad-credentials
-        echo -e "${GREEN}✓ Removed .azure-ad-credentials${NC}"
+# Clean up credentials files
+if [ -f ".external-id-credentials" ]; then
+    if grep -q "$APP_ID" .external-id-credentials; then
+        rm .external-id-credentials
+        echo -e "${GREEN}✓ Removed .external-id-credentials${NC}"
     fi
 fi
 

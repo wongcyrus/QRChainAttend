@@ -17,7 +17,7 @@ function parseUserPrincipal(header: string): any {
 }
 
 function hasRole(principal: any, role: string): boolean {
-  const email = principal.userDetails || '';
+  const email = principal.userDetails || principal.userId || '';
   const emailLower = email.toLowerCase();
   
   // Check VTC domain-based roles
@@ -60,22 +60,27 @@ export async function getStudentToken(
     }
 
     const principal = parseUserPrincipal(principalHeader);
-    
-    // Require Student role
-    if (!hasRole(principal, 'Student') && !hasRole(principal, 'student')) {
-      return {
-        status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
-      };
-    }
+    const principalId = principal.userDetails || principal.userId;
 
     const sessionId = request.params.sessionId;
     const studentId = request.params.studentId;
+    context.log(`[getStudentToken] request: sessionId=${sessionId || 'missing'}, studentId=${studentId || 'missing'}, principalId=${principalId || 'missing'}`);
     
     if (!sessionId || !studentId) {
       return {
         status: 400,
         jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing sessionId or studentId', timestamp: Date.now() } }
+      };
+    }
+
+    const hasStudentRole = hasRole(principal, 'Student') || hasRole(principal, 'student');
+    const isSelfRequest = !!principalId && principalId === studentId;
+    context.log(`[getStudentToken] auth: hasStudentRole=${hasStudentRole}, isSelfRequest=${isSelfRequest}`);
+    if (!hasStudentRole && !isSelfRequest) {
+      context.warn(`[getStudentToken] forbidden: principalId=${principalId || 'missing'} requested studentId=${studentId}`);
+      return {
+        status: 403,
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
       };
     }
 
@@ -92,8 +97,10 @@ export async function getStudentToken(
 
     let activeToken = null;
     let expiredToken = null;
+    let scannedTokenCount = 0;
 
     for await (const token of tokens) {
+      scannedTokenCount += 1;
       // Check if token is still valid (not expired)
       if (token.expiresAt && (token.expiresAt as number) > now) {
         activeToken = {
@@ -113,6 +120,7 @@ export async function getStudentToken(
 
     // If we have an active token, return it
     if (activeToken) {
+      context.log(`[getStudentToken] active token found: session=${sessionId}, student=${studentId}, tokenCount=${scannedTokenCount}`);
       return {
         status: 200,
         jsonBody: {
@@ -125,6 +133,7 @@ export async function getStudentToken(
     // If we have an expired token, create a new one on-demand
     if (expiredToken) {
       const chainId = expiredToken.chainId as string;
+      context.log(`[getStudentToken] no active token; attempting regen from expired token: session=${sessionId}, student=${studentId}, chainId=${chainId}`);
       
       // Verify the chain is still active
       try {
@@ -161,11 +170,12 @@ export async function getStudentToken(
         }
       } catch (error: any) {
         // Chain not found or error - student is no longer holder
-        context.log(`Chain ${chainId} not found or inactive for student ${studentId}`);
+        context.log(`[getStudentToken] chain not found/inactive during regen: chain=${chainId}, student=${studentId}, error=${error.message}`);
       }
     }
 
     // No active or expired token - student is not a holder
+    context.log(`[getStudentToken] no holder token: session=${sessionId}, student=${studentId}, scannedTokenCount=${scannedTokenCount}`);
     return {
       status: 200,
       jsonBody: {
@@ -176,7 +186,7 @@ export async function getStudentToken(
     };
 
   } catch (error: any) {
-    context.error('Error getting student token:', error);
+    context.error('[getStudentToken] Error getting student token:', error);
     
     return {
       status: 500,
