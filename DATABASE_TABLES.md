@@ -1,9 +1,9 @@
 # Database Tables - QR Chain Attendance System
 
-**Date**: February 6, 2026  
+**Date**: February 25, 2026  
 **Storage**: Azure Table Storage
 
-## Required Tables (9 Total)
+## Required Tables (12 Total)
 
 ### 1. Sessions
 **Purpose**: Store active attendance sessions
@@ -367,13 +367,75 @@ az storage table delete \
 
 ## Summary
 
-✅ **9 tables required** (Sessions, Attendance, Chains, Tokens, UserSessions, AttendanceSnapshots, ChainHistory, ScanLogs, DeletionLog)  
+✅ **12 tables required** (Sessions, Attendance, Chains, Tokens, UserSessions, AttendanceSnapshots, ChainHistory, ScanLogs, DeletionLog, QuizQuestions, QuizResponses, QuizMetrics)  
 ❌ **QRTokens NOT needed** (encryption-based approach)  
 ✅ **Simple schema** (easy to understand and maintain)  
 ✅ **Low cost** (< $1/month for typical usage)  
 ✅ **Fast performance** (< 50ms for most operations)  
 ✅ **Timestamps in seconds** (consistent across all tables)  
-✅ **Method tracking** (entry/exit via CHAIN or DIRECT_QR)
+✅ **Method tracking** (entry/exit via CHAIN or DIRECT_QR)  
+✅ **Quiz support** (3 tables for Live Quiz feature)
+
+### 10. QuizQuestions
+**Purpose**: Store AI-generated quiz questions
+
+**Schema**:
+```
+PartitionKey: sessionId
+RowKey: questionId (UUID)
+Fields:
+  - slideImageUrl: string (blob URL)
+  - slideContent: string (JSON - analysis from GPT-4o Vision)
+  - question: string
+  - questionType: "MULTIPLE_CHOICE" | "SHORT_ANSWER"
+  - options: string (JSON array for multiple choice)
+  - correctAnswer: string
+  - difficulty: "EASY" | "MEDIUM" | "HARD"
+  - timeLimit: number (seconds, default 60)
+  - createdAt: number (Unix seconds)
+```
+
+### 11. QuizResponses
+**Purpose**: Track student quiz answers and evaluation
+
+**Schema**:
+```
+PartitionKey: sessionId
+RowKey: responseId (UUID)
+Fields:
+  - questionId: string (UUID)
+  - studentId: string (email)
+  - answer: string
+  - isCorrect: boolean
+  - score: number (0-100)
+  - responseTime: number (seconds)
+  - submittedAt: number (Unix seconds)
+  - sentAt: number (Unix seconds)
+  - expiresAt: number (Unix seconds)
+  - status: "PENDING" | "ANSWERED" | "EXPIRED"
+  - aiEvaluation: string (feedback from GPT-4o)
+```
+
+### 12. QuizMetrics
+**Purpose**: Track student quiz performance and engagement
+
+**Schema**:
+```
+PartitionKey: sessionId
+RowKey: studentId (email)
+Fields:
+  - totalQuestions: number
+  - correctAnswers: number
+  - questionCount: number
+  - averageResponseTime: number (seconds)
+  - engagementScore: number (0-100)
+  - lastQuestionAt: number (Unix seconds)
+```
+
+**Engagement Score Calculation**:
+- Accuracy: 50% weight (correctAnswers / totalQuestions)
+- Speed: 30% weight (1 - responseTime / timeLimit)
+- Participation: 20% weight (min(totalQuestions * 4, 20))
 
 ---
 

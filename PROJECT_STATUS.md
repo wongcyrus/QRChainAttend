@@ -45,6 +45,7 @@
 - Polling fallback: Quiz 5s, Status 15s (when SignalR unavailable)
 - Auth cache: 30 minutes
 - Supports large classes with instant quiz delivery
+- Questions sent to ALL present students simultaneously
 
 **Ready to Deploy**: See `DEPLOYMENT_SUCCESS_SUMMARY.md`
 
@@ -131,12 +132,12 @@
 ### Live Quiz (NEW)
 ✅ AI Slide Analysis (GPT-4o Vision)  
 ✅ Question Generation (GPT-4o)  
-✅ Fair Student Selection  
-✅ Real-time Delivery (SignalR)  
+✅ All-Student Distribution (questions sent to all present students)  
+✅ Real-time Delivery (SignalR with 5s polling fallback)  
 ✅ Teacher UI Complete  
-✅ Backend API Complete  
-⏳ Student UI (Pending)  
-⏳ Answer Evaluation (Backend Ready)
+✅ Student UI Complete  
+✅ Backend API Complete (5 functions)  
+✅ Answer Evaluation (exact match for multiple choice)
 
 ---
 
@@ -169,9 +170,10 @@
 6. AttendanceSnapshots - Attendance snapshots
 7. ChainHistory - Chain history
 8. ScanLogs - Scan logs
-9. QuizQuestions - Quiz questions (NEW)
-10. QuizResponses - Quiz responses (NEW)
-11. QuizMetrics - Quiz metrics (NEW)
+9. DeletionLog - Deletion audit trail
+10. QuizQuestions - Quiz questions (NEW)
+11. QuizResponses - Quiz responses (NEW)
+12. QuizMetrics - Quiz metrics (NEW)
 
 ---
 

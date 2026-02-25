@@ -54,8 +54,8 @@ A comprehensive, real-time attendance tracking system using QR code chains, geol
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js, React, TypeScript
-- **Backend**: Azure Functions (Node.js 20)
+- **Frontend**: Next.js 15, React 18, TypeScript
+- **Backend**: Azure Functions v4 (Node.js 20)
 - **Database**: Azure Table Storage
 - **Real-time**: Azure SignalR Service
 - **Auth**: Azure AD (Static Web Apps)
@@ -158,14 +158,15 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 
 ## 🏗️ Architecture
 
-### Backend (35 Functions)
-- **Authentication**: Role assignment, user info
-- **Session Management**: CRUD operations with recurring support
-- **QR Code Generation**: Entry, exit, early leave QR codes
-- **Chain Management**: Seed, reseed, scan, close operations
-- **Attendance**: Tracking with entry/exit methods, verification, export
-- **Snapshots**: Create on-demand snapshots via chains
-- **SignalR**: Real-time connections for teacher and student
+### Backend (44 Functions)
+- **Authentication** (2): Role assignment, user info
+- **Session Management** (8): CRUD operations with recurring support
+- **QR Code Generation** (5): Entry, exit, late, early leave QR codes
+- **Chain Management** (7): Seed, reseed, scan, close, set holder operations
+- **Attendance** (5): Tracking with entry/exit methods, verification, export
+- **Snapshots** (5): Create on-demand snapshots via chains, history, comparison
+- **SignalR** (4): Real-time connections for teacher and student
+- **Quiz** (5): AI-powered slide analysis, question generation, delivery, evaluation
 - **Utilities**: Session checks, geolocation validation, token encryption
 
 **Note**: Token refresh is client-driven (on-demand) - `rotateTokens` function removed.
@@ -178,7 +179,7 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 - **Snapshots**: Manager, trace viewer, comparison
 - **Utilities**: Offline indicator, error display
 
-### Database (9 Tables)
+### Database (12 Tables)
 - **Sessions**: Session metadata with recurring support
 - **Attendance**: Student attendance records with entry/exit methods
 - **Chains**: QR chain state and holders (ENTRY/EXIT/SNAPSHOT phases)
@@ -188,6 +189,9 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for details.
 - **ChainHistory**: Chain transfer audit trail
 - **ScanLogs**: QR scan audit log
 - **DeletionLog**: Session deletion audit trail
+- **QuizQuestions**: AI-generated quiz questions
+- **QuizResponses**: Student quiz answers
+- **QuizMetrics**: Quiz performance and engagement scores
 
 ## 🔒 Security
 
@@ -222,9 +226,9 @@ See [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) for complete troubleshooting
 **Current Version**: 2.0  
 **Status**: ✅ Production Ready  
 **Features**: 12 major features fully implemented  
-**Backend Functions**: 35 functions operational (rotateTokens removed)  
+**Backend Functions**: 44 functions operational (rotateTokens removed)  
 **Frontend Components**: 22+ components working  
-**Database Tables**: 9 tables with consistent timestamps (Unix seconds)  
+**Database Tables**: 12 tables with consistent timestamps (Unix seconds)  
 **Documentation**: Updated to reflect current codebase  
 **Testing**: Manual testing (automated tests planned)
 

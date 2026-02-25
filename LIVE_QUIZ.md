@@ -87,20 +87,26 @@ Teachers share their screen during a session. The system continuously captures s
 
 ---
 
-## Fair Selection Algorithm
+## Fair Question Distribution
 
-**How AI Selects Students**:
-- ✅ Prioritizes students who haven't been asked recently
-- ✅ Balances question count across all students
-- ✅ Gives more chances to students with low engagement
-- ✅ Never picks the same student twice in a row
+**How Questions Are Sent**:
+- ✅ Questions sent to ALL present students simultaneously
+- ✅ Every student gets every question
+- ✅ Real-time delivery via SignalR (or 5-second polling fallback)
+- ✅ Each student has their own response record
+
+**Benefits**:
+- Maximum engagement - no one is left out
+- Fair opportunity for all students to participate
+- Better assessment of class understanding
+- No complex selection algorithm needed
 
 **Example**:
 ```
 Session with 30 students, 10 questions:
-- Each student gets ~0-1 questions
-- Students who answered incorrectly get more chances
-- Students who haven't been asked get priority
+- All 30 students receive all 10 questions
+- Each student can answer at their own pace
+- Teacher sees aggregate results
 ```
 
 ---
@@ -190,11 +196,12 @@ az cognitiveservices account keys list \
 
 ### Backend Functions
 
-**New Functions** (4):
+**New Functions** (5):
 1. `analyzeSlide.ts` - Azure OpenAI Vision API integration
 2. `generateQuestions.ts` - Question generation logic
-3. `sendQuizQuestion.ts` - Distribute question to student
-4. `submitQuizAnswer.ts` - Process and evaluate answer
+3. `sendQuizQuestion.ts` - Send question to all present students
+4. `getStudentQuestions.ts` - Get pending questions (polling endpoint)
+5. `submitQuizAnswer.ts` - Process and evaluate answer
 
 ### Database Tables
 
@@ -225,10 +232,13 @@ Fields: totalQuestions, correctAnswers, averageResponseTime,
 ### Real-time Updates
 
 **SignalR Events**:
-- `quizQuestionSent` - Question sent to student
-- `quizAnswerReceived` - Answer submitted
-- `quizResultAvailable` - Evaluation complete
-- `engagementUpdated` - Metrics updated
+- `quizQuestion` - Question sent to student
+- `quizResult` - Answer evaluation result
+
+**Polling Fallback**:
+- Quiz polling: 5 seconds (when SignalR unavailable)
+- Status polling: 15 seconds
+- Automatic detection of SignalR availability
 
 ---
 
@@ -247,10 +257,14 @@ POST /api/sessions/{sessionId}/quiz/generate-questions
 Body: { slideId, analysis, difficulty, count }
 Response: { questions: [{ questionId, text, type, difficulty, options, ... }] }
 
-# Send question to student
+# Send question to all present students
 POST /api/sessions/{sessionId}/quiz/send-question
 Body: { questionId, timeLimit }
-Response: { responseId, studentId, sentAt, expiresAt }
+Response: { responseIds: [...], students: [...], sentAt, expiresAt }
+
+# Get pending questions for student (polling endpoint)
+GET /api/sessions/{sessionId}/student-questions
+Response: { questions: [{ questionId, responseId, question, options, ... }] }
 ```
 
 ### Student Endpoints

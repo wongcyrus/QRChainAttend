@@ -48,8 +48,8 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 ### 1. Frontend (Next.js)
 
 **Technology Stack**:
-- Next.js 14 (Static Site Generation)
-- React 18 with TypeScript
+- Next.js 15.1.6 (Static Site Generation)
+- React 18.2.0 with TypeScript
 - SignalR Client for real-time updates
 - QR Code generation/scanning libraries
 
@@ -75,12 +75,12 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 ### 2. Backend (Azure Functions)
 
 **Technology Stack**:
-- Azure Functions v4
+- Azure Functions v4 (4.11.1)
 - Node.js 20 runtime
 - TypeScript
 - HTTP triggers (anonymous auth level)
 
-**Function Categories** (35 total):
+**Function Categories** (44 total):
 
 **Authentication** (2):
 - `getRoles` - Get user roles
@@ -95,49 +95,61 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 - `checkSession` - Verify session status
 - `registerSession` - Register student to session
 - `clearSession` - Clear session data
+- `updateSession` - Update session details
 
-**QR Code Generation** (4):
+**QR Code Generation** (5):
 - `getEntryQR` - Generate entry QR code
 - `getExitQR` - Generate exit QR code
 - `getLateQR` - Generate late entry QR code
+- `getEarlyQR` - Generate early arrival QR code
 - `getEarlyLeaveQR` - Generate early leave QR code
 
-**Chain Management** (6):
+**Chain Management** (7):
 - `seedEntry` - Seed initial entry chains
+- `reseedEntry` - Reseed entry chains
 - `startExitChain` - Start exit chains
+- `reseedExit` - Reseed exit chains
 - `scanChain` - Scan and pass chain token
 - `closeChain` - Close chain and mark final holder
 - `setChainHolder` - Manually set chain holder
-- `rotateTokens` - Rotate expired tokens
 
-**Attendance** (4):
+**Attendance** (5):
 - `getAttendance` - Get attendance records
+- `joinSession` - Student joins session
 - `markExit` - Mark student exit via direct QR
+- `markStudentExit` - Mark specific student exit
 - `getStudentToken` - Get student's current token
-- `compareSnapshots` - Compare two snapshots
 
-**Snapshots** (4):
+**Snapshots** (5):
 - `takeSnapshot` - Create on-demand snapshot
-- `getSnapshots` - List session snapshots
+- `listSnapshots` - List session snapshots
 - `getSnapshotTrace` - Get chain transfer trace
 - `getChainHistory` - Get chain history
+- `compareSnapshots` - Compare two snapshots
 
 **SignalR** (4):
 - `negotiate` - SignalR connection negotiation
-- `dashboardNegotiate` - Teacher dashboard connection
-- `studentNegotiate` - Student view connection
-- `broadcastUpdate` - Broadcast updates
+- `negotiateDashboard` - Teacher dashboard connection
+- `negotiateStudent` - Student view connection
+- `studentOnline` - Report student online status
 
-**Utilities** (3):
-- `healthCheck` - API health check
-- `validateGeolocation` - Validate student location
-- `encryptToken` / `decryptToken` - Token encryption/decryption
+**Quiz** (5):
+- `analyzeSlide` - AI slide analysis with GPT-4o Vision
+- `generateQuestions` - Generate quiz questions with GPT-4o
+- `sendQuizQuestion` - Send question to all present students
+- `getStudentQuestions` - Get pending questions for student
+- `submitQuizAnswer` - Submit and evaluate answer
+
+**Utilities** (integrated in functions):
+- Geolocation validation (Haversine formula)
+- SignalR broadcasting (JWT token generation)
+- Token encryption/decryption
 
 **Note**: `rotateTokens` function has been removed - tokens are now created on-demand by `getStudentToken` when clients poll.
 
 ### 3. Database (Azure Table Storage)
 
-**9 Tables**:
+**12 Tables**:
 
 1. **Sessions** - Session metadata
 2. **Attendance** - Student attendance records
@@ -148,20 +160,31 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 7. **ChainHistory** - Chain transfer audit
 8. **ScanLogs** - QR scan audit
 9. **DeletionLog** - Deletion audit trail
+10. **QuizQuestions** - AI-generated quiz questions
+11. **QuizResponses** - Student quiz answers
+12. **QuizMetrics** - Quiz performance metrics
 
 See [DATABASE_TABLES.md](DATABASE_TABLES.md) for detailed schemas.
 
 ### 4. Real-time Communication (Azure SignalR)
 
+**Configuration**: Standard S1 tier (1000 concurrent connections) in production
+
 **Connections**:
 - Teacher Dashboard: Real-time attendance updates
-- Student View: Real-time token updates
+- Student View: Real-time token updates and quiz questions
 
 **Events**:
 - `attendanceUpdate` - Student attendance changed
 - `chainUpdate` - Chain state changed
 - `stallAlert` - Chain stalled warning
-- `tokenUpdate` - Student token updated
+- `quizQuestion` - New quiz question for student
+- `quizResult` - Quiz answer evaluation result
+
+**Fallback Behavior**:
+- Quiz polling: 5 seconds (when SignalR unavailable)
+- Status polling: 15 seconds (when not holder and SignalR unavailable)
+- Auth header caching: 30 minutes
 
 ### 5. Authentication (Azure AD)
 
@@ -345,7 +368,7 @@ Teacher clicks "Take Snapshot"
 - Token updates
 - Stall alerts
 
-### 7. Client-Driven Token Refresh
+### 8. Client-Driven Token Refresh
 
 **Decision**: Tokens are created on-demand by client requests, not by server timer
 
@@ -366,6 +389,56 @@ Teacher clicks "Take Snapshot"
 - Better resource utilization
 - Tokens only created for active students
 - Simpler debugging
+
+---
+
+## Performance & Polling
+
+### Polling Intervals
+
+**Quiz Questions** (when SignalR unavailable):
+- Interval: 5 seconds
+- Endpoint: `GET /api/sessions/{sessionId}/student-questions`
+- Purpose: Check for new quiz questions
+- Only active when SignalR disconnected
+
+**Status Updates** (when not holder and SignalR unavailable):
+- Interval: 15 seconds
+- Endpoint: `GET /api/sessions/{sessionId}`
+- Purpose: Check attendance status changes
+- Only active when not a chain holder
+
+**Token Refresh** (when holder):
+- Interval: 5 seconds
+- Endpoint: `GET /api/sessions/{sessionId}/tokens/{studentId}`
+- Purpose: Get fresh QR token
+- Active only for chain holders
+
+**Auth Header Caching**:
+- Duration: 30 minutes
+- Reduces API calls to `/.auth/me`
+- Improves performance
+- Implemented in `frontend/src/utils/authHeaders.ts`
+
+### SignalR vs Polling
+
+**With SignalR** (Production - Standard S1):
+- Quiz delivery: <1 second latency
+- Status updates: <1 second latency
+- Concurrent students: Up to 1,000
+- API calls: ~12/student/hour
+
+**Fallback Mode** (When SignalR unavailable):
+- Quiz delivery: 0-5 seconds (avg 2.5s)
+- Status updates: 0-15 seconds (avg 7.5s)
+- Concurrent students: Unlimited
+- API calls: ~360/student/hour
+
+**Automatic Detection**:
+- Frontend detects SignalR availability
+- Automatically enables/disables polling
+- Seamless fallback behavior
+- No manual configuration needed
 
 ### 8. Centralized Table Configuration
 
