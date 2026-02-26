@@ -24,36 +24,57 @@ echo ""
 # Step 0: Get Azure AD credentials automatically
 echo -e "${BLUE}Step 0: Azure AD Configuration${NC}"
 
-# Auto-discover existing Azure AD app registration
-AAD_APP_INFO=$(az ad app list --display-name "QR Chain Attendance System" --query "[0].{appId:appId, displayName:displayName}" -o json 2>/dev/null || echo "{}")
-AAD_CLIENT_ID=$(echo "$AAD_APP_INFO" | jq -r '.appId // empty' 2>/dev/null || echo "")
+# Require explicit auth credentials for the correct auth tenant
+AAD_CLIENT_ID=""
 AAD_CLIENT_SECRET=""
 
 # Load explicit auth credentials (preferred: External ID)
 if [ -f ".external-id-credentials" ]; then
     source ./.external-id-credentials
-fi
-
-if [ -n "$AAD_CLIENT_ID" ] && [ "$AAD_CLIENT_ID" != "null" ]; then
-    echo -e "${GREEN}✓ Found existing Azure AD app registration${NC}"
-    echo "  Client ID: $AAD_CLIENT_ID"
-    echo "  App Name: QR Chain Attendance System"
 else
-    echo -e "${YELLOW}⚠ Azure AD app registration not found - will deploy without authentication${NC}"
-    AAD_CLIENT_ID=""
+    echo -e "${RED}✗ Missing .external-id-credentials${NC}"
+    echo "  Deployment requires explicit External ID/B2C credentials to avoid tenant drift."
+    exit 1
 fi
 
-# Get tenant ID (prefer credentials file, fallback to current Azure CLI tenant)
-if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "organizations" ]; then
-    TENANT_ID=$(az account show --query tenantId -o tsv 2>/dev/null || echo "organizations")
+# Validate External ID configuration to prevent login redirect loops
+if [ -n "$EXTERNAL_ID_ISSUER" ]; then
+    ISSUER_TENANT_ID=$(echo "$EXTERNAL_ID_ISSUER" | sed -nE 's#^.*/([0-9a-fA-F-]{36})/v2\.0/?$#\1#p')
+    if [ -n "$ISSUER_TENANT_ID" ]; then
+        if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "organizations" ]; then
+            TENANT_ID="$ISSUER_TENANT_ID"
+        elif [ "$TENANT_ID" != "$ISSUER_TENANT_ID" ]; then
+            echo -e "${RED}✗ Invalid auth config: TENANT_ID does not match EXTERNAL_ID_ISSUER${NC}"
+            echo "  TENANT_ID:           $TENANT_ID"
+            echo "  Issuer tenant ID:    $ISSUER_TENANT_ID"
+            echo "  EXTERNAL_ID_ISSUER:  $EXTERNAL_ID_ISSUER"
+            echo "  Fix .external-id-credentials before deploying."
+            exit 1
+        fi
+    fi
 fi
 
-if [ -n "$AAD_CLIENT_ID" ]; then
-    echo -e "${GREEN}✓ Azure AD available for authentication${NC}"
-    echo "  Tenant ID: $TENANT_ID"
-else
-    echo -e "${YELLOW}⚠ Deploying without Azure AD authentication${NC}"
+if [ -z "$AAD_CLIENT_ID" ] || [ "$AAD_CLIENT_ID" = "null" ]; then
+    echo -e "${RED}✗ .external-id-credentials is missing AAD_CLIENT_ID${NC}"
+    exit 1
 fi
+
+if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "null" ]; then
+    echo -e "${RED}✗ .external-id-credentials is missing TENANT_ID${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Loaded External ID credentials${NC}"
+echo "  Client ID: $AAD_CLIENT_ID"
+
+if [ -z "$AAD_CLIENT_SECRET" ]; then
+    echo -e "${RED}✗ .external-id-credentials is missing AAD_CLIENT_SECRET${NC}"
+    echo "  Login can fail or loop without a valid secret."
+    exit 1
+fi
+
+echo -e "${GREEN}✓ External ID authentication configured${NC}"
+echo "  Tenant ID: $TENANT_ID"
 echo ""
 
 # Step 1: Check prerequisites
@@ -267,7 +288,7 @@ cat > local.settings.json << EOF
     "StorageConnectionString": "$STORAGE_CONNECTION_STRING",
     "APPINSIGHTS_INSTRUMENTATIONKEY": "",
     "APPLICATIONINSIGHTS_CONNECTION_STRING": "$APPINSIGHTS_CONNECTION_STRING",
-    "Azure__SignalR__ConnectionString": "$SIGNALR_CONNECTION_STRING",
+    "SIGNALR_CONNECTION_STRING": "$SIGNALR_CONNECTION_STRING",
     "AzureOpenAI__Endpoint": "$OPENAI_ENDPOINT",
     "AzureOpenAI__ApiKey": "$OPENAI_KEY",
     "Environment": "dev",
@@ -404,6 +425,14 @@ NEXT_PUBLIC_AAD_TENANT_ID=$TENANT_ID
 NEXT_PUBLIC_AAD_REDIRECT_URI=$STATIC_WEB_APP_URL/.auth/login/aad/callback
 EOF
 
+if [ -n "$EXTERNAL_ID_ISSUER" ]; then
+    echo "Synchronizing frontend openIdIssuer from .external-id-credentials..."
+    TMP_SWA_CONFIG=$(mktemp)
+    jq --arg issuer "$EXTERNAL_ID_ISSUER" '.auth.identityProviders.azureActiveDirectory.registration.openIdIssuer = $issuer' staticwebapp.config.json > "$TMP_SWA_CONFIG"
+    mv "$TMP_SWA_CONFIG" staticwebapp.config.json
+    echo -e "${GREEN}✓ openIdIssuer synchronized: $EXTERNAL_ID_ISSUER${NC}"
+fi
+
 # Build for production (static export)
 echo "Building frontend for static deployment..."
 npm run build
@@ -475,42 +504,9 @@ cd ..
 echo -e "${GREEN}✓ Frontend deployment attempted${NC}"
 echo ""
 
-# Step 8.5: Configure CORS for Static Web App
-echo -e "${BLUE}Step 8.5: Configuring CORS for Static Web App...${NC}"
-
-# Add Static Web App URL to Function App CORS
-echo "Adding Static Web App URL to CORS: $STATIC_WEB_APP_URL"
-az functionapp cors add \
-    --name "$FUNCTION_APP_NAME" \
-    --resource-group "$RESOURCE_GROUP" \
-    --allowed-origins "$STATIC_WEB_APP_URL" \
-    --output none
-
-# Verify CORS configuration
-CORS_ORIGINS=$(az functionapp cors show \
-    --name "$FUNCTION_APP_NAME" \
-    --resource-group "$RESOURCE_GROUP" \
-    --query "allowedOrigins" -o tsv 2>/dev/null || echo "")
-
-if echo "$CORS_ORIGINS" | grep -q "${STATIC_WEB_APP_URL#https://}"; then
-    echo -e "${GREEN}✓ CORS configured for Static Web App${NC}"
-else
-    echo -e "${YELLOW}⚠ CORS configuration may need manual verification${NC}"
-fi
-
-# Enable CORS credentials support
-echo "Enabling CORS credentials support..."
-az functionapp cors credentials \
-    --name "$FUNCTION_APP_NAME" \
-    --resource-group "$RESOURCE_GROUP" \
-    --enable \
-    --output none
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ CORS credentials enabled${NC}"
-else
-    echo -e "${YELLOW}⚠ Failed to enable CORS credentials${NC}"
-fi
+# Step 8.5: Verify Function App configuration
+echo -e "${BLUE}Step 8.5: Verifying Function App configuration...${NC}"
+# Note: CORS not needed - Static Web Apps uses reverse proxy for /api routes
 
 # Verify Function App authentication is disabled
 echo "Verifying Function App authentication is disabled..."

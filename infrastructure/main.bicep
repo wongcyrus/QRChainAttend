@@ -185,6 +185,9 @@ output signalRName string = signalr.outputs.signalRName
 @description('SignalR Service endpoint')
 output signalREndpoint string = signalr.outputs.endpoint
 
+@description('SignalR Service connection string')
+output signalRConnectionString string = signalr.outputs.connectionString
+
 @description('Frontend URL (manually deployed)')
 output frontendUrl string = 'https://agreeable-pebble-05aa6201e.1.azurestaticapps.net'
 

@@ -24,36 +24,57 @@ echo ""
 # Step 0: Get Azure AD credentials automatically
 echo -e "${BLUE}Step 0: Azure AD Configuration${NC}"
 
-# Auto-discover existing Azure AD app registration
-AAD_APP_INFO=$(az ad app list --display-name "QR Chain Attendance System" --query "[0].{appId:appId, displayName:displayName}" -o json 2>/dev/null || echo "{}")
-AAD_CLIENT_ID=$(echo "$AAD_APP_INFO" | jq -r '.appId // empty' 2>/dev/null || echo "")
+# Require explicit auth credentials for the correct auth tenant
+AAD_CLIENT_ID=""
 AAD_CLIENT_SECRET=""
 
 # Load explicit auth credentials (preferred: External ID)
 if [ -f ".external-id-credentials" ]; then
     source ./.external-id-credentials
-fi
-
-if [ -n "$AAD_CLIENT_ID" ] && [ "$AAD_CLIENT_ID" != "null" ]; then
-    echo -e "${GREEN}✓ Found existing Azure AD app registration${NC}"
-    echo "  Client ID: $AAD_CLIENT_ID"
-    echo "  App Name: QR Chain Attendance System"
 else
-    echo -e "${YELLOW}⚠ Azure AD app registration not found - will deploy without authentication${NC}"
-    AAD_CLIENT_ID=""
+    echo -e "${RED}✗ Missing .external-id-credentials${NC}"
+    echo "  Deployment requires explicit External ID/B2C credentials to avoid tenant drift."
+    exit 1
 fi
 
-# Get tenant ID (prefer credentials file, fallback to current Azure CLI tenant)
-if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "organizations" ]; then
-    TENANT_ID=$(az account show --query tenantId -o tsv 2>/dev/null || echo "organizations")
+# Validate External ID configuration to prevent login redirect loops
+if [ -n "$EXTERNAL_ID_ISSUER" ]; then
+    ISSUER_TENANT_ID=$(echo "$EXTERNAL_ID_ISSUER" | sed -nE 's#^.*/([0-9a-fA-F-]{36})/v2\.0/?$#\1#p')
+    if [ -n "$ISSUER_TENANT_ID" ]; then
+        if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "organizations" ]; then
+            TENANT_ID="$ISSUER_TENANT_ID"
+        elif [ "$TENANT_ID" != "$ISSUER_TENANT_ID" ]; then
+            echo -e "${RED}✗ Invalid auth config: TENANT_ID does not match EXTERNAL_ID_ISSUER${NC}"
+            echo "  TENANT_ID:           $TENANT_ID"
+            echo "  Issuer tenant ID:    $ISSUER_TENANT_ID"
+            echo "  EXTERNAL_ID_ISSUER:  $EXTERNAL_ID_ISSUER"
+            echo "  Fix .external-id-credentials before deploying."
+            exit 1
+        fi
+    fi
 fi
 
-if [ -n "$AAD_CLIENT_ID" ]; then
-    echo -e "${GREEN}✓ Azure AD available for authentication${NC}"
-    echo "  Tenant ID: $TENANT_ID"
-else
-    echo -e "${YELLOW}⚠ Deploying without Azure AD authentication${NC}"
+if [ -z "$AAD_CLIENT_ID" ] || [ "$AAD_CLIENT_ID" = "null" ]; then
+    echo -e "${RED}✗ .external-id-credentials is missing AAD_CLIENT_ID${NC}"
+    exit 1
 fi
+
+if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "null" ]; then
+    echo -e "${RED}✗ .external-id-credentials is missing TENANT_ID${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Loaded External ID credentials${NC}"
+echo "  Client ID: $AAD_CLIENT_ID"
+
+if [ -z "$AAD_CLIENT_SECRET" ]; then
+    echo -e "${RED}✗ .external-id-credentials is missing AAD_CLIENT_SECRET${NC}"
+    echo "  Login can fail or loop without a valid secret."
+    exit 1
+fi
+
+echo -e "${GREEN}✓ External ID authentication configured${NC}"
+echo "  Tenant ID: $TENANT_ID"
 echo ""
 
 # Step 1: Check prerequisites
@@ -337,42 +358,9 @@ echo -e "${BLUE}Step 6: Verifying database tables...${NC}"
 echo -e "${GREEN}✓ Database tables managed by bicep infrastructure${NC}"
 echo ""
 
-# Step 7: Update CORS configuration for Static Web App
-echo -e "${BLUE}Step 7: Configuring CORS for Static Web App...${NC}"
-
-# Add Static Web App URL to Function App CORS
-echo "Adding Static Web App URL to CORS: $STATIC_WEB_APP_URL"
-az functionapp cors add \
-    --name $FUNCTION_APP \
-    --resource-group $RESOURCE_GROUP \
-    --allowed-origins "$STATIC_WEB_APP_URL" \
-    --output none
-
-# Verify CORS configuration
-CORS_ORIGINS=$(az functionapp cors show \
-    --name $FUNCTION_APP \
-    --resource-group $RESOURCE_GROUP \
-    --query "allowedOrigins" -o tsv 2>/dev/null || echo "")
-
-if echo "$CORS_ORIGINS" | grep -q "$STATIC_WEB_APP_HOSTNAME"; then
-    echo -e "${GREEN}✓ CORS configured for Static Web App${NC}"
-else
-    echo -e "${YELLOW}⚠ CORS configuration may need manual verification${NC}"
-fi
-
-# Enable CORS credentials support
-echo "Enabling CORS credentials support..."
-az functionapp cors credentials \
-    --name $FUNCTION_APP \
-    --resource-group $RESOURCE_GROUP \
-    --enable \
-    --output none
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ CORS credentials enabled${NC}"
-else
-    echo -e "${YELLOW}⚠ Failed to enable CORS credentials${NC}"
-fi
+# Step 7: Verify Function App authentication is disabled
+echo -e "${BLUE}Step 7: Verifying Function App configuration...${NC}"
+# Note: CORS not needed - Static Web Apps uses reverse proxy for /api routes
 
 # Verify Function App authentication is disabled
 echo "Verifying Function App authentication is disabled..."
@@ -406,17 +394,41 @@ if [ -n "$AAD_CLIENT_ID" ]; then
     # Update Azure AD redirect URI for the new Static Web App
     echo -e "${BLUE}Updating Azure AD redirect URI...${NC}"
     REDIRECT_URI="$STATIC_WEB_APP_URL/.auth/login/aad/callback"
-    
-    # Get current redirect URIs and add the new one if not present
-    CURRENT_URIS=$(az ad app show --id $AAD_CLIENT_ID --query "web.redirectUris" -o tsv | tr '\n' ' ' | tr -d '\r')
-    
-    if echo "$CURRENT_URIS" | grep -q "$REDIRECT_URI"; then
-        echo -e "${GREEN}✓ Redirect URI already configured${NC}"
+
+    # Dual-tenant safe: query/update app in TENANT_ID using Graph token for that tenant
+    GRAPH_TOKEN=$(az account get-access-token --tenant "$TENANT_ID" --resource-type ms-graph --query accessToken -o tsv 2>/dev/null || echo "")
+
+    if [ -z "$GRAPH_TOKEN" ]; then
+        echo -e "${YELLOW}⚠ Could not get Graph token for tenant $TENANT_ID${NC}"
+        echo "  Skipping redirect URI auto-update. Ensure this URI exists in app registration:"
+        echo "  $REDIRECT_URI"
     else
-        echo "Adding redirect URI: $REDIRECT_URI"
-        NEW_URIS="$CURRENT_URIS $REDIRECT_URI"
-        az ad app update --id $AAD_CLIENT_ID --web-redirect-uris $NEW_URIS --output none
-        echo -e "${GREEN}✓ Redirect URI added to Azure AD app${NC}"
+        APP_QUERY_URL="https://graph.microsoft.com/v1.0/applications?\$filter=appId eq '$AAD_CLIENT_ID'&\$select=id,appId,web"
+        APP_QUERY_RESPONSE=$(az rest --method GET --url "$APP_QUERY_URL" --headers "Authorization=Bearer $GRAPH_TOKEN" --output json 2>/dev/null || echo "")
+        APP_OBJECT_ID=$(echo "$APP_QUERY_RESPONSE" | jq -r '.value[0].id // empty' 2>/dev/null || echo "")
+
+        if [ -z "$APP_OBJECT_ID" ]; then
+            echo -e "${YELLOW}⚠ App ID $AAD_CLIENT_ID not found in tenant $TENANT_ID${NC}"
+            echo "  Skipping redirect URI auto-update. Ensure this URI exists in app registration:"
+            echo "  $REDIRECT_URI"
+        else
+            CURRENT_REDIRECT_URIS=$(echo "$APP_QUERY_RESPONSE" | jq -c '.value[0].web.redirectUris // []' 2>/dev/null || echo "[]")
+
+            if echo "$CURRENT_REDIRECT_URIS" | jq -e --arg uri "$REDIRECT_URI" 'index($uri)' >/dev/null 2>&1; then
+                echo -e "${GREEN}✓ Redirect URI already configured${NC}"
+            else
+                echo "Adding redirect URI: $REDIRECT_URI"
+                UPDATED_REDIRECT_URIS=$(echo "$CURRENT_REDIRECT_URIS" | jq -c --arg uri "$REDIRECT_URI" '. + [$uri]')
+
+                az rest --method PATCH \
+                    --url "https://graph.microsoft.com/v1.0/applications/$APP_OBJECT_ID" \
+                    --headers "Authorization=Bearer $GRAPH_TOKEN" "Content-Type=application/json" \
+                    --body "{\"web\":{\"redirectUris\":$UPDATED_REDIRECT_URIS}}" \
+                    --output none
+
+                echo -e "${GREEN}✓ Redirect URI added to Azure AD app (tenant $TENANT_ID)${NC}"
+            fi
+        fi
     fi
     
     # Configure Static Web App application settings
@@ -459,6 +471,14 @@ echo ""
 
 # Step 8: Build and deploy frontend
 echo -e "${BLUE}Step 8: Building and deploying frontend...${NC}"
+
+if [ -n "$EXTERNAL_ID_ISSUER" ]; then
+    echo "Synchronizing frontend openIdIssuer from .external-id-credentials..."
+    TMP_SWA_CONFIG=$(mktemp)
+    jq --arg issuer "$EXTERNAL_ID_ISSUER" '.auth.identityProviders.azureActiveDirectory.registration.openIdIssuer = $issuer' frontend/staticwebapp.config.json > "$TMP_SWA_CONFIG"
+    mv "$TMP_SWA_CONFIG" frontend/staticwebapp.config.json
+    echo -e "${GREEN}✓ openIdIssuer synchronized: $EXTERNAL_ID_ISSUER${NC}"
+fi
 
 # Update frontend environment
 # Use AAD_CLIENT_ID if provided, otherwise use placeholder
@@ -650,8 +670,6 @@ cat > deployment-info.json << EOF
     "bicepDeployment": "completed",
     "staticWebAppDeployment": "cli-created",
     "functionAppAuthDisabled": true,
-    "corsConfigured": true,
-    "corsCredentialsEnabled": true,
     "multiTenantAuth": $([ "$TENANT_ID" = "organizations" ] && echo "true" || echo "false")
   }
 }
