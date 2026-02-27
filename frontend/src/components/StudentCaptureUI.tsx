@@ -238,7 +238,12 @@ export function StudentCaptureUI({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
+    // Mirror horizontally to match the preview (video has scaleX(-1) CSS)
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1); // Flip horizontally
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
     
     // Convert canvas to blob
     canvas.toBlob(async (blob) => {
@@ -666,7 +671,7 @@ export function StudentCaptureUI({
                 backgroundColor: '#000',
                 display: 'block',
                 objectFit: 'cover',
-                transform: 'scaleX(-1)' // Mirror the video for selfie mode
+                transform: 'scaleX(-1)' // Mirror horizontally for natural selfie view
               }}
             />
             {/* Loading indicator while video initializes */}

@@ -163,7 +163,7 @@ module functions 'modules/functions.bicep' = {
     azureOpenAIEndpoint: deployAzureOpenAI ? openai.outputs.endpoint : ''
     azureOpenAIKey: deployAzureOpenAI ? openai.outputs.primaryKey : ''
     azureOpenAIDeployment: deployAzureOpenAI ? (deployGpt52ChatModel ? openai.outputs.gpt52ChatDeploymentName : 'gpt-4o') : ''
-    azureOpenAIVisionDeployment: deployAzureOpenAI ? 'gpt-4o' : ''
+    azureOpenAIVisionDeployment: deployAzureOpenAI ? 'gpt-5.2-chat' : ''
     frontendUrls: corsUrls
     tags: tags
   }

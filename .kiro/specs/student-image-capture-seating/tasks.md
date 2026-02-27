@@ -186,7 +186,7 @@ The implementation follows this sequence:
     - Test error handling for GPT failures
     - _Requirements: 5.1, 5.2, 6.1_
 
-- [~] 7. Checkpoint - Ensure backend functions tests pass
+- [ ] 7. Checkpoint - Ensure backend functions tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 8. Implement GPT-4o position estimation
@@ -329,7 +329,7 @@ The implementation follows this sequence:
     - Test state updates on each event
     - _Requirements: 2.1, 2.3, 7.1, 7.3_
 
-- [~] 12. Checkpoint - Ensure student UI tests pass
+- [ ] 12. Checkpoint - Ensure student UI tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 13. Implement teacher capture control (frontend)
@@ -436,7 +436,7 @@ The implementation follows this sequence:
     - Test error logging format
     - _Requirements: 2.1, 3.4, 6.4_
 
-- [~] 17. Checkpoint - Ensure all UI and error handling tests pass
+- [ ] 17. Checkpoint - Ensure all UI and error handling tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 18. Add session integration
@@ -496,7 +496,7 @@ The implementation follows this sequence:
     - Test SignalR reconnection during capture
     - _Requirements: 1.1, 2.1, 3.1, 5.1, 6.1, 6.3_
 
-- [~] 20. Final checkpoint - Ensure all integration tests pass
+- [ ] 20. Final checkpoint - Ensure all integration tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
