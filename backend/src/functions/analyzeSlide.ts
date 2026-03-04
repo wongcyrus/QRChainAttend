@@ -6,6 +6,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
 import { BlobServiceClient } from '@azure/storage-blob';
+import { DefaultAzureCredential } from '@azure/identity';
 import { randomUUID } from 'crypto';
 
 export async function analyzeSlide(
@@ -103,13 +104,31 @@ export async function analyzeSlide(
     // Call Azure OpenAI vision-capable chat API
     const openaiEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
     const openaiKey = process.env.AZURE_OPENAI_KEY;
-    const openaiDeployment = process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
+    const openaiDeployment = process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4.1';
 
-    if (!openaiEndpoint || !openaiKey) {
-      throw new Error('Azure OpenAI not configured');
+    if (!openaiEndpoint) {
+      throw new Error('Azure OpenAI endpoint not configured');
     }
 
-    const apiUrl = `${openaiEndpoint}/openai/deployments/${openaiDeployment}/chat/completions?api-version=2024-10-21`;
+    const apiUrl = `${openaiEndpoint.replace(/\/$/, '')}/openai/deployments/${openaiDeployment}/chat/completions?api-version=2024-10-21`;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+
+    if (openaiKey) {
+      headers['api-key'] = openaiKey;
+    } else {
+      context.log('AZURE_OPENAI_KEY not set, using managed identity token for Azure OpenAI');
+      const credential = new DefaultAzureCredential();
+      const token = await credential.getToken('https://cognitiveservices.azure.com/.default');
+
+      if (!token?.token) {
+        throw new Error('Failed to acquire managed identity token for Azure OpenAI');
+      }
+
+      headers['Authorization'] = `Bearer ${token.token}`;
+    }
 
     const requestBody = {
       messages: [
@@ -154,10 +173,7 @@ Be concise and accurate. Extract only what's clearly visible.`
       try {
         response = await fetch(apiUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'api-key': openaiKey
-          },
+          headers,
           body: JSON.stringify(requestBody)
         });
 

@@ -90,6 +90,142 @@ validate_project_endpoint() {
     [ "$status" = "200" ]
 }
 
+ensure_foundry_rbac_access() {
+    local resource_group="$1"
+    local openai_name="$2"
+    local project_name="$3"
+    local subscription_id
+    local user_object_id
+    local user_upn
+    local account_scope
+    local project_scope
+    local project_mi
+    local assignment_failures=0
+
+    ensure_role_assignment() {
+        local principal_object_id="$1"
+        local principal_type="$2"
+        local role_name="$3"
+        local scope="$4"
+        local label="$5"
+        local existing_count
+        local create_output
+
+        existing_count=$(az role assignment list \
+            --assignee-object-id "$principal_object_id" \
+            --scope "$scope" \
+            --query "[?roleDefinitionName=='${role_name}'] | length(@)" \
+            -o tsv 2>/dev/null || echo "0")
+
+        if [ "$existing_count" != "0" ]; then
+            echo -e "${GREEN}✓ RBAC already present (${label})${NC}"
+            return 0
+        fi
+
+        create_output=$(az role assignment create \
+            --assignee-object-id "$principal_object_id" \
+            --assignee-principal-type "$principal_type" \
+            --role "$role_name" \
+            --scope "$scope" \
+            -o none 2>&1)
+
+        if [ $? -ne 0 ]; then
+            echo -e "${YELLOW}⚠ RBAC assignment failed (${label}): ${create_output}${NC}"
+            return 1
+        fi
+
+        existing_count=$(az role assignment list \
+            --assignee-object-id "$principal_object_id" \
+            --scope "$scope" \
+            --query "[?roleDefinitionName=='${role_name}'] | length(@)" \
+            -o tsv 2>/dev/null || echo "0")
+
+        if [ "$existing_count" = "0" ]; then
+            echo -e "${YELLOW}⚠ RBAC assignment could not be verified (${label})${NC}"
+            return 1
+        fi
+
+        echo -e "${GREEN}✓ RBAC assignment ensured (${label})${NC}"
+        return 0
+    }
+
+    subscription_id=$(az account show --query id -o tsv 2>/dev/null || echo "")
+    if [ -z "$subscription_id" ]; then
+        echo -e "${YELLOW}⚠ Unable to resolve subscription ID for Foundry RBAC enforcement${NC}"
+        return 0
+    fi
+
+    account_scope="/subscriptions/${subscription_id}/resourceGroups/${resource_group}/providers/Microsoft.CognitiveServices/accounts/${openai_name}"
+    project_scope="${account_scope}/projects/${project_name}"
+
+    user_object_id=$(az ad signed-in-user show --query id -o tsv 2>/dev/null || echo "")
+    if [ -z "$user_object_id" ] || [ "$user_object_id" = "null" ]; then
+        user_upn=$(az account show --query user.name -o tsv 2>/dev/null || echo "")
+        if [ -n "$user_upn" ] && [ "$user_upn" != "null" ]; then
+            user_object_id=$(az ad user show --id "$user_upn" --query id -o tsv 2>/dev/null || echo "")
+        fi
+    fi
+
+    if [ -n "$user_object_id" ] && [ "$user_object_id" != "null" ]; then
+        ensure_role_assignment "$user_object_id" "User" "Azure AI User" "$account_scope" "user@account-scope" || assignment_failures=$((assignment_failures + 1))
+        ensure_role_assignment "$user_object_id" "User" "Azure AI User" "$project_scope" "user@project-scope" || assignment_failures=$((assignment_failures + 1))
+    else
+        echo -e "${YELLOW}⚠ Could not resolve signed-in user object ID; skipping user RBAC enforcement${NC}"
+        assignment_failures=$((assignment_failures + 1))
+    fi
+
+    project_mi=$(az resource show --ids "$project_scope" --query identity.principalId -o tsv 2>/dev/null || echo "")
+    if [ -n "$project_mi" ] && [ "$project_mi" != "null" ]; then
+        ensure_role_assignment "$project_mi" "ServicePrincipal" "Azure AI User" "$account_scope" "project-mi@account-scope" || assignment_failures=$((assignment_failures + 1))
+    else
+        echo -e "${YELLOW}⚠ Could not resolve project managed identity; skipping MI RBAC enforcement${NC}"
+        assignment_failures=$((assignment_failures + 1))
+    fi
+
+    if [ $assignment_failures -gt 0 ]; then
+        echo -e "${YELLOW}⚠ Foundry RBAC enforcement completed with $assignment_failures issue(s). Check warnings above.${NC}"
+    else
+        echo -e "${GREEN}✓ Foundry RBAC enforcement completed successfully${NC}"
+    fi
+}
+
+resolve_runtime_agent_id() {
+    local endpoint="$1"
+    local agent_name="$2"
+    local configured_id="$3"
+    local token
+    local resolved
+
+    if [ -z "$configured_id" ] || [ "$configured_id" = "null" ]; then
+        echo ""
+        return 0
+    fi
+
+    if [[ "$configured_id" =~ ^[A-Za-z0-9_-]+$ ]]; then
+        echo "$configured_id"
+        return 0
+    fi
+
+    if [ -z "$endpoint" ] || [ "$endpoint" = "null" ]; then
+        echo "$configured_id"
+        return 0
+    fi
+
+    token=$(az account get-access-token --resource https://ai.azure.com --query accessToken -o tsv 2>/dev/null || echo "")
+    if [ -z "$token" ]; then
+        echo "$configured_id"
+        return 0
+    fi
+
+    resolved=$(curl -s -H "Authorization: Bearer $token" "${endpoint}/assistants?api-version=2025-05-01&limit=100&order=desc" 2>/dev/null | jq -r --arg name "$agent_name" '.data[]? | select(.name==$name) | .id' | head -n 1)
+
+    if [ -n "$resolved" ] && [ "$resolved" != "null" ]; then
+        echo "$resolved"
+    else
+        echo "$configured_id"
+    fi
+}
+
 verify_external_id_login() {
     local app_url="$1"
     local expected_tenant_id="$2"
@@ -470,6 +606,7 @@ if az cognitiveservices account show --name "$OPENAI_NAME" --resource-group "$RE
 
     echo -e "${GREEN}✓ Account verified: $OPENAI_NAME${NC}"
     echo -e "${GREEN}✓ Foundry project found: ${PROJECT_NAME}${NC}"
+    ensure_foundry_rbac_access "$RESOURCE_GROUP" "$OPENAI_NAME" "$PROJECT_NAME"
     echo ""
     
     # Wait for project to be fully provisioned with retry logic
@@ -506,37 +643,30 @@ if az cognitiveservices account show --name "$OPENAI_NAME" --resource-group "$RE
     
     # Check if TypeScript agent creation script exists
     if [ -f "./create-agents.ts" ]; then
+        # Remove stale agent config so a previous successful run can't be mistaken for current success
+        rm -f .agent-config.env
+
         # Ensure dependencies are installed
         if ! command -v tsx &> /dev/null; then
             echo "Installing TypeScript dependencies..."
             npm install
         fi
         
-        # Run TypeScript agent creation script with retry logic
+        # Run TypeScript agent creation script once (fail-fast, no retry loop)
         AGENT_CREATED=false
-        AGENT_RETRY=0
-        MAX_AGENT_RETRIES=3
-        
-        while [ $AGENT_RETRY -lt $MAX_AGENT_RETRIES ] && [ "$AGENT_CREATED" = false ]; do
-            AGENT_RETRY=$((AGENT_RETRY + 1))
-            
-            if [ $AGENT_RETRY -gt 1 ]; then
-                echo "Retrying agent creation (attempt $AGENT_RETRY/$MAX_AGENT_RETRIES) after 20 seconds..."
-                sleep 20
+        echo "Running: tsx create-agents.ts $RESOURCE_GROUP $OPENAI_NAME $PROJECT_NAME"
+        if echo "y" | npx tsx create-agents.ts "$RESOURCE_GROUP" "$OPENAI_NAME" "$PROJECT_NAME" 2>&1 | tee /tmp/agent-creation.log; then
+            # Success is determined by command exit code plus generated config file
+            if [ -f ".agent-config.env" ]; then
+                AGENT_CREATED=true
+                echo -e "${GREEN}✓ Agents created successfully${NC}"
+            else
+                echo -e "${YELLOW}⚠ Agent script exited successfully but .agent-config.env was not generated${NC}"
             fi
-            
-            echo "Running: tsx create-agents.ts $RESOURCE_GROUP $OPENAI_NAME $PROJECT_NAME"
-            if echo "y" | npx tsx create-agents.ts "$RESOURCE_GROUP" "$OPENAI_NAME" "$PROJECT_NAME" 2>&1 | tee /tmp/agent-creation.log; then
-                # Check if agents were actually created
-                if grep -q "Agent created successfully" /tmp/agent-creation.log; then
-                    AGENT_CREATED=true
-                    echo -e "${GREEN}✓ Agents created successfully${NC}"
-                fi
-            fi
-        done
+        fi
         
         if [ "$AGENT_CREATED" = false ]; then
-            echo -e "${YELLOW}⚠ Agent creation failed after $MAX_AGENT_RETRIES attempts${NC}"
+            echo -e "${YELLOW}⚠ Agent creation failed${NC}"
             echo "You can create the agents manually later with:"
             echo "  npx tsx create-agents.ts $RESOURCE_GROUP $OPENAI_NAME $PROJECT_NAME"
             echo ""
@@ -546,8 +676,8 @@ if az cognitiveservices account show --name "$OPENAI_NAME" --resource-group "$RE
         
         rm -f /tmp/agent-creation.log
         
-        # Check if agents were created successfully
-        if [ -f ".agent-config.env" ]; then
+        # Load resulting config only when creation actually succeeded in this run
+        if [ "$AGENT_CREATED" = true ] && [ -f ".agent-config.env" ]; then
             echo -e "${GREEN}✓ Agents created successfully${NC}"
             
             # Load agent IDs
@@ -558,15 +688,15 @@ if az cognitiveservices account show --name "$OPENAI_NAME" --resource-group "$RE
                 echo "Using agent-created project endpoint: $PROJECT_ENDPOINT"
             fi
             
-            if [ -n "$AZURE_AI_AGENT_ID" ]; then
-                echo "Quiz Agent ID: $AZURE_AI_AGENT_ID"
+            if [ -n "$AZURE_AI_AGENT_NAME" ] && [ -n "$AZURE_AI_AGENT_VERSION" ]; then
+                echo "Quiz Agent Reference: ${AZURE_AI_AGENT_NAME}:${AZURE_AI_AGENT_VERSION}"
             fi
             
-            if [ -n "$AZURE_AI_POSITION_AGENT_ID" ]; then
-                echo "Position Agent ID: $AZURE_AI_POSITION_AGENT_ID"
+            if [ -n "$AZURE_AI_POSITION_AGENT_NAME" ] && [ -n "$AZURE_AI_POSITION_AGENT_VERSION" ]; then
+                echo "Position Agent Reference: ${AZURE_AI_POSITION_AGENT_NAME}:${AZURE_AI_POSITION_AGENT_VERSION}"
             fi
         else
-            echo -e "${YELLOW}⚠ Agent configuration not found${NC}"
+            echo -e "${YELLOW}⚠ Agent configuration not available from this run${NC}"
         fi
     else
         echo -e "${YELLOW}⚠ TypeScript agent creation script not found${NC}"
@@ -718,8 +848,10 @@ npm run build
 echo "Creating deployment settings..."
 
 # Load agent config if it exists, but prefer infrastructure-derived endpoint
-AZURE_AI_AGENT_ID=""
-AZURE_AI_POSITION_AGENT_ID=""
+AZURE_AI_AGENT_NAME=""
+AZURE_AI_AGENT_VERSION=""
+AZURE_AI_POSITION_AGENT_NAME=""
+AZURE_AI_POSITION_AGENT_VERSION=""
 AZURE_AI_PROJECT_ENDPOINT=""
 
 # First, try to use the project endpoint from infrastructure deployment
@@ -728,7 +860,7 @@ if [ -n "$PROJECT_ENDPOINT" ] && [ "$PROJECT_ENDPOINT" != "null" ]; then
     echo "✓ Using project endpoint from infrastructure: $AZURE_AI_PROJECT_ENDPOINT"
 fi
 
-# Load agent IDs from config file if it exists
+# Load agent settings from config file if it exists
 if [ -f "../.agent-config.env" ]; then
     source ../.agent-config.env
 
@@ -737,14 +869,14 @@ if [ -f "../.agent-config.env" ]; then
         AZURE_AI_PROJECT_ENDPOINT="$PROJECT_ENDPOINT"
     fi
     
-    # Load quiz agent ID
-    if [ -n "$AZURE_AI_AGENT_ID" ]; then
-        echo "✓ Loaded quiz agent ID from config: $AZURE_AI_AGENT_ID"
+    # Load quiz agent reference
+    if [ -n "$AZURE_AI_AGENT_NAME" ] && [ -n "$AZURE_AI_AGENT_VERSION" ]; then
+        echo "✓ Loaded quiz agent reference from config: ${AZURE_AI_AGENT_NAME}:${AZURE_AI_AGENT_VERSION}"
     fi
     
-    # Load position agent ID
-    if [ -n "$AZURE_AI_POSITION_AGENT_ID" ]; then
-        echo "✓ Loaded position agent ID from config: $AZURE_AI_POSITION_AGENT_ID"
+    # Load position agent reference
+    if [ -n "$AZURE_AI_POSITION_AGENT_NAME" ] && [ -n "$AZURE_AI_POSITION_AGENT_VERSION" ]; then
+        echo "✓ Loaded position agent reference from config: ${AZURE_AI_POSITION_AGENT_NAME}:${AZURE_AI_POSITION_AGENT_VERSION}"
     fi
     
     # If infrastructure didn't provide endpoint, validate and fix config endpoint
@@ -810,10 +942,12 @@ cat > local.settings.json << EOF
     "APPLICATIONINSIGHTS_CONNECTION_STRING": "$APPINSIGHTS_CONNECTION_STRING",
     "SIGNALR_CONNECTION_STRING": "$SIGNALR_CONNECTION_STRING",
     "AzureOpenAI__Endpoint": "$OPENAI_ENDPOINT",
-    "AzureOpenAI__ApiKey": "$OPENAI_KEY",$([ -n "$AZURE_AI_AGENT_ID" ] && echo "
-    \"AZURE_AI_AGENT_ID\": \"$AZURE_AI_AGENT_ID\",
-    \"AZURE_AI_PROJECT_ENDPOINT\": \"$AZURE_AI_PROJECT_ENDPOINT\"," || echo "")$([ -n "$AZURE_AI_POSITION_AGENT_ID" ] && echo "
-    \"AZURE_AI_POSITION_AGENT_ID\": \"$AZURE_AI_POSITION_AGENT_ID\"," || echo "")
+    "AzureOpenAI__ApiKey": "$OPENAI_KEY",$([ -n "$AZURE_AI_PROJECT_ENDPOINT" ] && echo "
+    \"AZURE_AI_PROJECT_ENDPOINT\": \"$AZURE_AI_PROJECT_ENDPOINT\"," || echo "")$([ -n "$AZURE_AI_AGENT_NAME" ] && [ -n "$AZURE_AI_AGENT_VERSION" ] && echo "
+    \"AZURE_AI_AGENT_NAME\": \"$AZURE_AI_AGENT_NAME\",
+        \"AZURE_AI_AGENT_VERSION\": \"$AZURE_AI_AGENT_VERSION\"," || echo "")$([ -n "$AZURE_AI_POSITION_AGENT_NAME" ] && [ -n "$AZURE_AI_POSITION_AGENT_VERSION" ] && echo "
+        \"AZURE_AI_POSITION_AGENT_NAME\": \"$AZURE_AI_POSITION_AGENT_NAME\",
+        \"AZURE_AI_POSITION_AGENT_VERSION\": \"$AZURE_AI_POSITION_AGENT_VERSION\"," || echo "")
     "Environment": "dev",
     "DEBUG": "*"
   },

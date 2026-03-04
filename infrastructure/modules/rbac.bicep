@@ -36,9 +36,6 @@ var signalRServiceOwnerRoleId = subscriptionResourceId('Microsoft.Authorization/
 // Cognitive Services OpenAI User: 5e0bd9bd-7b93-4f28-af87-19fc36ad61bd
 var cognitiveServicesOpenAIUserRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
 
-// Azure AI Developer: 64702f94-c441-49e6-a78b-ef80e0188fee (for Agent Service)
-var azureAIDeveloperRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '64702f94-c441-49e6-a78b-ef80e0188fee')
-
 // Azure AI User: 53ca6127-db72-4b80-b1b0-d745d6d5456d (for Agent Service at project scope)
 var azureAIUserRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '53ca6127-db72-4b80-b1b0-d745d6d5456d')
 
@@ -58,7 +55,7 @@ resource openAI 'Microsoft.CognitiveServices/accounts@2023-05-01' existing = if 
   name: openAIName
 }
 
-resource openAIProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' existing = if (deployAzureOpenAI && openAIProjectName != '') {
+resource openAIProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview' existing = if (deployAzureOpenAI && openAIProjectName != '') {
   parent: openAI
   name: openAIProjectName
 }
@@ -112,6 +109,18 @@ resource functionAppOpenAIRoleAssignment 'Microsoft.Authorization/roleAssignment
 // ROLE ASSIGNMENTS - AZURE AI USER (FOR AGENT SERVICE AT PROJECT SCOPE)
 // ============================================================================
 
+// Assign Azure AI User role to Function App at ACCOUNT scope so permissions
+// inherit to all projects under this Foundry account.
+resource functionAppAIUserAccountRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployAzureOpenAI) {
+  name: guid(openAI.id, functionAppPrincipalId, azureAIUserRoleId)
+  scope: openAI
+  properties: {
+    roleDefinitionId: azureAIUserRoleId
+    principalId: functionAppPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Assign Azure AI User role to Function App at PROJECT scope for Agent Service operations
 // Per Microsoft docs: Agent Service permissions must be assigned at the PROJECT scope
 // Reference: https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry
@@ -137,6 +146,9 @@ output functionAppSignalRRoleAssignmentId string = functionAppSignalRRoleAssignm
 
 @description('OpenAI role assignment for Function App (if deployed)')
 output functionAppOpenAIRoleAssignmentId string = deployAzureOpenAI ? functionAppOpenAIRoleAssignment.id : ''
+
+@description('Azure AI User role assignment for Function App at account scope (if deployed)')
+output functionAppAIUserAccountRoleAssignmentId string = deployAzureOpenAI ? functionAppAIUserAccountRoleAssignment.id : ''
 
 @description('Azure AI User role assignment for Function App at project scope (if deployed)')
 output functionAppAIUserProjectRoleAssignmentId string = (deployAzureOpenAI && openAIProjectName != '') ? functionAppAIUserProjectRoleAssignment.id : ''

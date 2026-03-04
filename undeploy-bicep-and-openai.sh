@@ -1,6 +1,7 @@
 #!/bin/bash
-# Undeploy and redeploy infrastructure for testing Bicep changes
+# Undeploy infrastructure for testing Bicep/OpenAI cleanup behavior
 # Keeps Static Web App to preserve URL
+# Note: redeploy steps are intentionally disabled at the bottom of this script.
 
 set -e
 set -o pipefail
@@ -38,12 +39,13 @@ discover_project_name() {
 }
 
 echo "=========================================="
-echo "Undeploy and Redeploy Infrastructure"
+echo "Undeploy Infrastructure"
 echo "=========================================="
 echo ""
 echo "Scope: Development resource group only"
 echo "  Resource Group: $RESOURCE_GROUP"
 echo "  Region: $LOCATION"
+echo "  Redeploy: Disabled in this script"
 echo ""
 
 # Step 0: Validate Azure tenant/token context
@@ -180,21 +182,3 @@ else
     echo "⚠ Remaining projects:"
     echo "$REMAINING_PROJECTS"
 fi
-
-# # Step 6: Redeploy infrastructure
-# echo ""
-# echo "Step 5: Redeploying infrastructure..."
-# az deployment group create \
-#     --resource-group "$RESOURCE_GROUP" \
-#     --template-file "infrastructure/main.bicep" \
-#     --parameters "infrastructure/parameters/dev.bicepparam" \
-#     --name "qr-attendance-dev-deployment-$(date +%s)" \
-#     --output table
-
-# echo ""
-# echo "=========================================="
-# echo "Infrastructure Redeployed"
-# echo "=========================================="
-# echo ""
-# echo "Next: Run agent creation"
-# echo "  npx tsx create-agents.ts $RESOURCE_GROUP $OPENAI_NAME $PROJECT_NAME"

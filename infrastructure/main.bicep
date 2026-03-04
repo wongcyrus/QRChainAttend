@@ -178,8 +178,8 @@ module functions 'modules/functions.bicep' = {
     appInsightsConnectionString: appInsights.outputs.connectionString
     azureOpenAIEndpoint: deployAzureOpenAI ? openai.outputs.endpoint : ''
     azureOpenAIKey: deployAzureOpenAI ? openai.outputs.primaryKey : ''
-    azureOpenAIDeployment: deployAzureOpenAI ? (deployGpt52ChatModel ? openai.outputs.gpt52ChatDeploymentName : 'gpt-4o') : ''
-    azureOpenAIVisionDeployment: deployAzureOpenAI ? 'gpt-5.2-chat' : ''
+    azureOpenAIDeployment: deployAzureOpenAI ? (deployGpt4Model ? openai.outputs.gpt4DeploymentName : (deployGpt52ChatModel ? openai.outputs.gpt52ChatDeploymentName : '')) : ''
+    azureOpenAIVisionDeployment: deployAzureOpenAI ? (deployVisionModel ? openai.outputs.gpt4VisionDeploymentName : (deployGpt4Model ? openai.outputs.gpt4DeploymentName : 'gpt-4.1')) : ''
     frontendUrls: corsUrls
     tags: tags
   }

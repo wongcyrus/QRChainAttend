@@ -137,75 +137,26 @@ async function callPositionEstimationAgent(
   context: InvocationContext
 ): Promise<string> {
   const agentClient = getAgentClient();
-  const positionAgentId = process.env.AZURE_AI_POSITION_AGENT_ID;
-  
-  if (!positionAgentId) {
-    throw new Error('AZURE_AI_POSITION_AGENT_ID environment variable is required. Run create-position-estimation-agent.sh to create the agent.');
+  const positionAgentName = process.env.AZURE_AI_POSITION_AGENT_NAME;
+  const positionAgentVersion = process.env.AZURE_AI_POSITION_AGENT_VERSION;
+
+  if (!positionAgentName || !positionAgentVersion) {
+    throw new Error('AZURE_AI_POSITION_AGENT_NAME and AZURE_AI_POSITION_AGENT_VERSION environment variables are required');
   }
 
-  context.log(`Using position estimation agent: ${positionAgentId}`);
+  context.log(`Using position estimation agent reference: ${positionAgentName}:${positionAgentVersion}`);
   context.log(`Analyzing ${imageUrls.length} images`);
-  
-  // Create thread
-  const threadId = await agentClient.createThread();
-  context.log(`Created thread: ${threadId}`);
-  
-  try {
-    // Build message content with text and images
-    const messageContent: any[] = [
-      {
-        type: 'text',
-        text: userPrompt
-      }
-    ];
-    
-    // Add all images
-    for (const img of imageUrls) {
-      messageContent.push({
-        type: 'image_url',
-        image_url: { url: img.url }
-      });
-    }
-    
-    // Add message to thread using internal API
-    const url = `${agentClient['projectEndpoint']}/threads/${threadId}/messages?api-version=2025-05-01`;
-    const headers = await agentClient['getHeaders']();
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        role: 'user',
-        content: messageContent
-      })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to add message with images: ${response.status} - ${errorText}`);
-    }
-    
-    context.log('Added message with images to thread');
-    
-    // Run agent
-    const runId = await agentClient.runAgent(threadId, positionAgentId);
-    context.log(`Started agent run: ${runId}`);
-    
-    // Wait for completion
-    const result = await agentClient.waitForRunCompletion(threadId, runId, 120); // 2 minute timeout for vision
-    context.log('Agent run completed');
-    
-    return result;
-    
-  } finally {
-    // Cleanup thread
-    try {
-      await agentClient.deleteThread(threadId);
-      context.log('Cleaned up thread');
-    } catch (e) {
-      context.warn('Failed to cleanup thread:', e);
-    }
-  }
+
+  const response = await agentClient.runSingleVisionInteraction({
+    userMessage: userPrompt,
+    imageUrls: imageUrls.map((img) => img.url),
+    agentName: positionAgentName,
+    agentVersion: positionAgentVersion,
+    model: process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4.1'
+  });
+
+  context.log('Position estimation agent-reference run completed');
+  return response.content;
 }
 
 /**

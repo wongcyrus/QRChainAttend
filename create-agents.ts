@@ -7,8 +7,8 @@
  * using the @azure/ai-projects SDK, which creates "new agents" instead of "classic agents"
  */
 
-import { AIProjectClient } from '@azure/ai-projects';
 import { DefaultAzureCredential } from '@azure/identity';
+import { AIProjectClient } from '@azure/ai-projects';
 import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 
@@ -65,7 +65,7 @@ JSON FORMAT (return EXACTLY this structure):
 }
 
 REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra text.`,
-  model: 'gpt-5.2-chat'
+  model: 'gpt-4.1'
 };
 
 const POSITION_AGENT_CONFIG = {
@@ -109,7 +109,7 @@ JSON FORMAT (return EXACTLY this structure):
 }
 
 REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra text.`,
-  model: 'gpt-5.2-chat'
+  model: 'gpt-4.1'
 };
 
 interface AgentConfig {
@@ -120,25 +120,93 @@ interface AgentConfig {
 
 interface CreateAgentResult {
   agentId: string;
+  agentVersionId: string;
   agentName: string;
+  agentVersion: string;
   model: string;
+}
+
+async function getFoundryHeaders(credential: DefaultAzureCredential): Promise<Record<string, string>> {
+  const token = await credential.getToken('https://ai.azure.com/.default');
+  if (!token?.token) {
+    throw new Error('Unable to acquire Azure AI Foundry access token');
+  }
+
+  return {
+    Authorization: `Bearer ${token.token}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+async function ensureAssistant(
+  projectEndpoint: string,
+  credential: DefaultAzureCredential,
+  config: AgentConfig
+): Promise<{ assistantId: string; assistantName: string }> {
+  const headers = await getFoundryHeaders(credential);
+
+  const listResponse = await fetch(`${projectEndpoint}/assistants?api-version=2025-05-01&limit=100&order=desc`, {
+    method: 'GET',
+    headers
+  });
+
+  if (!listResponse.ok) {
+    const errorText = await listResponse.text();
+    throw new Error(`Failed to list assistants: ${listResponse.status} - ${errorText}`);
+  }
+
+  const listPayload = await listResponse.json() as { data?: Array<{ id?: string; name?: string }> };
+  const existing = listPayload.data?.find((assistant) => assistant.name === config.name && assistant.id);
+
+  if (existing?.id) {
+    return {
+      assistantId: existing.id,
+      assistantName: existing.name || config.name
+    };
+  }
+
+  const createResponse = await fetch(`${projectEndpoint}/assistants?api-version=2025-05-01`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      name: config.name,
+      model: config.model,
+      instructions: config.instructions
+    })
+  });
+
+  if (!createResponse.ok) {
+    const errorText = await createResponse.text();
+    throw new Error(`Failed to create assistant: ${createResponse.status} - ${errorText}`);
+  }
+
+  const created = await createResponse.json() as { id?: string; name?: string };
+  if (!created.id) {
+    throw new Error('Assistant creation did not return an ID');
+  }
+
+  return {
+    assistantId: created.id,
+    assistantName: created.name || config.name
+  };
 }
 
 function buildProjectEndpoints(openaiResource: string, projectName: string): string[] {
   return [
-    `https://${openaiResource}.cognitiveservices.azure.com/api/projects/${projectName}`,
-    `https://${openaiResource}.services.ai.azure.com/api/projects/${projectName}`
+    `https://${openaiResource}.services.ai.azure.com/api/projects/${projectName}`,
+    `https://${openaiResource}.cognitiveservices.azure.com/api/projects/${projectName}`
   ];
 }
 
 function getProjectCandidates(resourceGroup: string, openaiResource: string, explicitProjectName?: string): string[] {
+  const canonicalProjectName = `${openaiResource}-project`;
   const candidates: string[] = [];
 
   if (explicitProjectName) {
     candidates.push(explicitProjectName);
   }
 
-  candidates.push(`${openaiResource}-project`);
+  candidates.push(canonicalProjectName);
 
   try {
     const discoveredProjects = execSync(
@@ -149,7 +217,8 @@ function getProjectCandidates(resourceGroup: string, openaiResource: string, exp
       .split('\n')
       .map((value) => value.trim())
       .filter((value) => value.length > 0 && value !== 'null')
-      .map((value) => (value.includes('/') ? value.split('/')[1] : value));
+      .map((value) => (value.includes('/') ? value.split('/')[1] : value))
+      .filter((projectName) => projectName === canonicalProjectName);
 
     candidates.push(...discoveredProjects);
   } catch {
@@ -192,50 +261,40 @@ function endpointIsReachable(projectEndpoint: string): boolean {
   }
 }
 
+const projectBootstrapAttempts = new Set<string>();
+
 function ensureProjectExists(resourceGroup: string, openaiResource: string, projectName: string): void {
+  const bootstrapKey = `${resourceGroup}/${openaiResource}/${projectName}`;
+  if (projectBootstrapAttempts.has(bootstrapKey)) {
+    return;
+  }
+  projectBootstrapAttempts.add(bootstrapKey);
+
   try {
     const subscriptionId = execSync('az account show --query id -o tsv', { encoding: 'utf-8' }).trim();
     const resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.CognitiveServices/accounts/${openaiResource}/projects/${projectName}`;
+    const state = getProjectProvisioningState(resourceGroup, openaiResource, projectName);
 
-    try {
-      execSync(
-        `az rest --method delete --url "https://management.azure.com${resourceId}?api-version=2025-04-01-preview" --output none`,
-        { stdio: 'pipe' }
-      );
-      printWarning(`Recreating project to recover data-plane registration: ${projectName}`);
-    } catch {
-      // Ignore delete failures if resource doesn't exist yet
+    if (state === 'Succeeded') {
+      return;
     }
+
+    if (state && state !== 'Succeeded') {
+      printWarning(`Project ${projectName} is in state ${state}; skipping recreate and waiting for provisioning`);
+      execSync('sleep 15', { stdio: 'pipe' });
+      return;
+    }
+
+    printWarning(`Project not found in ARM state lookup; creating project: ${projectName}`);
 
     execSync(
       `az rest --method put --url "https://management.azure.com${resourceId}?api-version=2025-04-01-preview" --body '{"location":"eastus2","identity":{"type":"SystemAssigned"},"properties":{"displayName":"QR Attendance Project","description":"Project for QR Chain Attendance application with Agent Service"}}' --output none`,
       { stdio: 'pipe' }
     );
 
-    execSync('sleep 10', { stdio: 'pipe' });
+    execSync('sleep 20', { stdio: 'pipe' });
   } catch (error) {
-    printWarning(`Project recreation failed for ${projectName}: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-function createAlternateProject(resourceGroup: string, openaiResource: string): string | null {
-  const altProjectName = `${openaiResource}-project-alt`;
-
-  try {
-    const subscriptionId = execSync('az account show --query id -o tsv', { encoding: 'utf-8' }).trim();
-    const resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.CognitiveServices/accounts/${openaiResource}/projects/${altProjectName}`;
-
-    execSync(
-      `az rest --method put --url "https://management.azure.com${resourceId}?api-version=2025-04-01-preview" --body '{"location":"eastus2","identity":{"type":"SystemAssigned"},"properties":{"displayName":"QR Attendance Project (Recovered)","description":"Auto-recovered project for Agent Service"}}' --output none`,
-      { stdio: 'pipe' }
-    );
-
-    execSync('sleep 10', { stdio: 'pipe' });
-    printInfo(`Created alternate project for recovery: ${altProjectName}`);
-    return altProjectName;
-  } catch (error) {
-    printWarning(`Alternate project creation failed: ${error instanceof Error ? error.message : String(error)}`);
-    return null;
+    printWarning(`Project ensure failed for ${projectName}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -261,95 +320,46 @@ function ensureCurrentUserProjectRole(resourceGroup: string, openaiResource: str
 }
 
 function resolveWorkingProject(resourceGroup: string, openaiResource: string, explicitProjectName?: string): { projectName: string; projectEndpoint: string } {
-  const candidates = getProjectCandidates(resourceGroup, openaiResource, explicitProjectName);
+  const projectName = explicitProjectName || `${openaiResource}-project`;
+  const state = getProjectProvisioningState(resourceGroup, openaiResource, projectName);
 
-  for (const candidate of candidates) {
-    const state = getProjectProvisioningState(resourceGroup, openaiResource, candidate);
-    if (state !== 'Succeeded') {
-      continue;
-    }
-
-    for (const endpoint of buildProjectEndpoints(openaiResource, candidate)) {
-      if (endpointIsReachable(endpoint)) {
-        return { projectName: candidate, projectEndpoint: endpoint };
-      }
-    }
+  if (state !== 'Succeeded') {
+    throw new Error(
+      `Bicep project is not ready or not found: ${projectName} (state: ${state || 'NotFound'}). ` +
+      'Deploy infrastructure first and wait until provisioningState is Succeeded.'
+    );
   }
 
-  // Recovery path: recreate first candidate and retry endpoint resolution
-  const primaryCandidate = candidates[0] || `${openaiResource}-project`;
-  ensureProjectExists(resourceGroup, openaiResource, primaryCandidate);
-
-  for (const endpoint of buildProjectEndpoints(openaiResource, primaryCandidate)) {
-    if (endpointIsReachable(endpoint)) {
-      return { projectName: primaryCandidate, projectEndpoint: endpoint };
-    }
-  }
-
-  // Final fallback: create alternate project and use it if reachable
-  const alternateProject = createAlternateProject(resourceGroup, openaiResource);
-  if (alternateProject) {
-    for (const endpoint of buildProjectEndpoints(openaiResource, alternateProject)) {
-      if (endpointIsReachable(endpoint)) {
-        return { projectName: alternateProject, projectEndpoint: endpoint };
-      }
-    }
-  }
-
-  const fallbackProject = primaryCandidate;
   return {
-    projectName: fallbackProject,
-    projectEndpoint: buildProjectEndpoints(openaiResource, fallbackProject)[0]
+    projectName,
+    projectEndpoint: buildProjectEndpoints(openaiResource, projectName)[0]
   };
 }
 
 async function createAgent(
   client: AIProjectClient,
+  credential: DefaultAzureCredential,
+  projectEndpoint: string,
   config: AgentConfig
 ): Promise<CreateAgentResult> {
   printInfo(`Creating agent: ${config.name}`);
   
   try {
-    // Check if we can list existing agents first (validates project access)
-    printInfo('Verifying project access...');
-    try {
-      // Try to list agents to verify we have access
-      const agents = client.agents.list();
-      printInfo('✓ Project access verified');
-      
-      // Check if agent already exists
-      let existingAgent = null;
-      for await (const agent of agents) {
-        if (agent.name === config.name) {
-          existingAgent = agent;
-          printInfo(`Found existing agent: ${agent.name} (version ${agent.version})`);
-          break;
-        }
-      }
-      
-      if (existingAgent) {
-        printInfo('Existing agent found; creating a new version...');
-      } else {
-        printInfo('No existing agent found, creating new one...');
-      }
-    } catch (listError) {
-      printWarning(`Could not list agents: ${listError instanceof Error ? listError.message : String(listError)}`);
-      printWarning('Attempting to create agent anyway...');
-    }
-    
-    // Try to create agent version - if it exists, this will create a new version
-    printInfo('Creating new agent version...');
+    printInfo('Creating new agent version in Foundry project...');
     const agent = await client.agents.createVersion(config.name, {
       kind: 'prompt',
       model: config.model,
       instructions: config.instructions
     });
-    
-    printInfo(`Agent created successfully: ${agent.id} (version ${agent.version})`);
+
+    const resolvedVersion = String(agent.version || '1');
+    printInfo(`Agent version created: ${config.name}:${resolvedVersion}`);
     
     return {
-      agentId: agent.id,
+      agentId: `${config.name}:${resolvedVersion}`,
+      agentVersionId: agent.id,
       agentName: agent.name || config.name,
+      agentVersion: resolvedVersion,
       model: config.model
     };
   } catch (error) {
@@ -435,8 +445,8 @@ async function main() {
   
   // Resolve a working project from candidates (explicit + discovered)
   const resolvedProject = resolveWorkingProject(resourceGroup, openaiResource, explicitProjectName);
-  const projectName = resolvedProject.projectName;
-  const projectEndpoint = resolvedProject.projectEndpoint;
+  let projectName = resolvedProject.projectName;
+  let projectEndpoint = resolvedProject.projectEndpoint;
 
   printInfo(`Using project: ${projectName}`);
 
@@ -469,8 +479,8 @@ async function main() {
   
   console.log('');
   
-  // Initialize Azure AI Projects client
-  printInfo('Initializing Azure AI Projects client...');
+  // Validate credentials for Foundry data-plane calls
+  printInfo('Initializing Azure AI Foundry authentication...');
   const credential = new DefaultAzureCredential();
   
   // Test credential before creating client
@@ -487,14 +497,36 @@ async function main() {
     process.exit(1);
   }
   
-  const client = new AIProjectClient(projectEndpoint, credential);
-  
-  printInfo('Client initialized successfully');
+  printInfo('Authentication initialized successfully');
+  let client = new AIProjectClient(projectEndpoint, credential);
+
+  const createAgentWithRecovery = async (config: AgentConfig): Promise<CreateAgentResult> => {
+    try {
+      return await createAgent(client, credential, projectEndpoint, config);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('Project not found')) {
+        const alternateEndpoint = buildProjectEndpoints(openaiResource, projectName)
+          .find((candidateEndpoint) => candidateEndpoint !== projectEndpoint);
+
+        if (alternateEndpoint) {
+          printWarning(`Project not found on primary endpoint, trying alternate endpoint once: ${alternateEndpoint}`);
+          projectEndpoint = alternateEndpoint;
+          client = new AIProjectClient(projectEndpoint, credential);
+          return await createAgent(client, credential, projectEndpoint, config);
+        }
+
+        throw new Error(`Project not found for Bicep-managed project ${projectName}. Verify Bicep deployment and rerun.`);
+      }
+      throw error;
+    }
+  };
+
   console.log('');
   
   // Create quiz question generation agent
   console.log(`${colors.blue}Creating Quiz Question Generation Agent...${colors.reset}`);
-  const quizAgent = await createAgent(client, QUIZ_AGENT_CONFIG);
+  const quizAgent = await createAgentWithRecovery(QUIZ_AGENT_CONFIG);
   
   console.log('');
   console.log('==========================================');
@@ -502,6 +534,8 @@ async function main() {
   console.log('==========================================');
   console.log('');
   console.log(`Agent ID: ${quizAgent.agentId}`);
+  console.log(`Version ID: ${quizAgent.agentVersionId}`);
+  console.log(`Version: ${quizAgent.agentVersion}`);
   console.log(`Agent Name: ${quizAgent.agentName}`);
   console.log(`Model: ${quizAgent.model}`);
   console.log('');
@@ -510,7 +544,7 @@ async function main() {
   
   // Create position estimation agent
   console.log(`${colors.blue}Creating Position Estimation Agent...${colors.reset}`);
-  const positionAgent = await createAgent(client, POSITION_AGENT_CONFIG);
+  const positionAgent = await createAgentWithRecovery(POSITION_AGENT_CONFIG);
   
   console.log('');
   console.log('==========================================');
@@ -518,6 +552,8 @@ async function main() {
   console.log('==========================================');
   console.log('');
   console.log(`Agent ID: ${positionAgent.agentId}`);
+  console.log(`Version ID: ${positionAgent.agentVersionId}`);
+  console.log(`Version: ${positionAgent.agentVersion}`);
   console.log(`Agent Name: ${positionAgent.agentName}`);
   console.log(`Model: ${positionAgent.model}`);
   console.log('');
@@ -540,8 +576,12 @@ async function main() {
 # Created with New Agents API (TypeScript SDK)
 
 AZURE_AI_PROJECT_ENDPOINT=${projectEndpoint}
-AZURE_AI_AGENT_ID=${quizAgent.agentId}
-AZURE_AI_POSITION_AGENT_ID=${positionAgent.agentId}
+AZURE_AI_AGENT_NAME=${quizAgent.agentName}
+AZURE_AI_AGENT_VERSION=${quizAgent.agentVersion}
+AZURE_AI_POSITION_AGENT_NAME=${positionAgent.agentName}
+AZURE_AI_POSITION_AGENT_VERSION=${positionAgent.agentVersion}
+AZURE_OPENAI_API_VERSION=2025-04-01-preview
+AZURE_OPENAI_VISION_DEPLOYMENT=gpt-4.1
 AZURE_OPENAI_ENDPOINT=${openaiEndpoint}
 `;
   
@@ -575,8 +615,12 @@ AZURE_OPENAI_ENDPOINT=${openaiEndpoint}
         
         await updateFunctionAppSettings(resourceGroup, functionAppName, {
           AZURE_AI_PROJECT_ENDPOINT: projectEndpoint,
-          AZURE_AI_AGENT_ID: quizAgent.agentId,
-          AZURE_AI_POSITION_AGENT_ID: positionAgent.agentId
+          AZURE_AI_AGENT_NAME: quizAgent.agentName,
+          AZURE_AI_AGENT_VERSION: quizAgent.agentVersion,
+          AZURE_AI_POSITION_AGENT_NAME: positionAgent.agentName,
+          AZURE_AI_POSITION_AGENT_VERSION: positionAgent.agentVersion,
+          AZURE_OPENAI_API_VERSION: '2025-04-01-preview',
+          AZURE_OPENAI_VISION_DEPLOYMENT: 'gpt-4.1'
         });
       } else {
         printWarning('No Function App found in resource group');
@@ -588,7 +632,7 @@ AZURE_OPENAI_ENDPOINT=${openaiEndpoint}
   
   console.log('');
   printInfo('Next steps:');
-  console.log('  1. Add agent IDs to your local.settings.json');
+  console.log('  1. Add agent settings to your local.settings.json');
   console.log('  2. Deploy your backend code');
   console.log('  3. Test the agent endpoints');
   console.log('');

@@ -12,31 +12,31 @@ param frontendUrls = [
 ]
 
 // Optional: Deploy Azure OpenAI for AI insights and Live Quiz feature
-param deployAzureOpenAI = true  // Enabled with single model deployment
+param deployAzureOpenAI = true
 
 // Optional: Deploy SignalR Service for real-time features
 param deploySignalR = true  // Enable SignalR for development
 
-// Disable GPT-4 models - project only uses GPT-5.2-chat
-param gpt4DeploymentName = 'gpt-4o'
-param gpt4ModelName = 'gpt-4o'
-param gpt4ModelVersion = '2024-08-06'
-param gpt4VisionDeploymentName = 'gpt-4o-vision'
-param gpt4VisionModelName = 'gpt-4o'
-param gpt4VisionModelVersion = '2024-08-06'
-param deployVisionModel = false  // Disabled - not used
-param deployGpt4Model = false  // Disabled - not used
+// Primary model deployment for quiz + vision fallback
+param gpt4DeploymentName = 'gpt-4.1'
+param gpt4ModelName = 'gpt-4.1'
+param gpt4ModelVersion = '2025-04-14'
+param gpt4VisionDeploymentName = 'gpt-4.1-vision'
+param gpt4VisionModelName = 'gpt-4.1'
+param gpt4VisionModelVersion = '2025-04-14'
+param deployVisionModel = false
+param deployGpt4Model = true
 
-// GPT-5.2-chat is already deployed manually - skip Bicep deployment to avoid conflicts
+// Disable GPT-5.2-chat deployment for dev
 param gpt52ChatDeploymentName = 'gpt-5.2-chat'
 param gpt52ChatModelName = 'gpt-5.2-chat'
 param gpt52ChatModelVersion = '2026-02-10'
-param deployGpt52ChatModel = true  // Enabled for automatic deployment
+param deployGpt52ChatModel = false
 
 // Single deployment with adequate capacity for dev
-param gpt4Capacity = 1  // Minimal (not deployed anyway)
-param gpt4VisionCapacity = 1  // Minimal (not deployed anyway)
-param gpt52ChatCapacity = 50  // 50K TPM for development testing
+param gpt4Capacity = 50
+param gpt4VisionCapacity = 1
+param gpt52ChatCapacity = 50
 
 // Tags
 param tags = {

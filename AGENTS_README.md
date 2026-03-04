@@ -25,8 +25,10 @@ Re-running creates a **new version** of each agent (versioned agents).
 Agents are configured in `.agent-config.env`:
 ```bash
 AZURE_AI_PROJECT_ENDPOINT=https://openai-qrattendance-dev.services.ai.azure.com/api/projects/openai-qrattendance-dev-project
-AZURE_AI_AGENT_ID=QuizQuestionGenerator:1
-AZURE_AI_POSITION_AGENT_ID=PositionEstimationAgent:1
+AZURE_AI_AGENT_NAME=QuizQuestionGenerator
+AZURE_AI_AGENT_VERSION=1
+AZURE_AI_POSITION_AGENT_NAME=PositionEstimationAgent
+AZURE_AI_POSITION_AGENT_VERSION=1
 ```
 
 ## Infrastructure

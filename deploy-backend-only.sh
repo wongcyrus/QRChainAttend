@@ -106,6 +106,7 @@ cat > local.settings.json << EOF
     "SIGNALR_CONNECTION_STRING": "$SIGNALR_CONNECTION_STRING",
     "AzureOpenAI__Endpoint": "$OPENAI_ENDPOINT",
     "AzureOpenAI__ApiKey": "$OPENAI_KEY",
+    "AZURE_OPENAI_API_VERSION": "2025-04-01-preview",
     "Environment": "dev",
     "DEBUG": "*"
   },

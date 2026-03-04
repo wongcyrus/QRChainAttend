@@ -9,6 +9,113 @@ import { getTableClient, TableNames } from '../utils/database';
 import { getAgentClient } from '../utils/agentService';
 import { randomUUID } from 'crypto';
 
+interface NormalizedQuestion {
+  text: string;
+  type: 'MULTIPLE_CHOICE';
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+}
+
+function parseJsonFromAgentContent(content: string): any {
+  let cleanContent = content.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
+
+  const firstBrace = cleanContent.indexOf('{');
+  const lastBrace = cleanContent.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
+  }
+
+  return JSON.parse(cleanContent);
+}
+
+function extractRawQuestions(payload: any): any[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const candidates = [
+    payload.questions,
+    payload.items,
+    payload.quizQuestions,
+    payload.data?.questions,
+    payload.result?.questions
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  return [];
+}
+
+function normalizeQuestion(raw: any, defaultDifficulty: string): NormalizedQuestion | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const text = String(raw.text || raw.question || raw.prompt || '').trim();
+  if (!text) {
+    return null;
+  }
+
+  const optionsCandidate = Array.isArray(raw.options)
+    ? raw.options
+    : Array.isArray(raw.choices)
+      ? raw.choices
+      : [];
+
+  const options = optionsCandidate
+    .map((option: any) => {
+      if (typeof option === 'string') {
+        return option.trim();
+      }
+      if (option && typeof option === 'object') {
+        return String(option.text || option.label || option.value || '').trim();
+      }
+      return '';
+    })
+    .filter((value: string) => value.length > 0)
+    .slice(0, 4);
+
+  if (options.length < 2) {
+    return null;
+  }
+
+  const allowedDifficulties = new Set(['EASY', 'MEDIUM', 'HARD']);
+  const difficulty = String(raw.difficulty || defaultDifficulty || 'MEDIUM').toUpperCase();
+  const normalizedDifficulty = allowedDifficulties.has(difficulty) ? (difficulty as 'EASY' | 'MEDIUM' | 'HARD') : 'MEDIUM';
+
+  let correctAnswer = String(raw.correctAnswer || raw.answer || '').trim();
+  if (!correctAnswer && Number.isInteger(raw.correctOptionIndex)) {
+    correctAnswer = options[raw.correctOptionIndex] || '';
+  }
+  if (!correctAnswer && Number.isInteger(raw.correctIndex)) {
+    correctAnswer = options[raw.correctIndex] || '';
+  }
+  if (!correctAnswer || !options.includes(correctAnswer)) {
+    correctAnswer = options[0];
+  }
+
+  const explanation = String(raw.explanation || raw.reason || '').trim();
+
+  return {
+    text,
+    type: 'MULTIPLE_CHOICE',
+    difficulty: normalizedDifficulty,
+    options,
+    correctAnswer,
+    explanation
+  };
+}
+
 export async function generateQuestions(
   request: HttpRequest,
   context: InvocationContext
@@ -56,7 +163,8 @@ Formulas: ${analysis.formulas?.join(', ') || 'N/A'}
 Summary: ${analysis.summary || 'N/A'}
 `;
 
-    const difficultyFilter = difficulty || analysis.difficulty || 'MEDIUM';
+    const difficultyFilter = String(difficulty || analysis.difficulty || 'MEDIUM').toUpperCase();
+    const requestedCount = Math.min(10, Math.max(1, Number(count) || 3));
 
     // Use Azure AI Foundry Agent to generate questions
     // Agent is pre-configured in infrastructure with instructions
@@ -65,7 +173,7 @@ Summary: ${analysis.summary || 'N/A'}
     const userMessage = `Based on this slide content:
 ${slideContent}
 
-Generate ${count} MULTIPLE CHOICE quiz questions at ${difficultyFilter} difficulty level.
+Generate ${requestedCount} MULTIPLE CHOICE quiz questions at ${difficultyFilter} difficulty level.
 
 FORMATTING REQUIREMENTS:
 - Question text: Maximum 15 words, one clear sentence
@@ -77,44 +185,63 @@ Return ONLY valid JSON (no markdown, no code blocks).`;
 
     context.log('Calling AI Agent to generate questions...');
     
-    let agentResponse;
-    try {
-      agentResponse = await agentClient.runSingleInteraction({
-        userMessage: userMessage
-      });
-    } catch (error: any) {
-      context.error('Agent interaction failed:', error);
-      throw new Error(`Agent failed: ${error.message}`);
-    }
-
-    const content = agentResponse.content;
-
-    if (!content) {
-      throw new Error('No content in agent response');
-    }
-
-    // Parse the JSON response
-    let questionsData;
-    try {
-      // Remove markdown code blocks if present
-      let cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
-      // If the agent echoed the prompt, try to extract just the JSON
-      // Look for the first { and last } to extract the JSON object
-      const firstBrace = cleanContent.indexOf('{');
-      const lastBrace = cleanContent.lastIndexOf('}');
-      
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
+    const runGeneration = async (prompt: string): Promise<NormalizedQuestion[]> => {
+      let response;
+      try {
+        response = await agentClient.runSingleInteraction({
+          agentName: 'QuizQuestionGenerator',
+          userMessage: prompt
+        });
+      } catch (error: any) {
+        context.error('Agent interaction failed:', error);
+        throw new Error(`Agent failed: ${error.message}`);
       }
-      
-      questionsData = JSON.parse(cleanContent);
-    } catch (parseError: any) {
-      context.error('Failed to parse agent response:', content);
-      throw new Error(`Invalid JSON from agent: ${parseError.message}`);
+
+      if (!response.content) {
+        return [];
+      }
+
+      try {
+        const parsed = parseJsonFromAgentContent(response.content);
+        const rawQuestions = extractRawQuestions(parsed);
+        return rawQuestions
+          .map((raw) => normalizeQuestion(raw, difficultyFilter))
+          .filter((question): question is NormalizedQuestion => question !== null)
+          .slice(0, requestedCount);
+      } catch (parseError: any) {
+        context.warn('Failed to parse agent response on attempt:', parseError.message);
+        return [];
+      }
+    };
+
+    let questions = await runGeneration(userMessage);
+
+    if (questions.length === 0) {
+      context.warn('Agent returned zero parseable questions, retrying with strict correction prompt');
+      const correctionPrompt = `${userMessage}
+
+IMPORTANT: Your previous response was invalid or empty.
+Return exactly this JSON shape:
+{
+  "questions": [
+    {
+      "text": "Question text",
+      "type": "MULTIPLE_CHOICE",
+      "difficulty": "${difficultyFilter}",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": "Option A",
+      "explanation": "Brief explanation"
+    }
+  ]
+}
+No markdown. No extra text.`;
+
+      questions = await runGeneration(correctionPrompt);
     }
 
-    const questions = questionsData.questions || [];
+    if (questions.length === 0) {
+      throw new Error('Agent returned zero valid questions after retry');
+    }
 
     // Store questions in database
     const questionsTable = getTableClient(TableNames.QUIZ_QUESTIONS);
@@ -133,7 +260,7 @@ Return ONLY valid JSON (no markdown, no code blocks).`;
         slideContent: JSON.stringify(analysis),
         question: q.text,
         questionType: q.type,
-        options: q.options ? JSON.stringify(q.options) : '',
+        options: JSON.stringify(q.options),
         correctAnswer: q.correctAnswer,
         explanation: q.explanation || '',
         difficulty: q.difficulty,
@@ -147,7 +274,7 @@ Return ONLY valid JSON (no markdown, no code blocks).`;
         text: q.text,
         type: q.type,
         difficulty: q.difficulty,
-        options: q.options || null,
+        options: q.options,
         correctAnswer: q.correctAnswer,
         explanation: q.explanation
       });

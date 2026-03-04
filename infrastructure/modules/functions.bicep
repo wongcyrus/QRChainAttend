@@ -34,8 +34,8 @@ param azureOpenAIKey string = ''
 @description('Azure OpenAI GPT-4 deployment name (optional)')
 param azureOpenAIDeployment string = ''
 
-@description('Azure OpenAI GPT-4 Vision deployment name (optional)')
-param azureOpenAIVisionDeployment string = ''
+@description('Azure OpenAI vision deployment name')
+param azureOpenAIVisionDeployment string = 'gpt-4.1'
 
 @description('Frontend URLs for CORS configuration (fallback only - Static Web App uses linked backend)')
 param frontendUrls array = []
@@ -179,6 +179,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'AZURE_OPENAI_VISION_DEPLOYMENT'
           value: azureOpenAIVisionDeployment
+        }
+        {
+          name: 'AZURE_OPENAI_API_VERSION'
+          value: '2025-04-01-preview'
         }
         // Legacy AOAI settings (kept for backward compatibility)
         {
