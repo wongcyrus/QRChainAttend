@@ -189,6 +189,124 @@ ensure_foundry_rbac_access() {
     fi
 }
 
+ensure_foundry_tracing_connection() {
+    local resource_group="$1"
+    local openai_name="$2"
+    local project_name="$3"
+    local subscription_id
+    local appi_id
+    local appi_name
+    local appi_key
+    local existing_count
+    local list_exit
+    local temp_file
+    local create_output
+    local create_exit
+    local connections_url
+    local connection_url
+
+    echo "[Tracing] Starting Foundry tracing connection check"
+
+    subscription_id=$(az account show --query id -o tsv 2>/dev/null || echo "")
+    if [ -z "$subscription_id" ] || [ "$subscription_id" = "null" ]; then
+        echo -e "${YELLOW}⚠ Unable to resolve subscription ID for tracing connection${NC}"
+        return 0
+    fi
+
+    appi_id=$(az resource list \
+        --resource-group "$resource_group" \
+        --resource-type "microsoft.insights/components" \
+        --query "[0].id" -o tsv 2>/dev/null || echo "")
+
+    appi_name=$(az resource list \
+        --resource-group "$resource_group" \
+        --resource-type "microsoft.insights/components" \
+        --query "[0].name" -o tsv 2>/dev/null || echo "")
+
+    if [ -z "$appi_id" ] || [ "$appi_id" = "null" ]; then
+        echo -e "${YELLOW}⚠ No Application Insights resource found for Foundry Traces connection${NC}"
+        return 0
+    fi
+
+    echo "[Tracing] Application Insights: ${appi_name}"
+    echo "[Tracing] Application Insights resource ID: ${appi_id}"
+
+    appi_key=$(az resource show --ids "$appi_id" --query properties.InstrumentationKey -o tsv 2>/dev/null || echo "")
+    if [ -z "$appi_key" ] || [ "$appi_key" = "null" ]; then
+        echo -e "${YELLOW}⚠ Could not read Application Insights instrumentation key for tracing connection${NC}"
+        return 0
+    fi
+
+    connections_url="https://management.azure.com/subscriptions/${subscription_id}/resourceGroups/${resource_group}/providers/Microsoft.CognitiveServices/accounts/${openai_name}/projects/${project_name}/connections?api-version=2025-09-01"
+    connection_url="https://management.azure.com/subscriptions/${subscription_id}/resourceGroups/${resource_group}/providers/Microsoft.CognitiveServices/accounts/${openai_name}/projects/${project_name}/connections/appinsights-tracing?api-version=2025-09-01"
+
+    echo "[Tracing] Connections list URL: ${connections_url}"
+    echo "[Tracing] Connection put URL: ${connection_url}"
+
+    set +e
+    existing_count=$(az rest --method get --url "$connections_url" \
+        --query "value[?name=='appinsights-tracing' || properties.category=='AppInsights'] | length(@)" \
+        -o tsv 2>/dev/null)
+    list_exit=$?
+    set -e
+
+    echo "[Tracing] Existing connection query exit: ${list_exit}"
+    echo "[Tracing] Existing connection count: ${existing_count:-<empty>}"
+
+    if [ $list_exit -ne 0 ] || [ -z "$existing_count" ] || [ "$existing_count" = "null" ]; then
+        existing_count="0"
+    fi
+
+    if [ "$existing_count" != "0" ]; then
+        echo -e "${GREEN}✓ Foundry tracing connection already present${NC}"
+        return 0
+    fi
+
+    echo "[Tracing] No existing tracing connection found; creating appinsights-tracing"
+
+    temp_file=$(mktemp)
+    cat > "$temp_file" << EOF
+{
+  "properties": {
+        "category": "AppInsights",
+        "authType": "ApiKey",
+    "target": "${appi_id}",
+        "credentials": {
+            "key": "${appi_key}"
+        },
+    "metadata": {
+      "resourceId": "${appi_id}",
+      "resourceName": "${appi_name}"
+    }
+  }
+}
+EOF
+
+    echo "[Tracing] Request payload: category=AppInsights, authType=ApiKey, target=${appi_id}"
+
+    set +e
+        create_output=$(az rest --method put --url "$connection_url" --body "@$temp_file" -o none 2>&1)
+    create_exit=$?
+    set -e
+    rm -f "$temp_file"
+
+    echo "[Tracing] Create request exit: ${create_exit}"
+
+    if [ $create_exit -eq 0 ]; then
+        echo -e "${GREEN}✓ Foundry tracing connection created (Application Insights: ${appi_name})${NC}"
+        return 0
+    fi
+
+    if echo "$create_output" | grep -qiE "already exists|Conflict"; then
+        echo -e "${GREEN}✓ Foundry tracing connection already exists${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}⚠ Could not create Foundry tracing connection via CLI/API: ${create_output}${NC}"
+    echo "  Use Foundry portal: Agents -> Traces -> Connect -> ${appi_name}"
+    return 0
+}
+
 resolve_runtime_agent_id() {
     local endpoint="$1"
     local agent_name="$2"
@@ -607,6 +725,7 @@ if az cognitiveservices account show --name "$OPENAI_NAME" --resource-group "$RE
     echo -e "${GREEN}✓ Account verified: $OPENAI_NAME${NC}"
     echo -e "${GREEN}✓ Foundry project found: ${PROJECT_NAME}${NC}"
     ensure_foundry_rbac_access "$RESOURCE_GROUP" "$OPENAI_NAME" "$PROJECT_NAME"
+    ensure_foundry_tracing_connection "$RESOURCE_GROUP" "$OPENAI_NAME" "$PROJECT_NAME"
     echo ""
     
     # Wait for project to be fully provisioned with retry logic
