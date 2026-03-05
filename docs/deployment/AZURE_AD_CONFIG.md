@@ -35,7 +35,8 @@ Use this section when you want Microsoft Entra to send OTP through your own mail
 	- Event: `EmailOtpSend`
 3. **Endpoint Configuration**:
 	- Target URL: Function URL for `/api/auth/on-otp-send-email` including function key.
-	- Timeout: use `5000` to `10000` ms (recommended for SMTP reliability).
+	- Timeout: use `2000` ms (Microsoft Entra External ID max for custom authentication extensions).
+	- Retry expectation: Microsoft Entra External ID retries at most once.
 	- Error handling: optionally enable fallback to Microsoft provider.
 4. **API Authentication**:
 	- Select **Create new app registration**.
@@ -58,7 +59,8 @@ Use this section when you want Microsoft Entra to send OTP through your own mail
 
 - Choosing **Select existing app registration** and picking the login client app.
 - Using `b2c-extensions-app` as the resource app.
-- Setting timeout too low (for example `2000` ms) causing fallback.
+- Setting timeout higher than `2000` ms and expecting it to be honored.
+- Not designing the endpoint to complete quickly (or fail fast) within the timeout budget.
 
 ## Security Model
 

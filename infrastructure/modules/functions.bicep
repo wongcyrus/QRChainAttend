@@ -270,10 +270,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         }
       ]
       cors: {
-        allowedOrigins: length(frontendUrls) > 0 ? frontendUrls : [
-          '*' // Fallback to all origins if no frontend URLs provided
-        ]
-        supportCredentials: true
+        allowedOrigins: frontendUrls
+        supportCredentials: length(frontendUrls) > 0 && !contains(frontendUrls, '*')
       }
       use32BitWorkerProcess: false
       ftpsState: 'Disabled'

@@ -14,16 +14,74 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-RESOURCE_GROUP="rg-qr-attendance-prod"
+ENVIRONMENT="dev"
+RESOURCE_GROUP=""
 BASE_NAME="qrattendance"
-ENVIRONMENT="prod"
 LOCATION="eastus2"
 AAD_CLIENT_ID="dc482c34-ebaa-4239-aca3-2810a4f51728"  # QR Chain Attendance System
+
+usage() {
+    echo "Usage: $0 [-e <environment>] [-g <resource-group>] [-l <location>]"
+    echo ""
+    echo "Options:"
+    echo "  -e, --environment     Environment (dev|staging|prod). Default: dev"
+    echo "  -g, --resource-group  Resource group. Default: rg-qr-attendance-<environment>"
+    echo "  -l, --location        Azure location. Default: eastus2"
+    echo "  -h, --help            Show this help"
+    exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -e|--environment)
+            ENVIRONMENT="$2"
+            shift 2
+            ;;
+        -g|--resource-group)
+            RESOURCE_GROUP="$2"
+            shift 2
+            ;;
+        -l|--location)
+            LOCATION="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+if [[ ! "$ENVIRONMENT" =~ ^(dev|staging|prod)$ ]]; then
+    echo -e "${RED}✗ Invalid environment: $ENVIRONMENT${NC}"
+    echo "  Use one of: dev, staging, prod"
+    exit 1
+fi
+
+RESOURCE_GROUP="${RESOURCE_GROUP:-rg-qr-attendance-${ENVIRONMENT}}"
 
 echo -e "${BLUE}=========================================="
 echo "QR Chain Attendance - Complete Cleanup"
 echo -e "==========================================${NC}"
 echo ""
+echo "Environment: $ENVIRONMENT"
+echo "Resource Group: $RESOURCE_GROUP"
+echo "Location: $LOCATION"
+echo ""
+
+if [ "$ENVIRONMENT" = "prod" ]; then
+    echo -e "${RED}Production safety confirmation required.${NC}"
+    echo "Type EXACTLY: DELETE-PROD"
+    read -r PROD_CONFIRM
+    if [ "$PROD_CONFIRM" != "DELETE-PROD" ]; then
+        echo -e "${YELLOW}Cleanup cancelled (prod confirmation failed).${NC}"
+        exit 1
+    fi
+    echo ""
+fi
 
 # Function to wait for operation with spinner
 wait_for_operation() {
@@ -105,7 +163,7 @@ if [ -n "$AAD_CLIENT_ID" ]; then
         echo ""
         echo "Filtering out URIs for Static Web Apps being deleted..."
         
-        # Create filtered URI list (keep dev and localhost, remove production URLs)
+        # Create filtered URI list (keep dev and localhost, remove environment-specific URLs)
         FILTERED_URIS=$(echo "$CURRENT_URIS" | jq --argjson swaUrls "$SWA_URLS" '
             map(select(
                 . as $uri |
@@ -239,14 +297,14 @@ echo "• Resource groups and all contained resources"
 echo "• Static Web Apps (across all resource groups)"
 echo "• Soft-deleted Cognitive Services (purged)"
 echo "• Soft-deleted Key Vaults (purged)"
-echo "• Azure AD redirect URIs (production URLs removed)"
+echo "• Azure AD redirect URIs (${ENVIRONMENT} URLs removed)"
 echo ""
 echo "What was preserved:"
 echo "• Azure AD app registration and configuration"
 echo "• Dev environment and localhost redirect URIs"
 echo ""
 echo "Next steps:"
-echo "• You can now run ./deploy-full-production.sh for a fresh deployment"
+echo "• You can now run ./deploy-full-${ENVIRONMENT}.sh for a fresh deployment"
 echo "• All soft-deleted resources have been purged"
-echo "• Azure AD app is ready for new production URLs"
+echo "• Azure AD app is ready for new ${ENVIRONMENT} URLs"
 echo -e "${NC}"

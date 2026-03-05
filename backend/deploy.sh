@@ -4,10 +4,55 @@
 
 set -e
 
-FUNCTION_APP_NAME="func-qrattendance-dev"
-RESOURCE_GROUP="rg-qr-attendance-dev"
+usage() {
+  echo "Usage: $0 [-e <environment>] [-f <function-app-name>] [-g <resource-group>]"
+  echo ""
+  echo "Options:"
+  echo "  -e, --environment     Environment (dev|staging|prod). Default: dev"
+  echo "  -f, --function-app    Function App name. Default: func-qrattendance-<environment>"
+  echo "  -g, --resource-group  Resource group name. Default: rg-qr-attendance-<environment>"
+  echo "  -h, --help            Show this help"
+  exit 1
+}
+
+ENVIRONMENT="dev"
+FUNCTION_APP_NAME=""
+RESOURCE_GROUP=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -e|--environment)
+      ENVIRONMENT="$2"
+      shift 2
+      ;;
+    -f|--function-app)
+      FUNCTION_APP_NAME="$2"
+      shift 2
+      ;;
+    -g|--resource-group)
+      RESOURCE_GROUP="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage
+      ;;
+  esac
+done
+
+if [[ ! "$ENVIRONMENT" =~ ^(dev|staging|prod)$ ]]; then
+  echo "Error: environment must be one of: dev, staging, prod"
+  exit 1
+fi
+
+FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-qrattendance-${ENVIRONMENT}}"
+RESOURCE_GROUP="${RESOURCE_GROUP:-rg-qr-attendance-${ENVIRONMENT}}"
 
 echo "=== Deploying Backend Functions to Production ==="
+echo "Environment: $ENVIRONMENT"
 echo "Target: $FUNCTION_APP_NAME"
 echo ""
 

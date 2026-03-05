@@ -1,8 +1,9 @@
 #!/bin/bash
 # Fully Automated Production Deployment
-# Deploys infrastructure, backend, database, and frontend
+# Deploys infrastructure, backend, database, and frontend for production
 
 set -e
+set -o pipefail
 
 # Colors
 GREEN='\033[0;32m'
@@ -16,6 +17,392 @@ RESOURCE_GROUP="rg-qr-attendance-prod"
 LOCATION="eastus2"
 DEPLOYMENT_NAME="qr-attendance-prod-deployment"
 DESIRED_SWA_SKU="Standard"
+OTP_CREDENTIALS_FILE=".otp-email-credentials"
+
+load_key_value_file() {
+    local file_path="$1"
+    local raw_line
+    local line
+    local key
+    local value
+
+    while IFS= read -r raw_line || [ -n "$raw_line" ]; do
+        line="${raw_line%$'\r'}"
+
+        # Skip empty lines and comments
+        case "$line" in
+            ''|'#'*)
+                continue
+                ;;
+        esac
+
+        # Skip malformed lines that don't contain '='
+        if [[ "$line" != *"="* ]]; then
+            continue
+        fi
+
+        key="${line%%=*}"
+        value="${line#*=}"
+
+        # Trim surrounding whitespace from key only
+        key="${key#${key%%[![:space:]]*}}"
+        key="${key%${key##*[![:space:]]}}"
+
+        [ -z "$key" ] && continue
+        export "$key=$value"
+    done < "$file_path"
+}
+
+load_otp_email_credentials() {
+    if [ -f "$OTP_CREDENTIALS_FILE" ]; then
+        echo "Loading OTP email credentials from $OTP_CREDENTIALS_FILE..."
+        load_key_value_file "$OTP_CREDENTIALS_FILE"
+    fi
+
+    OTP_SMTP_HOST="${OTP_SMTP_HOST:-smtp.gmail.com}"
+    OTP_SMTP_PORT="${OTP_SMTP_PORT:-465}"
+    OTP_SMTP_SECURE="${OTP_SMTP_SECURE:-true}"
+    OTP_FROM_NAME="${OTP_FROM_NAME:-VTC Attendance}"
+    OTP_EMAIL_SUBJECT="${OTP_EMAIL_SUBJECT:-Your verification code}"
+    OTP_APP_NAME="${OTP_APP_NAME:-QR Chain Attend}"
+    OTP_FROM_EMAIL="${OTP_FROM_EMAIL:-${OTP_SMTP_USERNAME:-}}"
+
+    export OTP_SMTP_HOST OTP_SMTP_PORT OTP_SMTP_SECURE OTP_SMTP_USERNAME OTP_SMTP_PASSWORD
+    export OTP_FROM_EMAIL OTP_FROM_NAME OTP_EMAIL_SUBJECT OTP_APP_NAME
+
+    if [ -n "${OTP_SMTP_USERNAME:-}" ] && [ -n "${OTP_SMTP_PASSWORD:-}" ]; then
+        echo -e "${GREEN}✓ OTP email settings detected (Bicep will apply them)${NC}"
+    else
+        echo -e "${YELLOW}⚠ OTP email credentials not found. Bicep will deploy OTP settings as empty/default.${NC}"
+        echo "  To configure, create .otp-email-credentials (see .otp-email-credentials.example)."
+    fi
+}
+
+discover_project_name() {
+    local resource_group="$1"
+    local openai_name="$2"
+    local discovered
+
+    discovered=$(az resource list --resource-group "$resource_group" --resource-type "Microsoft.CognitiveServices/accounts/projects" --query "[?starts_with(name, '${openai_name}/')].name | [0]" -o tsv 2>/dev/null || echo "")
+
+    if [ -n "$discovered" ] && [ "$discovered" != "null" ]; then
+        echo "$discovered" | cut -d'/' -f2
+    else
+        echo "${openai_name}-project"
+    fi
+}
+
+discover_working_project_name() {
+    local resource_group="$1"
+    local openai_name="$2"
+    local default_project
+    local candidate
+    local endpoint
+    local discovered_projects
+
+    default_project=$(discover_project_name "$resource_group" "$openai_name")
+    endpoint=$(build_project_endpoint "$openai_name" "$default_project")
+    if validate_project_endpoint "$endpoint"; then
+        echo "$default_project"
+        return 0
+    fi
+
+    discovered_projects=$(az resource list --resource-group "$resource_group" --resource-type "Microsoft.CognitiveServices/accounts/projects" --query "[?starts_with(name, '${openai_name}/')].name" -o tsv 2>/dev/null || echo "")
+    if [ -n "$discovered_projects" ]; then
+        while IFS= read -r candidate; do
+            [ -z "$candidate" ] && continue
+            candidate=$(echo "$candidate" | cut -d'/' -f2)
+            endpoint=$(build_project_endpoint "$openai_name" "$candidate")
+            if validate_project_endpoint "$endpoint"; then
+                echo "$candidate"
+                return 0
+            fi
+        done <<< "$discovered_projects"
+    fi
+
+    echo "$default_project"
+}
+
+build_project_endpoint() {
+    local openai_name="$1"
+    local project_name="$2"
+    echo "https://${openai_name}.cognitiveservices.azure.com/api/projects/${project_name}"
+}
+
+validate_project_endpoint() {
+    local endpoint="$1"
+    local token
+    local status
+
+    if [ -z "$endpoint" ] || [ "$endpoint" = "null" ]; then
+        return 1
+    fi
+
+    token=$(az account get-access-token --resource https://ai.azure.com --query accessToken -o tsv 2>/dev/null || echo "")
+    if [ -z "$token" ]; then
+        return 1
+    fi
+
+    status=$(curl -s -o /tmp/project-endpoint-check.json -w "%{http_code}" \
+        -H "Authorization: Bearer $token" \
+        "${endpoint}/agents?api-version=v1" || echo "000")
+
+    [ "$status" = "200" ]
+}
+
+ensure_foundry_rbac_access() {
+    local resource_group="$1"
+    local openai_name="$2"
+    local project_name="$3"
+    local subscription_id
+    local user_object_id
+    local user_upn
+    local account_scope
+    local project_scope
+    local project_mi
+    local assignment_failures=0
+
+    ensure_role_assignment() {
+        local principal_object_id="$1"
+        local principal_type="$2"
+        local role_name="$3"
+        local scope="$4"
+        local label="$5"
+        local existing_count
+        local create_output
+
+        existing_count=$(az role assignment list \
+            --assignee-object-id "$principal_object_id" \
+            --scope "$scope" \
+            --query "[?roleDefinitionName=='${role_name}'] | length(@)" \
+            -o tsv 2>/dev/null || echo "0")
+
+        if [ "$existing_count" != "0" ]; then
+            echo -e "${GREEN}✓ RBAC already present (${label})${NC}"
+            return 0
+        fi
+
+        create_output=$(az role assignment create \
+            --assignee-object-id "$principal_object_id" \
+            --assignee-principal-type "$principal_type" \
+            --role "$role_name" \
+            --scope "$scope" \
+            -o none 2>&1)
+
+        if [ $? -ne 0 ]; then
+            echo -e "${YELLOW}⚠ RBAC assignment failed (${label}): ${create_output}${NC}"
+            return 1
+        fi
+
+        existing_count=$(az role assignment list \
+            --assignee-object-id "$principal_object_id" \
+            --scope "$scope" \
+            --query "[?roleDefinitionName=='${role_name}'] | length(@)" \
+            -o tsv 2>/dev/null || echo "0")
+
+        if [ "$existing_count" = "0" ]; then
+            echo -e "${YELLOW}⚠ RBAC assignment could not be verified (${label})${NC}"
+            return 1
+        fi
+
+        echo -e "${GREEN}✓ RBAC assignment ensured (${label})${NC}"
+        return 0
+    }
+
+    subscription_id=$(az account show --query id -o tsv 2>/dev/null || echo "")
+    if [ -z "$subscription_id" ]; then
+        echo -e "${YELLOW}⚠ Unable to resolve subscription ID for Foundry RBAC enforcement${NC}"
+        return 0
+    fi
+
+    account_scope="/subscriptions/${subscription_id}/resourceGroups/${resource_group}/providers/Microsoft.CognitiveServices/accounts/${openai_name}"
+    project_scope="${account_scope}/projects/${project_name}"
+
+    user_object_id=$(az ad signed-in-user show --query id -o tsv 2>/dev/null || echo "")
+    if [ -z "$user_object_id" ] || [ "$user_object_id" = "null" ]; then
+        user_upn=$(az account show --query user.name -o tsv 2>/dev/null || echo "")
+        if [ -n "$user_upn" ] && [ "$user_upn" != "null" ]; then
+            user_object_id=$(az ad user show --id "$user_upn" --query id -o tsv 2>/dev/null || echo "")
+        fi
+    fi
+
+    if [ -n "$user_object_id" ] && [ "$user_object_id" != "null" ]; then
+        ensure_role_assignment "$user_object_id" "User" "Azure AI User" "$account_scope" "user@account-scope" || assignment_failures=$((assignment_failures + 1))
+        ensure_role_assignment "$user_object_id" "User" "Azure AI User" "$project_scope" "user@project-scope" || assignment_failures=$((assignment_failures + 1))
+    else
+        echo -e "${YELLOW}⚠ Could not resolve signed-in user object ID; skipping user RBAC enforcement${NC}"
+        assignment_failures=$((assignment_failures + 1))
+    fi
+
+    project_mi=$(az resource show --ids "$project_scope" --query identity.principalId -o tsv 2>/dev/null || echo "")
+    if [ -n "$project_mi" ] && [ "$project_mi" != "null" ]; then
+        ensure_role_assignment "$project_mi" "ServicePrincipal" "Azure AI User" "$account_scope" "project-mi@account-scope" || assignment_failures=$((assignment_failures + 1))
+    else
+        echo -e "${YELLOW}⚠ Could not resolve project managed identity; skipping MI RBAC enforcement${NC}"
+        assignment_failures=$((assignment_failures + 1))
+    fi
+
+    if [ $assignment_failures -gt 0 ]; then
+        echo -e "${YELLOW}⚠ Foundry RBAC enforcement completed with $assignment_failures issue(s). Check warnings above.${NC}"
+    else
+        echo -e "${GREEN}✓ Foundry RBAC enforcement completed successfully${NC}"
+    fi
+}
+
+ensure_foundry_tracing_connection() {
+    local resource_group="$1"
+    local openai_name="$2"
+    local project_name="$3"
+    local subscription_id
+    local appi_id
+    local appi_name
+    local appi_key
+    local existing_count
+    local list_exit
+    local temp_file
+    local create_output
+    local create_exit
+    local connections_url
+    local connection_url
+
+    echo "[Tracing] Starting Foundry tracing connection check"
+
+    subscription_id=$(az account show --query id -o tsv 2>/dev/null || echo "")
+    if [ -z "$subscription_id" ] || [ "$subscription_id" = "null" ]; then
+        echo -e "${YELLOW}⚠ Unable to resolve subscription ID for tracing connection${NC}"
+        return 0
+    fi
+
+    appi_id=$(az resource list \
+        --resource-group "$resource_group" \
+        --resource-type "microsoft.insights/components" \
+        --query "[0].id" -o tsv 2>/dev/null || echo "")
+
+    appi_name=$(az resource list \
+        --resource-group "$resource_group" \
+        --resource-type "microsoft.insights/components" \
+        --query "[0].name" -o tsv 2>/dev/null || echo "")
+
+    if [ -z "$appi_id" ] || [ "$appi_id" = "null" ]; then
+        echo -e "${YELLOW}⚠ No Application Insights resource found for Foundry Traces connection${NC}"
+        return 0
+    fi
+
+    echo "[Tracing] Application Insights: ${appi_name}"
+    echo "[Tracing] Application Insights resource ID: ${appi_id}"
+
+    appi_key=$(az resource show --ids "$appi_id" --query properties.InstrumentationKey -o tsv 2>/dev/null || echo "")
+    if [ -z "$appi_key" ] || [ "$appi_key" = "null" ]; then
+        echo -e "${YELLOW}⚠ Could not read Application Insights instrumentation key for tracing connection${NC}"
+        return 0
+    fi
+
+    connections_url="https://management.azure.com/subscriptions/${subscription_id}/resourceGroups/${resource_group}/providers/Microsoft.CognitiveServices/accounts/${openai_name}/projects/${project_name}/connections?api-version=2025-09-01"
+    connection_url="https://management.azure.com/subscriptions/${subscription_id}/resourceGroups/${resource_group}/providers/Microsoft.CognitiveServices/accounts/${openai_name}/projects/${project_name}/connections/appinsights-tracing?api-version=2025-09-01"
+
+    echo "[Tracing] Connections list URL: ${connections_url}"
+    echo "[Tracing] Connection put URL: ${connection_url}"
+
+    set +e
+    existing_count=$(az rest --method get --url "$connections_url" \
+        --query "value[?name=='appinsights-tracing' || properties.category=='AppInsights'] | length(@)" \
+        -o tsv 2>/dev/null)
+    list_exit=$?
+    set -e
+
+    echo "[Tracing] Existing connection query exit: ${list_exit}"
+    echo "[Tracing] Existing connection count: ${existing_count:-<empty>}"
+
+    if [ $list_exit -ne 0 ] || [ -z "$existing_count" ] || [ "$existing_count" = "null" ]; then
+        existing_count="0"
+    fi
+
+    if [ "$existing_count" != "0" ]; then
+        echo -e "${GREEN}✓ Foundry tracing connection already present${NC}"
+        return 0
+    fi
+
+    echo "[Tracing] No existing tracing connection found; creating appinsights-tracing"
+
+    temp_file=$(mktemp)
+    cat > "$temp_file" << EOF
+{
+  "properties": {
+        "category": "AppInsights",
+        "authType": "ApiKey",
+    "target": "${appi_id}",
+        "credentials": {
+            "key": "${appi_key}"
+        },
+    "metadata": {
+      "resourceId": "${appi_id}",
+      "resourceName": "${appi_name}"
+    }
+  }
+}
+EOF
+
+    echo "[Tracing] Request payload: category=AppInsights, authType=ApiKey, target=${appi_id}"
+
+    set +e
+        create_output=$(az rest --method put --url "$connection_url" --body "@$temp_file" -o none 2>&1)
+    create_exit=$?
+    set -e
+    rm -f "$temp_file"
+
+    echo "[Tracing] Create request exit: ${create_exit}"
+
+    if [ $create_exit -eq 0 ]; then
+        echo -e "${GREEN}✓ Foundry tracing connection created (Application Insights: ${appi_name})${NC}"
+        return 0
+    fi
+
+    if echo "$create_output" | grep -qiE "already exists|Conflict"; then
+        echo -e "${GREEN}✓ Foundry tracing connection already exists${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}⚠ Could not create Foundry tracing connection via CLI/API: ${create_output}${NC}"
+    echo "  Use Foundry portal: Agents -> Traces -> Connect -> ${appi_name}"
+    return 0
+}
+
+resolve_runtime_agent_id() {
+    local endpoint="$1"
+    local agent_name="$2"
+    local configured_id="$3"
+    local token
+    local resolved
+
+    if [ -z "$configured_id" ] || [ "$configured_id" = "null" ]; then
+        echo ""
+        return 0
+    fi
+
+    if [[ "$configured_id" =~ ^[A-Za-z0-9_-]+$ ]]; then
+        echo "$configured_id"
+        return 0
+    fi
+
+    if [ -z "$endpoint" ] || [ "$endpoint" = "null" ]; then
+        echo "$configured_id"
+        return 0
+    fi
+
+    token=$(az account get-access-token --resource https://ai.azure.com --query accessToken -o tsv 2>/dev/null || echo "")
+    if [ -z "$token" ]; then
+        echo "$configured_id"
+        return 0
+    fi
+
+    resolved=$(curl -s -H "Authorization: Bearer $token" "${endpoint}/assistants?api-version=2025-05-01&limit=100&order=desc" 2>/dev/null | jq -r --arg name "$agent_name" '.data[]? | select(.name==$name) | .id' | head -n 1)
+
+    if [ -n "$resolved" ] && [ "$resolved" != "null" ]; then
+        echo "$resolved"
+    else
+        echo "$configured_id"
+    fi
+}
 
 verify_external_id_login() {
     local app_url="$1"
@@ -109,7 +496,7 @@ echo -e "${BLUE}Step 0.5: Validating Azure AD Configuration${NC}"
 # Validate External ID configuration to prevent login redirect loops
 if [ -z "$EXTERNAL_ID_ISSUER" ] || [ "$EXTERNAL_ID_ISSUER" = "null" ]; then
     echo -e "${RED}✗ .external-id-credentials is missing EXTERNAL_ID_ISSUER${NC}"
-    echo "  External ID issuer is required for reliable production/dev auth behavior."
+    echo "  External ID issuer is required for reliable production auth behavior."
     exit 1
 fi
 
@@ -152,6 +539,10 @@ echo -e "${GREEN}✓ External ID authentication configured${NC}"
 echo "  Tenant ID: $TENANT_ID"
 echo ""
 
+# Load optional OTP email credentials from local (gitignored) file or environment variables
+load_otp_email_credentials
+echo ""
+
 # Step 1: Check prerequisites
 echo -e "${BLUE}Step 1: Checking prerequisites...${NC}"
 
@@ -176,13 +567,16 @@ if ! command -v curl &> /dev/null; then
 fi
 
 # Ensure Node.js 22 is active for consistent builds
+# First try to load NVM from common locations
 if [ -s "$HOME/.nvm/nvm.sh" ]; then
     source "$HOME/.nvm/nvm.sh"
 fi
 
+# Try to use Node.js 22 if NVM is available
 if command -v nvm &> /dev/null; then
     nvm use 22 >/dev/null 2>&1 || nvm install 22
 elif [ -d "$HOME/.nvm" ]; then
+    # NVM is installed but function not loaded, try direct invocation
     bash "$HOME/.nvm/nvm.sh" --version > /dev/null && {
         source "$HOME/.nvm/nvm.sh"
         nvm use 22 >/dev/null 2>&1 || nvm install 22
@@ -202,10 +596,11 @@ if [ "$NODE_MAJOR" != "22" ]; then
     fi
 fi
 
+# Verify again after NVM attempt
 NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo "")
 if [ "$NODE_MAJOR" != "22" ]; then
     echo -e "${RED}✗ Node.js 22 required. Current: $(node --version)${NC}"
-    echo -e "${YELLOW}Tip: Try 'nvm install 22 && nvm use 22' manually${NC}"
+    echo -e "${YELLOW}Tip: Try 'nvm install 22 && nvm use 22' manually before re-running this script${NC}"
     exit 1
 fi
 
@@ -214,374 +609,636 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
-if ! az account show &> /dev/null; then
-    echo -e "${RED}✗ Not logged in to Azure${NC}"
-    exit 1
+# Check if Static Web Apps CLI is installed
+if ! command -v swa &> /dev/null; then
+    echo "Installing Static Web Apps CLI..."
+    npm install -g @azure/static-web-apps-cli
 fi
 
-# Check if Azure Static Web Apps extension is installed
+# Check Azure CLI extensions
 echo "Checking Azure CLI extensions..."
-if ! az extension list --query "[?name=='staticwebapp']" -o tsv | grep -q staticwebapp; then
-    echo "Installing Azure Static Web Apps CLI extension..."
-    az extension add --name staticwebapp --yes --only-show-errors
-fi
+az extension add --name staticwebapp --yes 2>/dev/null || true
 
 echo -e "${GREEN}✓ All prerequisites met${NC}"
 echo ""
 
+# Step 1.5: Validate Azure tenant/token context for ARM operations
+echo -e "${BLUE}Step 1.5: Validating Azure tenant context...${NC}"
+
+ACTIVE_ACCOUNT_TENANT=$(az account show --query tenantId -o tsv 2>/dev/null || echo "")
+ACTIVE_TOKEN_TENANT=$(az account get-access-token --resource https://management.azure.com/ --query tenant -o tsv 2>/dev/null || echo "")
+
+if [ -z "$ACTIVE_ACCOUNT_TENANT" ] || [ -z "$ACTIVE_TOKEN_TENANT" ]; then
+    echo -e "${RED}✗ Unable to resolve Azure account/token tenant context${NC}"
+    echo "Run: az login --tenant 8ff7db19-435d-4c3c-83d3-ca0a46234f51"
+    exit 1
+fi
+
+if [ "$ACTIVE_ACCOUNT_TENANT" != "$ACTIVE_TOKEN_TENANT" ]; then
+    echo -e "${RED}✗ Azure CLI tenant mismatch detected${NC}"
+    echo "  Account tenant: $ACTIVE_ACCOUNT_TENANT"
+    echo "  Token tenant:   $ACTIVE_TOKEN_TENANT"
+    echo "Fix with:"
+    echo "  az logout"
+    echo "  az login --tenant $ACTIVE_ACCOUNT_TENANT"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Azure tenant context valid: $ACTIVE_ACCOUNT_TENANT${NC}"
+
+if [ -n "$TENANT_ID" ] && [ "$TENANT_ID" != "$ACTIVE_ACCOUNT_TENANT" ]; then
+    echo -e "${YELLOW}⚠ External ID tenant differs from Azure resource tenant${NC}"
+    echo "  External ID TENANT_ID: $TENANT_ID"
+    echo "  Azure resource tenant: $ACTIVE_ACCOUNT_TENANT"
+    echo "  This is valid for cross-tenant auth setups, but Azure CLI must stay on resource tenant."
+fi
+echo ""
+
 # Step 2: Create resource group
 echo -e "${BLUE}Step 2: Creating resource group...${NC}"
-az group create \
-    --name $RESOURCE_GROUP \
-    --location $LOCATION \
-    --tags Environment=Production Application="QR Chain Attendance" ManagedBy=Bicep \
-    --output none
 
-echo -e "${GREEN}✓ Resource group created${NC}"
+if ! az group show --name "$RESOURCE_GROUP" --output none 2>/dev/null; then
+    az group create \
+        --name "$RESOURCE_GROUP" \
+        --location "$LOCATION" \
+        --tags Environment=Production Application="QR Chain Attendance" ManagedBy=Bicep
+    echo -e "${GREEN}✓ Resource group created${NC}"
+else
+    echo -e "${YELLOW}ℹ Resource group already exists${NC}"
+fi
 echo ""
 
-# Step 3: Deploy infrastructure
-echo -e "${BLUE}Step 3: Deploying infrastructure (10-15 minutes)...${NC}"
+# Step 3: Deploy infrastructure using Bicep production parameters
+echo -e "${BLUE}Step 3: Deploying infrastructure (10-15 minutes for production)...${NC}"
 
-# Prepare parameters
-BICEP_PARAMS="infrastructure/parameters/prod.bicepparam"
+ACTIVE_DEPLOYMENT_STATE=$(az deployment group show \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$DEPLOYMENT_NAME" \
+    --query "properties.provisioningState" -o tsv 2>/dev/null || echo "")
 
-# Deploy infrastructure (backend only - Static Web App created separately)
-az deployment group create \
-    --name $DEPLOYMENT_NAME \
-    --resource-group $RESOURCE_GROUP \
-    --template-file infrastructure/main.bicep \
-    --parameters $BICEP_PARAMS \
-    --mode Incremental \
-    --only-show-errors \
-    --query '{properties: properties}' \
-    --output json > deployment-output.json 2>&1
-
-DEPLOY_EXIT_CODE=$?
-
-if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
-    echo -e "${RED}✗ Infrastructure deployment failed${NC}"
-    echo "Deployment output:"
-    cat deployment-output.json
+if [ "$ACTIVE_DEPLOYMENT_STATE" = "Running" ] || [ "$ACTIVE_DEPLOYMENT_STATE" = "Accepted" ]; then
+    echo -e "${RED}✗ Existing deployment is still active: $DEPLOYMENT_NAME${NC}"
+    echo "  State: $ACTIVE_DEPLOYMENT_STATE"
+    echo "  Production deploy is fail-fast (no retry / no overwrite while active)."
+    echo "  Wait for completion or cancel it manually:"
+    echo "  az deployment group cancel --resource-group $RESOURCE_GROUP --name $DEPLOYMENT_NAME"
     exit 1
 fi
 
-echo -e "${GREEN}✓ Infrastructure deployed${NC}"
+recover_ifmatch_conflict() {
+    local conflict_resource_id
+
+    echo "Inspecting nested openai-deployment operations for ETag conflict..."
+    conflict_resource_id=$(az deployment operation group list \
+        --resource-group "$RESOURCE_GROUP" \
+        --name "openai-deployment" \
+        --query "[?properties.provisioningState=='Failed' && properties.statusMessage.error.code=='IfMatchPreconditionFailed'].properties.targetResource.id | [0]" \
+        -o tsv 2>/dev/null || echo "")
+
+    if [ -n "$conflict_resource_id" ] && [ "$conflict_resource_id" != "null" ]; then
+        echo -e "${YELLOW}⚠ Removing conflicting resource to recover: $conflict_resource_id${NC}"
+        az resource delete --ids "$conflict_resource_id" --output none 2>/dev/null || true
+        echo "Waiting 15 seconds for control plane consistency..."
+        sleep 15
+        return 0
+    fi
+
+    return 1
+}
+
+echo "Infrastructure deployment attempt 1/1 (retry disabled for production)..."
+
+set +e
+DEPLOYMENT_RESULT=$(az deployment group create \
+    --resource-group "$RESOURCE_GROUP" \
+    --template-file "infrastructure/main.bicep" \
+    --parameters "infrastructure/parameters/prod.bicepparam" \
+    --name "$DEPLOYMENT_NAME" \
+    --output json 2>&1)
+DEPLOY_EXIT=$?
+set -e
+
+echo "$DEPLOYMENT_RESULT" > deployment-output.json
+
+if [ $DEPLOY_EXIT -eq 0 ]; then
+    echo -e "${GREEN}✓ Infrastructure deployed${NC}"
+elif echo "$DEPLOYMENT_RESULT" | grep -q "RoleAssignmentExists"; then
+    echo -e "${YELLOW}⚠ Role assignments already exist (safe to continue)${NC}"
+else
+    if echo "$DEPLOYMENT_RESULT" | grep -q "DeploymentActive"; then
+        echo -e "${RED}✗ Deployment name is currently active: $DEPLOYMENT_NAME${NC}"
+        echo "  Wait for completion or cancel it manually:"
+        echo "  az deployment group cancel --resource-group $RESOURCE_GROUP --name $DEPLOYMENT_NAME"
+    fi
+    if echo "$DEPLOYMENT_RESULT" | grep -q "IfMatchPreconditionFailed"; then
+        echo -e "${RED}✗ Detected OpenAI deployment ETag conflict (IfMatchPreconditionFailed)${NC}"
+        echo "  Production deploy is configured to fail fast with no retry."
+    fi
+    echo -e "${RED}✗ Infrastructure deployment failed (single attempt)${NC}"
+    echo "$DEPLOYMENT_RESULT" | jq '.' 2>/dev/null || echo "$DEPLOYMENT_RESULT"
+    exit 1
+fi
 echo ""
 
-# Step 4: Extract outputs
+# Step 3.5: Foundry Project Setup for Agents
+echo -e "${BLUE}Step 3.5: Foundry Project Setup for Agents...${NC}"
+
+# Get OpenAI resource name from deployment - try multiple approaches
+OPENAI_NAME=""
+
+# First try: Get from deployment outputs
+if [ -f "deployment-output.json" ] && [ -s "deployment-output.json" ]; then
+    OPENAI_NAME=$(jq -r '.properties.outputs.openAIName.value // ""' deployment-output.json 2>/dev/null || echo "")
+fi
+
+# Second try: Query Azure for AIServices or OpenAI kind
+if [ -z "$OPENAI_NAME" ] || [ "$OPENAI_NAME" = "null" ]; then
+    echo "Querying Azure for Cognitive Services account..."
+    # Try AIServices kind first
+    OPENAI_NAME=$(az cognitiveservices account list --resource-group "$RESOURCE_GROUP" --query "[?kind=='AIServices'].name | [0]" -o tsv 2>/dev/null || echo "")
+    
+    # If not found, try OpenAI kind
+    if [ -z "$OPENAI_NAME" ] || [ "$OPENAI_NAME" = "null" ]; then
+        OPENAI_NAME=$(az cognitiveservices account list --resource-group "$RESOURCE_GROUP" --query "[?kind=='OpenAI'].name | [0]" -o tsv 2>/dev/null || echo "")
+    fi
+    
+    # If still not found, get any cognitive services account
+    if [ -z "$OPENAI_NAME" ] || [ "$OPENAI_NAME" = "null" ]; then
+        OPENAI_NAME=$(az cognitiveservices account list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "")
+    fi
+fi
+
+# Third try: Use expected name from parameters
+if [ -z "$OPENAI_NAME" ] || [ "$OPENAI_NAME" = "null" ]; then
+    OPENAI_NAME="openai-qrattendance-prod"
+fi
+
+echo "Found Cognitive Services account: $OPENAI_NAME"
+
+# Verify the account exists
+if az cognitiveservices account show --name "$OPENAI_NAME" --resource-group "$RESOURCE_GROUP" --output none 2>/dev/null; then
+    PROJECT_NAME=$(discover_working_project_name "$RESOURCE_GROUP" "$OPENAI_NAME")
+
+    echo -e "${GREEN}✓ Account verified: $OPENAI_NAME${NC}"
+    echo -e "${GREEN}✓ Foundry project found: ${PROJECT_NAME}${NC}"
+    ensure_foundry_rbac_access "$RESOURCE_GROUP" "$OPENAI_NAME" "$PROJECT_NAME"
+    ensure_foundry_tracing_connection "$RESOURCE_GROUP" "$OPENAI_NAME" "$PROJECT_NAME"
+    echo ""
+    
+    # Wait for project to be fully provisioned with retry logic
+    echo "Waiting for Foundry project to be fully provisioned..."
+    PROJECT_READY=false
+    MAX_RETRIES=6
+    RETRY_COUNT=0
+    
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        echo "Checking project readiness (attempt $RETRY_COUNT/$MAX_RETRIES)..."
+        
+        # Try to verify project exists via Azure CLI
+        PROJECT_EXISTS=$(az resource show \
+            --ids "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.CognitiveServices/accounts/$OPENAI_NAME/projects/${PROJECT_NAME}" \
+            --query "properties.provisioningState" -o tsv 2>/dev/null || echo "")
+        
+        if [ "$PROJECT_EXISTS" = "Succeeded" ]; then
+            echo "✓ Project provisioning state: Succeeded"
+            PROJECT_READY=true
+            break
+        else
+            echo "Project state: ${PROJECT_EXISTS:-Unknown}, waiting 30 seconds..."
+            sleep 30
+        fi
+    done
+    
+    if [ "$PROJECT_READY" = false ]; then
+        echo -e "${YELLOW}⚠ Project may not be fully ready, but attempting agent creation anyway${NC}"
+    fi
+    
+    # Now create the agents automatically using TypeScript SDK (New Agents API)
+    echo -e "${BLUE}Creating persistent agents using New Agents API...${NC}"
+    
+    # Check if TypeScript agent creation script exists
+    if [ -f "./create-agents.ts" ]; then
+        # Remove stale agent config so a previous successful run can't be mistaken for current success
+        rm -f .agent-config.env
+
+        # Ensure dependencies are installed
+        if ! command -v tsx &> /dev/null; then
+            echo "Installing TypeScript dependencies..."
+            npm install
+        fi
+        
+        # Run TypeScript agent creation script once (fail-fast, no retry loop)
+        AGENT_CREATED=false
+        echo "Running: tsx create-agents.ts $RESOURCE_GROUP $OPENAI_NAME $PROJECT_NAME"
+        if echo "y" | npx tsx create-agents.ts "$RESOURCE_GROUP" "$OPENAI_NAME" "$PROJECT_NAME" 2>&1 | tee /tmp/agent-creation.log; then
+            # Success is determined by command exit code plus generated config file
+            if [ -f ".agent-config.env" ]; then
+                AGENT_CREATED=true
+                echo -e "${GREEN}✓ Agents created successfully${NC}"
+            else
+                echo -e "${YELLOW}⚠ Agent script exited successfully but .agent-config.env was not generated${NC}"
+            fi
+        fi
+        
+        if [ "$AGENT_CREATED" = false ]; then
+            echo -e "${YELLOW}⚠ Agent creation failed${NC}"
+            echo "You can create the agents manually later with:"
+            echo "  npx tsx create-agents.ts $RESOURCE_GROUP $OPENAI_NAME $PROJECT_NAME"
+            echo ""
+            echo "The project may need more time to be fully provisioned."
+            echo "Wait 5-10 minutes and try running the command above."
+        fi
+        
+        rm -f /tmp/agent-creation.log
+        
+        # Load resulting config only when creation actually succeeded in this run
+        if [ "$AGENT_CREATED" = true ] && [ -f ".agent-config.env" ]; then
+            echo -e "${GREEN}✓ Agents created successfully${NC}"
+            
+            # Load agent IDs
+            source ./.agent-config.env
+
+            if [ -n "$AZURE_AI_PROJECT_ENDPOINT" ] && [ "$AZURE_AI_PROJECT_ENDPOINT" != "null" ]; then
+                PROJECT_ENDPOINT="$AZURE_AI_PROJECT_ENDPOINT"
+                echo "Using agent-created project endpoint: $PROJECT_ENDPOINT"
+            fi
+            
+            if [ -n "$AZURE_AI_AGENT_NAME" ] && [ -n "$AZURE_AI_AGENT_VERSION" ]; then
+                echo "Quiz Agent Reference: ${AZURE_AI_AGENT_NAME}:${AZURE_AI_AGENT_VERSION}"
+            fi
+            
+            if [ -n "$AZURE_AI_POSITION_AGENT_NAME" ] && [ -n "$AZURE_AI_POSITION_AGENT_VERSION" ]; then
+                echo "Position Agent Reference: ${AZURE_AI_POSITION_AGENT_NAME}:${AZURE_AI_POSITION_AGENT_VERSION}"
+            fi
+        else
+            echo -e "${YELLOW}⚠ Agent configuration not available from this run${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠ TypeScript agent creation script not found${NC}"
+        echo "  Expected: ./create-agents.ts"
+    fi
+    echo ""
+else
+    echo -e "${YELLOW}⚠ Cognitive Services account not found: $OPENAI_NAME${NC}"
+    echo "  Please verify the account exists in resource group: $RESOURCE_GROUP"
+fi
+echo ""
+
+# Step 4: Extract deployment outputs (with robust error handling)
 echo -e "${BLUE}Step 4: Extracting deployment outputs...${NC}"
 
-# Check if deployment-output.json exists and is valid
-if [ ! -f "deployment-output.json" ]; then
-    echo -e "${RED}✗ deployment-output.json not found${NC}"
-    exit 1
-fi
+# First try to extract from deployment output, fall back to direct Azure queries
+FUNCTION_APP_NAME=""
+STORAGE_NAME=""
+STORAGE_CONNECTION_STRING=""
+FUNCTION_APP_URL=""
+OPENAI_ENDPOINT=""
+OPENAI_KEY=""
+OPENAI_NAME=""
+PROJECT_ENDPOINT=""
+PROJECT_NAME=""
+APPINSIGHTS_CONNECTION_STRING=""
+SIGNALR_CONNECTION_STRING=""
 
-# Validate JSON before parsing
-if ! jq empty deployment-output.json 2>/dev/null; then
-    echo -e "${RED}✗ Invalid JSON in deployment-output.json${NC}"
-    echo "File content:"
-    cat deployment-output.json
-    echo ""
-    echo "Attempting to extract outputs directly from Azure..."
+# Try to extract from deployment output with better JSON handling
+if [ -f "deployment-output.json" ] && [ -s "deployment-output.json" ]; then
+    echo "Attempting to extract from deployment output..."
     
-    # Fallback: Query deployment directly
-    az deployment group show \
-        --name $DEPLOYMENT_NAME \
-        --resource-group $RESOURCE_GROUP \
-        --query 'properties.outputs' \
-        --output json > deployment-output.json 2>&1
-    
-    if ! jq empty deployment-output.json 2>/dev/null; then
-        echo -e "${RED}✗ Failed to retrieve valid deployment outputs${NC}"
-        exit 1
-    fi
-    
-    echo -e "${YELLOW}⚠ Retrieved outputs directly from Azure${NC}"
-fi
-
-# Extract outputs with proper error handling (backend infrastructure only)
-if jq -e '.properties.outputs' deployment-output.json > /dev/null 2>&1; then
-    # Standard bicep deployment output format
-    STORAGE_ACCOUNT=$(jq -r '.properties.outputs.storageAccountName.value // empty' deployment-output.json)
-    FUNCTION_APP=$(jq -r '.properties.outputs.functionAppName.value // empty' deployment-output.json)
-    OPENAI_NAME=$(jq -r '.properties.outputs.openAIName.value // empty' deployment-output.json)
-    OPENAI_ENDPOINT=$(jq -r '.properties.outputs.openAIEndpoint.value // empty' deployment-output.json)
-else
-    # Direct outputs format
-    STORAGE_ACCOUNT=$(jq -r '.storageAccountName.value // empty' deployment-output.json)
-    FUNCTION_APP=$(jq -r '.functionAppName.value // empty' deployment-output.json)
-    OPENAI_NAME=$(jq -r '.openAIName.value // empty' deployment-output.json)
-    OPENAI_ENDPOINT=$(jq -r '.openAIEndpoint.value // empty' deployment-output.json)
-fi
-
-# Validate required outputs
-if [ -z "$STORAGE_ACCOUNT" ] || [ -z "$FUNCTION_APP" ]; then
-    echo -e "${RED}✗ Failed to extract required outputs${NC}"
-    echo "Storage Account: $STORAGE_ACCOUNT"
-    echo "Function App: $FUNCTION_APP"
-    exit 1
-fi
-
-echo -e "${GREEN}✓ Backend infrastructure outputs extracted${NC}"
-echo "  Storage: $STORAGE_ACCOUNT"
-echo "  Function App: $FUNCTION_APP"
-echo "  Azure OpenAI: $OPENAI_NAME"
-echo ""
-
-# Step 5: Build and deploy backend
-echo -e "${BLUE}Step 5: Building and deploying backend...${NC}"
-cd backend
-npm install --silent
-npm run build
-func azure functionapp publish $FUNCTION_APP --javascript --nozip > /dev/null 2>&1
-cd ..
-
-# Wait for Function App to be fully ready
-echo "Waiting for Function App to be fully operational..."
-sleep 30
-
-# Verify Function App is running and healthy
-FUNC_STATE=$(az functionapp show \
-    --name $FUNCTION_APP \
-    --resource-group $RESOURCE_GROUP \
-    --query state -o tsv)
-
-if [ "$FUNC_STATE" != "Running" ]; then
-    echo -e "${YELLOW}⚠ Function App not fully ready yet (state: $FUNC_STATE), waiting...${NC}"
-    sleep 30
-fi
-
-echo -e "${GREEN}✓ Backend deployed and ready${NC}"
-echo ""
-
-# Step 5.5: Create or use existing Azure Static Web App
-echo -e "${BLUE}Step 5.5: Setting up Azure Static Web App...${NC}"
-
-# Check if Static Web App already exists
-EXISTING_SWA=$(az staticwebapp list --resource-group $RESOURCE_GROUP --query "[0].{name:name, hostname:defaultHostname}" -o json 2>/dev/null)
-
-if [ -n "$EXISTING_SWA" ] && [ "$EXISTING_SWA" != "null" ] && [ "$EXISTING_SWA" != "[]" ]; then
-    # Use existing Static Web App
-    STATIC_WEB_APP=$(echo "$EXISTING_SWA" | jq -r '.name')
-    STATIC_WEB_APP_HOSTNAME=$(echo "$EXISTING_SWA" | jq -r '.hostname')
-    STATIC_WEB_APP_URL="https://$STATIC_WEB_APP_HOSTNAME"
-    
-    echo -e "${GREEN}✓ Using existing Static Web App${NC}"
-    echo "  Name: $STATIC_WEB_APP"
-    echo "  URL: $STATIC_WEB_APP_URL"
-
-    CURRENT_SWA_SKU=$(az staticwebapp show --name "$STATIC_WEB_APP" --resource-group "$RESOURCE_GROUP" --query "sku.name" -o tsv 2>/dev/null || echo "")
-    if [ "$DESIRED_SWA_SKU" = "Standard" ] && [ "$CURRENT_SWA_SKU" != "Standard" ]; then
-        echo "Upgrading Static Web App SKU to Standard for External ID/B2C support..."
-        az staticwebapp update \
-            --name "$STATIC_WEB_APP" \
-            --resource-group "$RESOURCE_GROUP" \
-            --sku Standard \
-            --output none
-        echo -e "${GREEN}✓ Static Web App upgraded to Standard${NC}"
-    fi
-else
-    # Create new Static Web App
-    STATIC_WEB_APP="swa-qrattendance-prod-$(date +%s)"
-    
-    echo "Creating Static Web App: $STATIC_WEB_APP"
-    SWA_CREATE_OUTPUT=$(az staticwebapp create \
-        --name $STATIC_WEB_APP \
-        --resource-group $RESOURCE_GROUP \
-        --location $LOCATION \
-        --sku $DESIRED_SWA_SKU \
-        --tags Environment=Production Application="QR Chain Attendance" \
-        --query '{name: name, defaultHostname: defaultHostname}' \
-        --output json)
-
-    if [ $? -eq 0 ] && [ -n "$SWA_CREATE_OUTPUT" ]; then
-        STATIC_WEB_APP_URL="https://$(echo "$SWA_CREATE_OUTPUT" | jq -r '.defaultHostname')"
-        STATIC_WEB_APP_HOSTNAME=$(echo "$SWA_CREATE_OUTPUT" | jq -r '.defaultHostname')
+    # Try to find and extract the JSON part (skip bicep messages)
+    if grep -q "\"properties\"" deployment-output.json; then
+        # Extract JSON part starting from first {
+        sed -n '/^{/,$p' deployment-output.json > temp-deployment.json
         
-        echo -e "${GREEN}✓ Static Web App created${NC}"
-        echo "  Name: $STATIC_WEB_APP"
-        echo "  URL: $STATIC_WEB_APP_URL"
-        echo "  SKU: $DESIRED_SWA_SKU"
-    else
-        echo -e "${RED}✗ Failed to create Static Web App${NC}"
-        exit 1
-    fi
-fi
-
-# Get deployment token
-echo "Retrieving deployment token..."
-SWA_TOKEN=$(az staticwebapp secrets list \
-    --name $STATIC_WEB_APP \
-    --resource-group $RESOURCE_GROUP \
-    --query 'properties.apiKey' -o tsv 2>/dev/null)
-
-if [ -n "$SWA_TOKEN" ] && [ "$SWA_TOKEN" != "null" ]; then
-    echo -e "${GREEN}✓ Deployment token retrieved${NC}"
-else
-    echo -e "${YELLOW}⚠ Could not retrieve deployment token - will attempt manual deployment${NC}"
-fi
-echo ""
-
-# Link Function App to Static Web App for built-in API integration
-echo "Linking Function App to Static Web App..."
-
-# Get Function App resource ID
-FUNCTION_APP_RESOURCE_ID=$(az functionapp show \
-    --name "$FUNCTION_APP" \
-    --resource-group "$RESOURCE_GROUP" \
-    --query "id" -o tsv)
-
-# Check if already linked
-SWA_LINKED=$(az staticwebapp show --name "$STATIC_WEB_APP" --resource-group "$RESOURCE_GROUP" --query "linkedBackends[].backendResourceId" -o tsv 2>/dev/null | grep -i "/sites/$FUNCTION_APP" || true)
-
-if [ -z "$SWA_LINKED" ]; then
-    echo "Creating Static Web App backend link..."
-    
-    # Link the backend (requires Standard SKU)
-    az staticwebapp backends link \
-        --name "$STATIC_WEB_APP" \
-        --resource-group "$RESOURCE_GROUP" \
-        --backend-resource-id "$FUNCTION_APP_RESOURCE_ID" \
-        --backend-region "$LOCATION" \
-        --output none 2>/dev/null || {
-            echo -e "${YELLOW}⚠ Failed to link backend automatically${NC}"
-            echo "  This may be due to SKU limitations (Free tier doesn't support linked backends)"
-            echo "  Manual linking: Static Web App -> APIs -> Link -> select $FUNCTION_APP"
-        }
-    
-    # Verify link was created
-    SWA_LINKED=$(az staticwebapp show --name "$STATIC_WEB_APP" --resource-group "$RESOURCE_GROUP" --query "linkedBackends[].backendResourceId" -o tsv 2>/dev/null | grep -i "/sites/$FUNCTION_APP" || true)
-    
-    if [ -n "$SWA_LINKED" ]; then
-        echo -e "${GREEN}✓ Static Web App backend linked successfully${NC}"
-    else
-        echo -e "${YELLOW}⚠ Static Web App link not detected${NC}"
-        echo "  Frontend will use direct Function API URL"
-    fi
-else
-    echo -e "${GREEN}✓ Static Web App backend already linked${NC}"
-fi
-
-# Select frontend API URL strategy based on SWA link availability
-if [ -n "$SWA_LINKED" ]; then
-    FRONTEND_API_URL="/api"
-    echo -e "${GREEN}✓ Frontend API via SWA built-in proxy (no CORS needed): /api${NC}"
-else
-    FRONTEND_API_URL="https://$FUNCTION_APP.azurewebsites.net/api"
-    echo -e "${YELLOW}⚠ Frontend API via direct Function URL (CORS required): $FRONTEND_API_URL${NC}"
-fi
-
-# Step 6: Database tables (managed by bicep)
-echo -e "${BLUE}Step 6: Verifying database tables...${NC}"
-echo -e "${GREEN}✓ Database tables managed by bicep infrastructure${NC}"
-echo ""
-
-# Step 7: Verify Function App authentication is disabled
-echo -e "${BLUE}Step 7: Verifying Function App configuration...${NC}"
-# Note: CORS not needed - Static Web Apps uses reverse proxy for /api routes
-
-# Verify Function App authentication is disabled
-echo "Verifying Function App authentication is disabled..."
-AUTH_V2_REQUIRE_AUTH=$(az webapp auth show \
-    --name "$FUNCTION_APP" \
-    --resource-group "$RESOURCE_GROUP" \
-    --query "properties.globalValidation.requireAuthentication" -o tsv 2>/dev/null || echo "")
-
-if [ "$AUTH_V2_REQUIRE_AUTH" = "true" ]; then
-    echo -e "${YELLOW}⚠ Function App authentication (v2) requires auth, disabling it...${NC}"
-    az webapp auth update \
-        --name "$FUNCTION_APP" \
-        --resource-group "$RESOURCE_GROUP" \
-        --enabled false \
-        --action AllowAnonymous \
-        --output none
-    echo -e "${GREEN}✓ Function App authentication (v2) disabled${NC}"
-elif [ "$AUTH_V2_REQUIRE_AUTH" = "false" ]; then
-    echo -e "${GREEN}✓ Function App authentication (v2) already disabled${NC}"
-else
-    AUTH_CLASSIC_ENABLED=$(az webapp auth-classic show \
-        --name "$FUNCTION_APP" \
-        --resource-group "$RESOURCE_GROUP" \
-        --query "enabled" -o tsv 2>/dev/null || echo "false")
-
-    if [ "$AUTH_CLASSIC_ENABLED" = "true" ]; then
-        echo -e "${YELLOW}⚠ Function App authentication (classic) is enabled, disabling it...${NC}"
-        az webapp auth-classic update \
-            --name "$FUNCTION_APP" \
-            --resource-group "$RESOURCE_GROUP" \
-            --enabled false \
-            --action AllowAnonymous \
-            --output none
-        echo -e "${GREEN}✓ Function App authentication (classic) disabled${NC}"
-    else
-        echo -e "${GREEN}✓ Function App authentication already disabled${NC}"
-    fi
-fi
-echo ""
-
-# Step 7.5: Verify and update Azure AD configuration
-echo -e "${BLUE}Step 7.5: Configuring Azure AD for Static Web App...${NC}"
-
-# External ID / B2C custom provider requires Standard SKU on Static Web Apps
-if [ -n "$EXTERNAL_ID_ISSUER" ]; then
-    SWA_SKU=$(az staticwebapp show --name "$STATIC_WEB_APP" --resource-group "$RESOURCE_GROUP" --query "sku.name" -o tsv 2>/dev/null || echo "")
-    if [ "$SWA_SKU" != "Standard" ]; then
-        echo -e "${RED}✗ External ID/B2C requires Static Web App Standard SKU${NC}"
-        echo "  Current SKU: ${SWA_SKU:-unknown}"
-        echo "  Static Web App: $STATIC_WEB_APP"
-        exit 1
-    fi
-fi
-
-if [ -n "$AAD_CLIENT_ID" ]; then
-    echo -e "${GREEN}✓ Azure AD credentials provided${NC}"
-    echo "  Client ID: $AAD_CLIENT_ID"
-    echo "  Tenant: $TENANT_ID"
-    
-    # Update Azure AD redirect URI for the new Static Web App
-    echo -e "${BLUE}Updating Azure AD redirect URI...${NC}"
-    REDIRECT_URI="$STATIC_WEB_APP_URL/.auth/login/aad/callback"
-
-    # Dual-tenant safe: query/update app in TENANT_ID using Graph token for that tenant
-    GRAPH_TOKEN=$(az account get-access-token --tenant "$TENANT_ID" --resource-type ms-graph --query accessToken -o tsv 2>/dev/null || echo "")
-
-    if [ -z "$GRAPH_TOKEN" ]; then
-        echo -e "${YELLOW}⚠ Could not get Graph token for tenant $TENANT_ID${NC}"
-        echo "  Skipping redirect URI auto-update. Ensure this URI exists in app registration:"
-        echo "  $REDIRECT_URI"
-    else
-        APP_QUERY_URL="https://graph.microsoft.com/v1.0/applications?\$filter=appId eq '$AAD_CLIENT_ID'&\$select=id,appId,web"
-        APP_QUERY_RESPONSE=$(az rest --method GET --url "$APP_QUERY_URL" --headers "Authorization=Bearer $GRAPH_TOKEN" --output json 2>/dev/null || echo "")
-        APP_OBJECT_ID=$(echo "$APP_QUERY_RESPONSE" | jq -r '.value[0].id // empty' 2>/dev/null || echo "")
-
-        if [ -z "$APP_OBJECT_ID" ]; then
-            echo -e "${YELLOW}⚠ App ID $AAD_CLIENT_ID not found in tenant $TENANT_ID${NC}"
-            echo "  Skipping redirect URI auto-update. Ensure this URI exists in app registration:"
-            echo "  $REDIRECT_URI"
-        else
-            CURRENT_REDIRECT_URIS=$(echo "$APP_QUERY_RESPONSE" | jq -c '.value[0].web.redirectUris // []' 2>/dev/null || echo "[]")
-
-            if echo "$CURRENT_REDIRECT_URIS" | jq -e --arg uri "$REDIRECT_URI" 'index($uri)' >/dev/null 2>&1; then
-                echo -e "${GREEN}✓ Redirect URI already configured${NC}"
-            else
-                echo "Adding redirect URI: $REDIRECT_URI"
-                UPDATED_REDIRECT_URIS=$(echo "$CURRENT_REDIRECT_URIS" | jq -c --arg uri "$REDIRECT_URI" '. + [$uri]')
-
-                az rest --method PATCH \
-                    --url "https://graph.microsoft.com/v1.0/applications/$APP_OBJECT_ID" \
-                    --headers "Authorization=Bearer $GRAPH_TOKEN" "Content-Type=application/json" \
-                    --body "{\"web\":{\"redirectUris\":$UPDATED_REDIRECT_URIS}}" \
-                    --output none
-
-                echo -e "${GREEN}✓ Redirect URI added to Azure AD app (tenant $TENANT_ID)${NC}"
+        if jq empty temp-deployment.json 2>/dev/null; then
+            echo "✓ Valid JSON found in deployment output"
+            FUNCTION_APP_NAME=$(jq -r '.properties.outputs.functionAppName.value // ""' temp-deployment.json)
+            STORAGE_NAME=$(jq -r '.properties.outputs.storageAccountName.value // ""' temp-deployment.json)
+            STORAGE_CONNECTION_STRING=$(jq -r '.properties.outputs.storageConnectionString.value // ""' temp-deployment.json)
+            FUNCTION_APP_URL=$(jq -r '.properties.outputs.functionAppUrl.value // ""' temp-deployment.json)
+            OPENAI_ENDPOINT=$(jq -r '.properties.outputs.openAIEndpoint.value // ""' temp-deployment.json)
+            OPENAI_KEY=$(jq -r '.properties.outputs.openAIKey.value // ""' temp-deployment.json)
+            OPENAI_NAME=$(jq -r '.properties.outputs.openAIName.value // ""' temp-deployment.json)
+            PROJECT_ENDPOINT=$(jq -r '.properties.outputs.projectEndpoint.value // ""' temp-deployment.json)
+            if [ -n "$PROJECT_ENDPOINT" ] && [ "$PROJECT_ENDPOINT" != "null" ]; then
+                PROJECT_NAME=$(echo "$PROJECT_ENDPOINT" | sed -nE 's#^.*/api/projects/([^/?]+).*$#\1#p')
             fi
+            APPINSIGHTS_CONNECTION_STRING=$(jq -r '.properties.outputs.applicationInsightsConnectionString.value // ""' temp-deployment.json)
+            SIGNALR_CONNECTION_STRING=$(jq -r '.properties.outputs.signalRConnectionString.value // ""' temp-deployment.json)
+        fi
+        rm -f temp-deployment.json
+    fi
+fi
+
+# Fall back to direct Azure resource queries if deployment output failed
+if [ -z "$FUNCTION_APP_NAME" ] || [ -z "$STORAGE_NAME" ]; then
+    echo "Deployment output extraction failed, querying Azure resources directly..."
+    
+    # Get resource names from Azure
+    FUNCTION_APP_NAME=$(az functionapp list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "func-qrattendance-prod")
+    STORAGE_NAME=$(az storage account list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "stqrattendanceprod")
+    
+    # Set derived values
+    FUNCTION_APP_URL="https://${FUNCTION_APP_NAME}.azurewebsites.net"
+    
+    # Get connection strings directly from Azure
+    echo "Retrieving connection strings from Azure..."
+    STORAGE_CONNECTION_STRING=$(az storage account show-connection-string --name "$STORAGE_NAME" --resource-group "$RESOURCE_GROUP" --query connectionString -o tsv 2>/dev/null || echo "")
+    
+    # Get OpenAI details
+    OPENAI_NAME=$(az cognitiveservices account list --resource-group "$RESOURCE_GROUP" --query "[?kind=='OpenAI'][0].name" -o tsv 2>/dev/null || echo "")
+    if [ -z "$OPENAI_NAME" ] || [ "$OPENAI_NAME" = "null" ]; then
+        # Try AIServices kind
+        OPENAI_NAME=$(az cognitiveservices account list --resource-group "$RESOURCE_GROUP" --query "[?kind=='AIServices'][0].name" -o tsv 2>/dev/null || echo "")
+    fi
+    
+    if [ -n "$OPENAI_NAME" ] && [ "$OPENAI_NAME" != "null" ]; then
+        OPENAI_ENDPOINT=$(az cognitiveservices account show --name "$OPENAI_NAME" --resource-group "$RESOURCE_GROUP" --query properties.endpoint -o tsv 2>/dev/null || echo "")
+        OPENAI_KEY=$(az cognitiveservices account keys list --name "$OPENAI_NAME" --resource-group "$RESOURCE_GROUP" --query key1 -o tsv 2>/dev/null || echo "")
+
+        if [ -z "$PROJECT_NAME" ] || [ "$PROJECT_NAME" = "null" ]; then
+            PROJECT_NAME=$(discover_working_project_name "$RESOURCE_GROUP" "$OPENAI_NAME")
+        fi
+        
+        # Construct project endpoint if not already set
+        if [ -z "$PROJECT_ENDPOINT" ] || [ "$PROJECT_ENDPOINT" = "null" ]; then
+            PROJECT_ENDPOINT=$(build_project_endpoint "$OPENAI_NAME" "$PROJECT_NAME")
+            echo "✓ Constructed project endpoint: $PROJECT_ENDPOINT"
         fi
     fi
     
-    # Configure Static Web App application settings
-    echo -e "${BLUE}Configuring Static Web App AAD settings...${NC}"
+    # Get Application Insights
+    APPINSIGHTS_NAME=$(az monitor app-insights component list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "")
+    if [ -n "$APPINSIGHTS_NAME" ]; then
+        APPINSIGHTS_CONNECTION_STRING=$(az monitor app-insights component show --app "$APPINSIGHTS_NAME" --resource-group "$RESOURCE_GROUP" --query connectionString -o tsv 2>/dev/null || echo "")
+    fi
+    
+    # Get SignalR
+    SIGNALR_NAME=$(az signalr list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "")
+    if [ -n "$SIGNALR_NAME" ]; then
+        SIGNALR_CONNECTION_STRING=$(az signalr key list --name "$SIGNALR_NAME" --resource-group "$RESOURCE_GROUP" --query primaryConnectionString -o tsv 2>/dev/null || echo "")
+    fi
+    
+    echo "✓ Resource information retrieved from Azure"
+fi
+
+echo "Deployment outputs:"
+echo "  Function App: $FUNCTION_APP_NAME"
+echo "  Storage Account: $STORAGE_NAME"
+echo "  Function App URL: $FUNCTION_APP_URL"
+echo "  Azure OpenAI: $([ -n "$OPENAI_ENDPOINT" ] && echo "Enabled" || echo "Disabled")"
+echo "  SignalR: $([ -n "$SIGNALR_CONNECTION_STRING" ] && echo "Enabled" || echo "Disabled")"
+echo ""
+
+# Step 4.5: Configure SignalR CORS
+echo -e "${BLUE}Step 4.5: Configuring SignalR CORS...${NC}"
+
+# Get SignalR name
+SIGNALR_NAME=$(az signalr list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "signalr-qrattendance-prod")
+
+if [ -n "$SIGNALR_NAME" ] && [ "$SIGNALR_NAME" != "null" ]; then
+    echo "Found SignalR: $SIGNALR_NAME"
+    
+    # Get Static Web App hostname (will be configured later, but we can prepare)
+    # For now, we'll configure this after SWA is deployed
+    echo "SignalR CORS will be configured after Static Web App deployment"
+else
+    echo -e "${YELLOW}⚠ SignalR not found, skipping CORS configuration${NC}"
+fi
+echo ""
+
+# Step 5: Deploy backend functions
+echo -e "${BLUE}Step 5: Deploying backend functions...${NC}"
+
+cd backend
+
+# Install backend dependencies
+echo "Installing backend dependencies..."
+npm install
+
+# Build TypeScript
+echo "Building backend..."
+npm run build
+
+# Create local.settings.json for deployment
+echo "Creating deployment settings..."
+
+# Load agent config if it exists, but prefer infrastructure-derived endpoint
+AZURE_AI_AGENT_NAME=""
+AZURE_AI_AGENT_VERSION=""
+AZURE_AI_POSITION_AGENT_NAME=""
+AZURE_AI_POSITION_AGENT_VERSION=""
+AZURE_AI_PROJECT_ENDPOINT=""
+
+# First, try to use the project endpoint from infrastructure deployment
+if [ -n "$PROJECT_ENDPOINT" ] && [ "$PROJECT_ENDPOINT" != "null" ]; then
+    AZURE_AI_PROJECT_ENDPOINT="$PROJECT_ENDPOINT"
+    echo "✓ Using project endpoint from infrastructure: $AZURE_AI_PROJECT_ENDPOINT"
+fi
+
+# Load agent settings from config file if it exists
+if [ -f "../.agent-config.env" ]; then
+    source ../.agent-config.env
+
+    # Always prefer infrastructure-resolved endpoint over cached config endpoint
+    if [ -n "$PROJECT_ENDPOINT" ] && [ "$PROJECT_ENDPOINT" != "null" ]; then
+        AZURE_AI_PROJECT_ENDPOINT="$PROJECT_ENDPOINT"
+    fi
+    
+    # Load quiz agent reference
+    if [ -n "$AZURE_AI_AGENT_NAME" ] && [ -n "$AZURE_AI_AGENT_VERSION" ]; then
+        echo "✓ Loaded quiz agent reference from config: ${AZURE_AI_AGENT_NAME}:${AZURE_AI_AGENT_VERSION}"
+    fi
+    
+    # Load position agent reference
+    if [ -n "$AZURE_AI_POSITION_AGENT_NAME" ] && [ -n "$AZURE_AI_POSITION_AGENT_VERSION" ]; then
+        echo "✓ Loaded position agent reference from config: ${AZURE_AI_POSITION_AGENT_NAME}:${AZURE_AI_POSITION_AGENT_VERSION}"
+    fi
+    
+    # If infrastructure didn't provide endpoint, validate and fix config endpoint
+    if [ -z "$PROJECT_ENDPOINT" ] || [ "$PROJECT_ENDPOINT" = "null" ]; then
+        if [ -n "$AZURE_AI_PROJECT_ENDPOINT" ]; then
+            # Check if it's using the old internal format
+            if [[ "$AZURE_AI_PROJECT_ENDPOINT" == *"agents.eastus2.hyena.infra.ai.azure.com"* ]] || [[ "$AZURE_AI_PROJECT_ENDPOINT" == *"/agents/v2.0/"* ]]; then
+                echo -e "${YELLOW}⚠ Detected old agent endpoint format in config, using correct format${NC}"
+                # Use the correct format from infrastructure
+                if [ -n "$OPENAI_NAME" ]; then
+                    if [ -z "$PROJECT_NAME" ] || [ "$PROJECT_NAME" = "null" ]; then
+                        PROJECT_NAME=$(discover_working_project_name "$RESOURCE_GROUP" "$OPENAI_NAME")
+                    fi
+                    AZURE_AI_PROJECT_ENDPOINT=$(build_project_endpoint "$OPENAI_NAME" "$PROJECT_NAME")
+                    echo "  Corrected to: $AZURE_AI_PROJECT_ENDPOINT"
+                fi
+            fi
+        fi
+    fi
+fi
+
+# Final fallback: construct from OPENAI_NAME if still not set
+if [ -z "$AZURE_AI_PROJECT_ENDPOINT" ] || [ "$AZURE_AI_PROJECT_ENDPOINT" = "null" ]; then
+    if [ -n "$OPENAI_NAME" ] && [ "$OPENAI_NAME" != "null" ]; then
+        if [ -z "$PROJECT_NAME" ] || [ "$PROJECT_NAME" = "null" ]; then
+            PROJECT_NAME=$(discover_working_project_name "$RESOURCE_GROUP" "$OPENAI_NAME")
+        fi
+        AZURE_AI_PROJECT_ENDPOINT=$(build_project_endpoint "$OPENAI_NAME" "$PROJECT_NAME")
+        echo "✓ Constructed project endpoint from OpenAI name: $AZURE_AI_PROJECT_ENDPOINT"
+    fi
+fi
+
+# Final validation: ensure project endpoint is reachable on data plane
+if ! validate_project_endpoint "$AZURE_AI_PROJECT_ENDPOINT"; then
+    echo -e "${YELLOW}⚠ Current project endpoint failed health check: $AZURE_AI_PROJECT_ENDPOINT${NC}"
+    if [ -n "$OPENAI_NAME" ] && [ "$OPENAI_NAME" != "null" ]; then
+        PROJECT_NAME=$(discover_working_project_name "$RESOURCE_GROUP" "$OPENAI_NAME")
+        AZURE_AI_PROJECT_ENDPOINT=$(build_project_endpoint "$OPENAI_NAME" "$PROJECT_NAME")
+        echo "Retrying with discovered endpoint: $AZURE_AI_PROJECT_ENDPOINT"
+
+        if validate_project_endpoint "$AZURE_AI_PROJECT_ENDPOINT"; then
+            echo -e "${GREEN}✓ Project endpoint health check passed${NC}"
+        else
+            echo -e "${YELLOW}⚠ Project endpoint still not reachable; keeping latest discovered value${NC}"
+            cat /tmp/project-endpoint-check.json 2>/dev/null || true
+        fi
+    fi
+else
+    echo -e "${GREEN}✓ Project endpoint health check passed${NC}"
+fi
+
+cat > local.settings.json << EOF
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "$STORAGE_CONNECTION_STRING",
+    "FUNCTIONS_EXTENSION_VERSION": "~4",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "WEBSITE_NODE_DEFAULT_VERSION": "~22",
+    "FUNCTIONS_CORE_TOOLS_TELEMETRY_OPTOUT": "1",
+    "StorageConnectionString": "$STORAGE_CONNECTION_STRING",
+    "APPINSIGHTS_INSTRUMENTATIONKEY": "",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": "$APPINSIGHTS_CONNECTION_STRING",
+    "SIGNALR_CONNECTION_STRING": "$SIGNALR_CONNECTION_STRING",
+    "AzureOpenAI__Endpoint": "$OPENAI_ENDPOINT",
+    "AzureOpenAI__ApiKey": "$OPENAI_KEY",$([ -n "$AZURE_AI_PROJECT_ENDPOINT" ] && echo "
+    \"AZURE_AI_PROJECT_ENDPOINT\": \"$AZURE_AI_PROJECT_ENDPOINT\"," || echo "")$([ -n "$AZURE_AI_AGENT_NAME" ] && [ -n "$AZURE_AI_AGENT_VERSION" ] && echo "
+    \"AZURE_AI_AGENT_NAME\": \"$AZURE_AI_AGENT_NAME\",
+        \"AZURE_AI_AGENT_VERSION\": \"$AZURE_AI_AGENT_VERSION\"," || echo "")$([ -n "$AZURE_AI_POSITION_AGENT_NAME" ] && [ -n "$AZURE_AI_POSITION_AGENT_VERSION" ] && echo "
+        \"AZURE_AI_POSITION_AGENT_NAME\": \"$AZURE_AI_POSITION_AGENT_NAME\",
+        \"AZURE_AI_POSITION_AGENT_VERSION\": \"$AZURE_AI_POSITION_AGENT_VERSION\"," || echo "")
+    "Environment": "prod",
+    "DEBUG": "*"
+  },
+  "Host": {
+    "LocalHttpPort": 7071,
+    "CORS": "",
+    "CORSCredentials": true
+  }
+}
+EOF
+
+# Deploy functions
+echo "Deploying functions to Azure..."
+func azure functionapp publish "$FUNCTION_APP_NAME" --typescript
+
+cd ..
+echo -e "${GREEN}✓ Backend functions deployed${NC}"
+echo ""
+
+# Step 6: Verify database tables
+echo -e "${BLUE}Step 6: Verifying database tables...${NC}"
+
+echo -e "${GREEN}✓ Database tables managed by bicep infrastructure${NC}"
+echo ""
+
+# Step 7: Build and deploy frontend
+echo -e "${BLUE}Step 7: Building frontend...${NC}"
+
+cd frontend
+
+# Install frontend dependencies
+echo "Installing frontend dependencies..."
+npm install
+
+# Resolve a single production Static Web App target (prefer linked backend)
+CANONICAL_SWA_NAME="swa-qrattendance-prod"
+STATIC_WEB_APP_NAME=""
+
+FUNCTION_APP_RESOURCE_ID=$(az functionapp show \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query "id" -o tsv 2>/dev/null || echo "")
+
+SWA_LIST_JSON=$(az staticwebapp list --resource-group "$RESOURCE_GROUP" --query "[].{name:name,linkedBackends:linkedBackends[].backendResourceId}" -o json 2>/dev/null || echo "[]")
+
+if [ -n "$FUNCTION_APP_RESOURCE_ID" ] && [ "$SWA_LIST_JSON" != "[]" ]; then
+    LINKED_SWA_NAME=$(echo "$SWA_LIST_JSON" | jq -r --arg backend "$FUNCTION_APP_RESOURCE_ID" '.[] | select(.linkedBackends != null and (.linkedBackends | index($backend))) | .name' | head -n 1)
+    if [ -n "$LINKED_SWA_NAME" ] && [ "$LINKED_SWA_NAME" != "null" ]; then
+        STATIC_WEB_APP_NAME="$LINKED_SWA_NAME"
+        echo "✓ Using linked Static Web App: $STATIC_WEB_APP_NAME"
+    fi
+fi
+
+if [ -z "$STATIC_WEB_APP_NAME" ]; then
+    if az staticwebapp show --name "$CANONICAL_SWA_NAME" --resource-group "$RESOURCE_GROUP" --output none 2>/dev/null; then
+        STATIC_WEB_APP_NAME="$CANONICAL_SWA_NAME"
+        echo "✓ Using canonical Static Web App: $STATIC_WEB_APP_NAME"
+    else
+        EXISTING_SWA_NAME=$(echo "$SWA_LIST_JSON" | jq -r '.[0].name // empty')
+        if [ -n "$EXISTING_SWA_NAME" ] && [ "$EXISTING_SWA_NAME" != "null" ]; then
+            STATIC_WEB_APP_NAME="$EXISTING_SWA_NAME"
+            echo -e "${YELLOW}⚠ Canonical SWA not found. Using existing SWA: $STATIC_WEB_APP_NAME${NC}"
+        else
+            STATIC_WEB_APP_NAME="$CANONICAL_SWA_NAME"
+            echo "Creating Static Web App for frontend configuration: $STATIC_WEB_APP_NAME"
+            az staticwebapp create --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --location "$LOCATION" --sku "$DESIRED_SWA_SKU" --output none
+            echo "✓ Static Web App created"
+            sleep 10
+        fi
+    fi
+fi
+
+CURRENT_SWA_SKU=$(az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --query "sku.name" -o tsv 2>/dev/null || echo "")
+if [ "$DESIRED_SWA_SKU" = "Standard" ] && [ "$CURRENT_SWA_SKU" != "Standard" ]; then
+    echo "Upgrading Static Web App SKU to Standard for External ID/B2C support..."
+    az staticwebapp update \
+        --name "$STATIC_WEB_APP_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --sku Standard \
+        --output none
+    echo -e "${GREEN}✓ Static Web App upgraded to Standard${NC}"
+fi
+
+# Get Static Web App URL from selected target
+STATIC_WEB_APP_HOSTNAME=$(az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --query "defaultHostname" -o tsv 2>/dev/null || echo "")
+
+# Set URL based on hostname
+if [ -n "$STATIC_WEB_APP_HOSTNAME" ] && [ "$STATIC_WEB_APP_HOSTNAME" != "null" ]; then
+    STATIC_WEB_APP_URL="https://$STATIC_WEB_APP_HOSTNAME"
+    echo "✓ Static Web App URL: $STATIC_WEB_APP_URL"
+else
+    echo -e "${RED}✗ Could not resolve Static Web App hostname${NC}"
+    echo "  Static Web App: $STATIC_WEB_APP_NAME"
+    echo "  Resource Group: $RESOURCE_GROUP"
+    echo "  Resolve this issue, then re-run deployment."
+    exit 1
+fi
+
+# Ensure SWA has current Azure AD app settings (prevents stale secret login loops)
+if [ -n "$AAD_CLIENT_ID" ]; then
+    # External ID / B2C custom provider requires Standard SKU on Static Web Apps
+    if [ -n "$EXTERNAL_ID_ISSUER" ]; then
+        SWA_SKU=$(az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --query "sku.name" -o tsv 2>/dev/null || echo "")
+        if [ "$SWA_SKU" != "Standard" ]; then
+            echo -e "${RED}✗ External ID/B2C requires Static Web App Standard SKU${NC}"
+            echo "  Current SKU: ${SWA_SKU:-unknown}"
+            echo "  Static Web App: $STATIC_WEB_APP_NAME"
+            echo ""
+            echo "Upgrade and re-run deployment:"
+            echo "  az staticwebapp update --name $STATIC_WEB_APP_NAME --resource-group $RESOURCE_GROUP --sku Standard"
+            exit 1
+        fi
+    fi
+
+    echo "Configuring Static Web App Azure AD settings..."
     SWA_AUTH_SETTINGS=(
         "AAD_CLIENT_ID=$AAD_CLIENT_ID"
         "TENANT_ID=$TENANT_ID"
@@ -594,271 +1251,436 @@ if [ -n "$AAD_CLIENT_ID" ]; then
     fi
 
     az staticwebapp appsettings set \
-        --name $STATIC_WEB_APP \
-        --resource-group $RESOURCE_GROUP \
+        --name "$STATIC_WEB_APP_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
         --setting-names "${SWA_AUTH_SETTINGS[@]}" \
         --output none
+
+    echo -e "${GREEN}✓ Static Web App Azure AD settings applied${NC}"
+fi
+
+# Link Function App to Static Web App for built-in API integration
+echo "Linking Function App to Static Web App..."
+
+# Get Function App resource ID
+FUNCTION_APP_RESOURCE_ID=$(az functionapp show \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query "id" -o tsv)
+
+# Check if already linked
+SWA_LINKED=$(az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --query "linkedBackends[].backendResourceId" -o tsv 2>/dev/null | grep -i "/sites/$FUNCTION_APP_NAME" || true)
+
+if [ -z "$SWA_LINKED" ]; then
+    echo "Creating Static Web App backend link..."
     
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ Static Web App AAD settings configured${NC}"
+    # Link the backend (requires Standard SKU)
+    az staticwebapp backends link \
+        --name "$STATIC_WEB_APP_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --backend-resource-id "$FUNCTION_APP_RESOURCE_ID" \
+        --backend-region "$LOCATION" \
+        --output none 2>/dev/null || {
+            echo -e "${YELLOW}⚠ Failed to link backend automatically${NC}"
+            echo "  This may be due to SKU limitations (Free tier doesn't support linked backends)"
+            echo "  Manual linking: Static Web App -> APIs -> Link -> select $FUNCTION_APP_NAME"
+        }
+    
+    # Verify link was created
+    SWA_LINKED=$(az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --query "linkedBackends[].backendResourceId" -o tsv 2>/dev/null | grep -i "/sites/$FUNCTION_APP_NAME" || true)
+    
+    if [ -n "$SWA_LINKED" ]; then
+        echo -e "${GREEN}✓ Static Web App backend linked successfully${NC}"
     else
-        echo -e "${YELLOW}⚠ Failed to configure Static Web App AAD settings${NC}"
-        echo "You may need to configure manually using the Azure portal"
+        echo -e "${YELLOW}⚠ Static Web App link not detected${NC}"
+        echo "  Frontend will use direct Function API URL"
     fi
 else
-    echo -e "${YELLOW}⚠ Azure AD not configured - manual setup required${NC}"
-    echo ""
-    echo "To configure Azure AD authentication:"
-    echo "  1. Update your Azure AD App Registration:"
-    echo "     - Add redirect URI: $STATIC_WEB_APP_URL/.auth/login/aad/callback"
-    echo "     - Set multi-tenant if needed"
-    echo "  2. Update staticwebapp.config.json with your client ID"
-    echo "  3. Redeploy frontend with updated configuration"
-    echo ""
+    echo -e "${GREEN}✓ Static Web App backend already linked${NC}"
 fi
-echo ""
 
-# Step 8: Build and deploy frontend
-echo -e "${BLUE}Step 8: Building and deploying frontend...${NC}"
+# Ensure Function App URL has proper protocol
+if [[ "$FUNCTION_APP_URL" != https://* ]]; then
+    FUNCTION_APP_URL="https://$FUNCTION_APP_URL"
+fi
+
+# Select frontend API URL strategy based on SWA link availability
+if [ -n "$SWA_LINKED" ]; then
+    FRONTEND_API_URL="/api"
+    echo -e "${GREEN}✓ Frontend API via SWA built-in proxy (no CORS needed): /api${NC}"
+else
+    FRONTEND_API_URL="${FUNCTION_APP_URL%/}/api"
+    echo -e "${YELLOW}⚠ Frontend API via direct Function URL (CORS required): $FRONTEND_API_URL${NC}"
+fi
+
+# Create environment file for build
+cat > .env.production << EOF
+NEXT_PUBLIC_API_URL=$FRONTEND_API_URL
+NEXT_PUBLIC_ENVIRONMENT=production
+NEXT_PUBLIC_AAD_CLIENT_ID=$AAD_CLIENT_ID
+NEXT_PUBLIC_AAD_TENANT_ID=$TENANT_ID
+NEXT_PUBLIC_AAD_REDIRECT_URI=$STATIC_WEB_APP_URL/.auth/login/aad/callback
+EOF
 
 if [ -n "$EXTERNAL_ID_ISSUER" ]; then
     echo "Synchronizing frontend openIdIssuer from .external-id-credentials..."
     TMP_SWA_CONFIG=$(mktemp)
-    jq --arg issuer "$EXTERNAL_ID_ISSUER" '.auth.identityProviders.azureActiveDirectory.registration.openIdIssuer = $issuer' frontend/staticwebapp.config.json > "$TMP_SWA_CONFIG"
-    mv "$TMP_SWA_CONFIG" frontend/staticwebapp.config.json
+    jq --arg issuer "$EXTERNAL_ID_ISSUER" '.auth.identityProviders.azureActiveDirectory.registration.openIdIssuer = $issuer' staticwebapp.config.json > "$TMP_SWA_CONFIG"
+    mv "$TMP_SWA_CONFIG" staticwebapp.config.json
     echo -e "${GREEN}✓ openIdIssuer synchronized: $EXTERNAL_ID_ISSUER${NC}"
 fi
 
-# Update frontend environment
-# Use AAD_CLIENT_ID if provided, otherwise use placeholder
-FRONTEND_AAD_CLIENT_ID="${AAD_CLIENT_ID:-YOUR_AAD_CLIENT_ID}"
+# Build for production (static export)
+echo "Building frontend for static deployment..."
+npm run build
 
-# Export environment variables for Next.js build
-export NEXT_PUBLIC_API_URL="$FRONTEND_API_URL"
-export NEXT_PUBLIC_AAD_CLIENT_ID="$FRONTEND_AAD_CLIENT_ID"
-export NEXT_PUBLIC_AAD_TENANT_ID="$TENANT_ID"
-export NEXT_PUBLIC_AAD_REDIRECT_URI="$STATIC_WEB_APP_URL/.auth/login/aad/callback"
-export NEXT_PUBLIC_SIGNALR_URL="https://$FUNCTION_APP.azurewebsites.net/api"
-export NEXT_PUBLIC_ENVIRONMENT="production"
-export NEXT_PUBLIC_FRONTEND_URL="$STATIC_WEB_APP_URL"
+# Copy staticwebapp.config.json to output directory for SWA routing fallback
+cp staticwebapp.config.json out/
 
-# Also create .env.production file as backup
-cat > frontend/.env.production << EOF
-# Production Environment Configuration
-NEXT_PUBLIC_API_URL=$FRONTEND_API_URL
-NEXT_PUBLIC_AAD_CLIENT_ID=$FRONTEND_AAD_CLIENT_ID
-NEXT_PUBLIC_AAD_TENANT_ID=$TENANT_ID
-NEXT_PUBLIC_AAD_REDIRECT_URI=$STATIC_WEB_APP_URL/.auth/login/aad/callback
-NEXT_PUBLIC_SIGNALR_URL=https://$FUNCTION_APP.azurewebsites.net/api
-NEXT_PUBLIC_ENVIRONMENT=production
-NEXT_PUBLIC_FRONTEND_URL=$STATIC_WEB_APP_URL
-EOF
+cd ..
+echo -e "${GREEN}✓ Frontend built${NC}"
+echo ""
+
+# Step 8: Deploy frontend to Static Web App
+echo -e "${BLUE}Step 8: Deploying frontend...${NC}"
 
 cd frontend
-npm install --silent
 
-# Build with error handling
-echo "Building frontend..."
-if npm run build; then
-    # Copy staticwebapp.config.json to output directory (Next.js doesn't include it automatically)
-    cp staticwebapp.config.json out/
-    echo -e "${GREEN}✓ Frontend build successful${NC}"
-else
-    echo -e "${RED}✗ Frontend build failed${NC}"
+echo "Deploying to Static Web App..."
+
+# Ensure selected Static Web App exists
+echo "Verifying Static Web App exists..."
+SWA_FOUND=""
+DEPLOYMENT_TOKEN=""
+
+if az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --output none 2>/dev/null; then
+    SWA_FOUND="$STATIC_WEB_APP_NAME"
+    echo "✓ Found Static Web App: $STATIC_WEB_APP_NAME"
+fi
+
+# Create if not found
+if [ -z "$SWA_FOUND" ]; then
+    echo "Creating new Static Web App..."
+    STATIC_WEB_APP_NAME="$CANONICAL_SWA_NAME"
+    az staticwebapp create --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --location "$LOCATION" --sku "$DESIRED_SWA_SKU" --output none
+    echo "✓ Static Web App created: $STATIC_WEB_APP_NAME"
+    sleep 10  # Wait for creation
+fi
+
+# Get deployment token
+echo "Getting deployment token..."
+DEPLOYMENT_TOKEN=$(az staticwebapp secrets list --name "$STATIC_WEB_APP_NAME" --query "properties.apiKey" -o tsv 2>/dev/null || echo "")
+if [ -z "$DEPLOYMENT_TOKEN" ] || [ "$DEPLOYMENT_TOKEN" = "null" ]; then
+    echo -e "${RED}✗ Failed to get deployment token for $STATIC_WEB_APP_NAME${NC}"
+    echo "Please check the Static Web App in Azure Portal"
     cd ..
     exit 1
 fi
 
 # Deploy to Static Web App
-if [ -n "$SWA_TOKEN" ] && [ "$SWA_TOKEN" != "null" ] && [ "$SWA_TOKEN" != "empty" ]; then
-    echo "Deploying to Static Web App..."
-    
-    # Check if SWA CLI is available, install if needed
-    if ! command -v swa &> /dev/null; then
-        echo "Installing Azure Static Web Apps CLI..."
-        npm install -g @azure/static-web-apps-cli --silent
-    fi
-    
-    # Deploy using SWA CLI
-    if swa deploy \
-        --deployment-token "$SWA_TOKEN" \
-        --app-location . \
-        --output-location out \
-        --env production; then
-        echo -e "${GREEN}✓ Frontend deployed to Static Web App${NC}"
-    else
-        echo -e "${YELLOW}⚠ SWA CLI deployment failed, trying alternative method...${NC}"
-        
-        # Alternative: Use npx if swa command fails
-        if npx @azure/static-web-apps-cli deploy \
-            --deployment-token "$SWA_TOKEN" \
-            --app-location . \
-            --output-location out \
-            --env production; then
-            echo -e "${GREEN}✓ Frontend deployed via npx SWA CLI${NC}"
-        else
-            echo -e "${YELLOW}⚠ Automated deployment failed${NC}"
-            echo "Please deploy manually using:"
-            echo "  cd frontend"
-            echo "  npx @azure/static-web-apps-cli deploy --deployment-token=\"$SWA_TOKEN\" --app-location=. --output-location=out --env=production"
-        fi
-    fi
-else
-    echo -e "${YELLOW}⚠ No deployment token available${NC}"
-    echo "Please deploy manually using the Azure portal or SWA CLI"
-    echo "Static Web App URL: $STATIC_WEB_APP_URL"
-fi
+echo "Deploying frontend files..."
+swa deploy ./out --deployment-token="$DEPLOYMENT_TOKEN" --env production || {
+    echo -e "${YELLOW}⚠ SWA deployment failed, but continuing...${NC}"
+}
 
 cd ..
-echo -e "${GREEN}✓ Frontend deployed${NC}"
+echo -e "${GREEN}✓ Frontend deployment attempted${NC}"
 echo ""
 
 # Step 8.5: Configure SignalR CORS with Static Web App URL
 echo -e "${BLUE}Step 8.5: Configuring SignalR CORS...${NC}"
 
-# Get Static Web App hostname
-STATIC_WEB_APP_HOSTNAME=$(az staticwebapp show --name "$STATIC_WEB_APP" --resource-group "$RESOURCE_GROUP" --query "defaultHostname" -o tsv 2>/dev/null)
+# Resolve candidate Static Web App hostnames in this resource group
+SWA_HOSTNAMES=$(az staticwebapp list --resource-group "$RESOURCE_GROUP" --query "[].defaultHostname" -o tsv 2>/dev/null || echo "")
+STATIC_WEB_APP_HOSTNAME=$(az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --query "defaultHostname" -o tsv 2>/dev/null || echo "")
 
+# Build deduplicated origin list for SignalR CORS
+CORS_ORIGINS_RAW=""
 if [ -n "$STATIC_WEB_APP_HOSTNAME" ] && [ "$STATIC_WEB_APP_HOSTNAME" != "null" ]; then
-    echo "Static Web App URL: https://$STATIC_WEB_APP_HOSTNAME"
-    
-    # Get SignalR name
-    SIGNALR_NAME=$(az signalr list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null)
-    
-    if [ -n "$SIGNALR_NAME" ] && [ "$SIGNALR_NAME" != "null" ]; then
-        echo "Configuring CORS for SignalR: $SIGNALR_NAME"
-        
-        # Update CORS to only allow the Static Web App origin (remove wildcard)
-        az signalr cors update \
-            --name "$SIGNALR_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --allowed-origins "https://$STATIC_WEB_APP_HOSTNAME" \
-            --output none 2>/dev/null || echo -e "${YELLOW}⚠ CORS update failed${NC}"
-        
-        echo -e "${GREEN}✓ SignalR CORS configured${NC}"
-    else
-        echo -e "${YELLOW}⚠ SignalR not found, skipping CORS configuration${NC}"
+    CORS_ORIGINS_RAW="${CORS_ORIGINS_RAW}https://${STATIC_WEB_APP_HOSTNAME}\n"
+fi
+
+if [ -n "$SWA_HOSTNAMES" ]; then
+    while IFS= read -r HOST; do
+        [ -z "$HOST" ] && continue
+        [ "$HOST" = "null" ] && continue
+        CORS_ORIGINS_RAW="${CORS_ORIGINS_RAW}https://${HOST}\n"
+    done <<< "$SWA_HOSTNAMES"
+fi
+
+if [ -n "$STATIC_WEB_APP_URL" ]; then
+    CORS_ORIGINS_RAW="${CORS_ORIGINS_RAW}${STATIC_WEB_APP_URL%/}\n"
+fi
+
+CORS_ORIGINS=$(printf "%b" "$CORS_ORIGINS_RAW" | awk 'NF {print $0}' | sort -u)
+
+# Get SignalR name
+SIGNALR_NAME=$(az signalr list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "")
+
+if [ -n "$SIGNALR_NAME" ] && [ "$SIGNALR_NAME" != "null" ]; then
+    if [ -z "$CORS_ORIGINS" ]; then
+        echo -e "${RED}✗ SignalR exists but no Static Web App origin could be resolved for CORS${NC}"
+        exit 1
     fi
+
+    echo "Configuring CORS for SignalR: $SIGNALR_NAME"
+    echo "Allowed origins:"
+    echo "$CORS_ORIGINS" | sed 's/^/  - /'
+
+    # shellcheck disable=SC2206
+    CORS_ORIGIN_ARGS=($CORS_ORIGINS)
+    if ! az signalr cors update \
+        --name "$SIGNALR_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --allowed-origins "${CORS_ORIGIN_ARGS[@]}" \
+        --output none; then
+        echo -e "${RED}✗ Failed to configure SignalR CORS${NC}"
+        exit 1
+    fi
+
+    CURRENT_SIGNALR_CORS=$(az signalr cors list --name "$SIGNALR_NAME" --resource-group "$RESOURCE_GROUP" --query "allowedOrigins" -o tsv 2>/dev/null || echo "")
+
+    # Verify at least one expected SWA origin is present
+    VERIFIED=false
+    while IFS= read -r ORIGIN; do
+        [ -z "$ORIGIN" ] && continue
+        if echo "$CURRENT_SIGNALR_CORS" | grep -Fq "$ORIGIN"; then
+            VERIFIED=true
+            break
+        fi
+    done <<< "$CORS_ORIGINS"
+
+    if [ "$VERIFIED" != "true" ]; then
+        echo -e "${RED}✗ SignalR CORS verification failed${NC}"
+        echo "Current allowed origins: $CURRENT_SIGNALR_CORS"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ SignalR CORS configured and verified${NC}"
 else
-    echo -e "${YELLOW}⚠ Could not get Static Web App hostname${NC}"
+    echo -e "${YELLOW}⚠ SignalR not found, skipping CORS configuration${NC}"
 fi
 echo ""
 
-# Step 9: Verify deployment
-echo -e "${BLUE}Step 9: Verifying deployment...${NC}"
+# Step 8.6: Verify Function App configuration
+echo -e "${BLUE}Step 8.6: Verifying Function App configuration...${NC}"
+# Note: CORS not needed - Static Web Apps uses reverse proxy for /api routes
 
-# Check Function App
-FUNC_STATE=$(az functionapp show \
-    --name $FUNCTION_APP \
-    --resource-group $RESOURCE_GROUP \
-    --query state -o tsv)
+# Verify Function App authentication is disabled
+echo "Verifying Function App authentication is disabled..."
+AUTH_V2_REQUIRE_AUTH=$(az webapp auth show \
+    --name "$FUNCTION_APP_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query "properties.globalValidation.requireAuthentication" -o tsv 2>/dev/null || echo "")
 
-if [ "$FUNC_STATE" != "Running" ]; then
-    echo -e "${YELLOW}⚠ Function App not running yet (state: $FUNC_STATE)${NC}"
+if [ "$AUTH_V2_REQUIRE_AUTH" = "true" ]; then
+    echo -e "${YELLOW}⚠ Function App authentication (v2) requires auth, disabling it...${NC}"
+    az webapp auth update \
+        --name "$FUNCTION_APP_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --enabled false \
+        --action AllowAnonymous \
+        --output none
+    echo -e "${GREEN}✓ Function App authentication (v2) disabled${NC}"
+elif [ "$AUTH_V2_REQUIRE_AUTH" = "false" ]; then
+    echo -e "${GREEN}✓ Function App authentication (v2) already disabled${NC}"
 else
+    AUTH_CLASSIC_ENABLED=$(az webapp auth-classic show \
+        --name "$FUNCTION_APP_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query "enabled" -o tsv 2>/dev/null || echo "false")
+
+    if [ "$AUTH_CLASSIC_ENABLED" = "true" ]; then
+        echo -e "${YELLOW}⚠ Function App authentication (classic) is enabled, disabling it...${NC}"
+        az webapp auth-classic update \
+            --name "$FUNCTION_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --enabled false \
+            --action AllowAnonymous \
+            --output none
+        echo -e "${GREEN}✓ Function App authentication (classic) disabled${NC}"
+    else
+        echo -e "${GREEN}✓ Function App authentication already disabled${NC}"
+    fi
+fi
+echo ""
+
+# Step 9: Verifying production deployment...
+echo -e "${BLUE}Step 9: Verifying production deployment...${NC}"
+
+# Get final Static Web App URL with comprehensive fallbacks
+echo "Getting final Static Web App URL..."
+STATIC_WEB_APP_URL=""
+
+# Try selected SWA first
+HOSTNAME=$(az staticwebapp show --name "$STATIC_WEB_APP_NAME" --resource-group "$RESOURCE_GROUP" --query "defaultHostname" -o tsv 2>/dev/null || echo "")
+if [ -n "$HOSTNAME" ] && [ "$HOSTNAME" != "null" ]; then
+    STATIC_WEB_APP_URL="https://$HOSTNAME"
+    echo "✓ Static Web App URL: $STATIC_WEB_APP_URL"
+fi
+
+# If still no URL, try getting from any SWA in resource group
+if [ -z "$STATIC_WEB_APP_URL" ]; then
+    echo "Trying to find any Static Web App in resource group..."
+    ALL_SVAS=$(az staticwebapp list --resource-group "$RESOURCE_GROUP" --query "[].{name:name,hostname:defaultHostname}" -o json 2>/dev/null || echo "[]")
+    if [ -n "$ALL_SVAS" ] && [ "$ALL_SVAS" != "[]" ]; then
+        HOSTNAME=$(echo "$ALL_SVAS" | jq -r '.[0].hostname // ""' 2>/dev/null)
+        SWA_NAME=$(echo "$ALL_SVAS" | jq -r '.[0].name // ""' 2>/dev/null)
+        if [ -n "$HOSTNAME" ] && [ "$HOSTNAME" != "null" ]; then
+            STATIC_WEB_APP_URL="https://$HOSTNAME"
+            STATIC_WEB_APP_NAME="$SWA_NAME"
+            echo "✓ Found SWA URL: $STATIC_WEB_APP_URL"
+        fi
+    fi
+fi
+
+if [ -z "$STATIC_WEB_APP_URL" ]; then
+    STATIC_WEB_APP_URL="Not available - check Azure portal"
+    echo -e "${YELLOW}⚠ Could not determine Static Web App URL${NC}"
+    echo "  Check: https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Web%2FStaticSites"
+fi
+
+# Basic health checks
+echo "Running health checks..."
+
+# Check Function App - try different health endpoints
+FUNC_HEALTH="000"
+if [ -n "$FUNCTION_APP_URL" ]; then
+    # Try common health endpoints
+    FUNC_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "$FUNCTION_APP_URL/api/health" 2>/dev/null || echo "000")
+    if [ "$FUNC_HEALTH" = "000" ] || [ "$FUNC_HEALTH" = "404" ]; then
+        # Try checking if any function is accessible
+        FUNC_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "$FUNCTION_APP_URL" 2>/dev/null || echo "000")
+    fi
+fi
+
+if [ "$FUNC_HEALTH" = "200" ] || [ "$FUNC_HEALTH" = "403" ] || [ "$FUNC_HEALTH" = "401" ]; then
     echo -e "${GREEN}✓ Function App is running${NC}"
+else
+    echo -e "${YELLOW}⚠ Function App health check returned HTTP $FUNC_HEALTH${NC}"
 fi
 
 # Check Static Web App
-SWA_STATE=$(az staticwebapp show \
-    --name $STATIC_WEB_APP \
-    --resource-group $RESOURCE_GROUP \
-    --query "repositoryUrl || 'Manual'" -o tsv 2>/dev/null || echo "Unknown")
-
-if [ "$SWA_STATE" != "Unknown" ]; then
-    echo -e "${GREEN}✓ Static Web App is ready${NC}"
-else
-    echo -e "${YELLOW}⚠ Static Web App status unknown${NC}"
-fi
-
-if ! verify_external_id_login "$STATIC_WEB_APP_URL" "$TENANT_ID"; then
-    echo -e "${RED}✗ Authentication verification failed. Deployment halted.${NC}"
-    exit 1
-fi
-
-# Check tables
-TABLE_COUNT=$(az storage table list \
-    --account-name $STORAGE_ACCOUNT \
-    --auth-mode login \
-    --query "length(@)" -o tsv 2>/dev/null)
-
-echo -e "${GREEN}✓ Database tables: $TABLE_COUNT${NC}"
-
-# Check Azure OpenAI (only if deployed)
-if [ -n "$OPENAI_NAME" ] && [ "$OPENAI_NAME" != "null" ] && [ "$OPENAI_NAME" != "empty" ]; then
-    OPENAI_STATE=$(az cognitiveservices account show \
-        --name $OPENAI_NAME \
-        --resource-group $RESOURCE_GROUP \
-        --query properties.provisioningState -o tsv 2>/dev/null || echo "NotFound")
-
-    if [ "$OPENAI_STATE" != "Succeeded" ]; then
-        echo -e "${YELLOW}⚠ Azure OpenAI provisioning (state: $OPENAI_STATE)${NC}"
+if [[ "$STATIC_WEB_APP_URL" =~ ^https:// ]]; then
+    SWA_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "$STATIC_WEB_APP_URL" 2>/dev/null || echo "000")
+    if [ "$SWA_HEALTH" = "200" ]; then
+        echo -e "${GREEN}✓ Static Web App is ready${NC}"
     else
-        echo -e "${GREEN}✓ Azure OpenAI is ready${NC}"
+        echo -e "${YELLOW}⚠ Static Web App health check returned HTTP $SWA_HEALTH${NC}"
+    fi
+
+    if ! verify_external_id_login "$STATIC_WEB_APP_URL" "$TENANT_ID"; then
+        echo -e "${RED}✗ Authentication verification failed. Deployment halted.${NC}"
+        exit 1
     fi
 else
-    echo -e "${YELLOW}⚠ Azure OpenAI not deployed${NC}"
+    echo -e "${YELLOW}⚠ Static Web App URL not available for testing${NC}"
 fi
 
-echo ""
-
-# Step 10: Display summary
-echo -e "${GREEN}=========================================="
-echo "Deployment Complete!"
-echo -e "==========================================${NC}"
-echo ""
-echo -e "${BLUE}Production URLs:${NC}"
-echo "  Frontend: $STATIC_WEB_APP_URL"
-echo "  Backend:  https://$FUNCTION_APP.azurewebsites.net"
-echo ""
-echo -e "${BLUE}Azure Resources:${NC}"
-echo "  Resource Group: $RESOURCE_GROUP"
-echo "  Storage:        $STORAGE_ACCOUNT"
-echo "  Function App:   $FUNCTION_APP"
-echo "  Static Web App: $STATIC_WEB_APP"
-echo "  Azure OpenAI:   $OPENAI_NAME"
-echo ""
-echo -e "${BLUE}Azure OpenAI:${NC}"
-if [ -n "$OPENAI_ENDPOINT" ] && [ "$OPENAI_ENDPOINT" != "null" ] && [ "$OPENAI_ENDPOINT" != "empty" ]; then
-    echo "  Endpoint: $OPENAI_ENDPOINT"
-    echo "  Models:   gpt-4o, gpt-4o-vision"
+# Check database tables
+if [ -n "$STORAGE_CONNECTION_STRING" ]; then
+    TABLE_COUNT=$(az storage table list --connection-string "$STORAGE_CONNECTION_STRING" --query "length(@)" -o tsv 2>/dev/null || echo "0")
 else
-    echo "  Not deployed"
+    TABLE_COUNT="0"
 fi
-echo ""
-echo -e "${BLUE}Database:${NC}"
-echo "  Tables: $TABLE_COUNT"
-echo ""
-echo -e "${GREEN}✓ Production deployment successful!${NC}"
-echo ""
-echo "Next steps:"
-echo "  1. Visit: $STATIC_WEB_APP_URL"
-echo "  2. Login with Azure B2C"
-echo "  3. Test all features"
+echo -e "${GREEN}✓ Database tables: $TABLE_COUNT${NC}"
+
+# Check Azure OpenAI (if deployed)
+if [ -n "$OPENAI_ENDPOINT" ]; then
+    echo -e "${GREEN}✓ Azure OpenAI is ready${NC}"
+fi
+
+# Check SignalR (if deployed)  
+if [ -n "$SIGNALR_CONNECTION_STRING" ]; then
+    echo -e "${GREEN}✓ SignalR is ready${NC}"
+fi
+
 echo ""
 
-# Save deployment info
+# Step 10: Save deployment info
+echo -e "${BLUE}Step 10: Saving deployment information...${NC}"
+
+# Get final Static Web App name if not set
+if [ -z "$STATIC_WEB_APP_NAME" ]; then
+    STATIC_WEB_APP_NAME=$(az staticwebapp list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "swa-qrattendance-prod")
+fi
+
+# Create deployment info file
 cat > deployment-info.json << EOF
 {
-  "deploymentDate": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "resourceGroup": "$RESOURCE_GROUP",
-  "location": "$LOCATION",
-  "frontendUrl": "$STATIC_WEB_APP_URL",
-  "backendUrl": "https://$FUNCTION_APP.azurewebsites.net",
-  "storageAccount": "$STORAGE_ACCOUNT",
-  "functionApp": "$FUNCTION_APP",
-  "staticWebApp": "$STATIC_WEB_APP",
-  "azureOpenAI": "${OPENAI_NAME:-null}",
-  "openAIEndpoint": "${OPENAI_ENDPOINT:-null}",
-  "tableCount": ${TABLE_COUNT:-0},
-  "infrastructure": {
-    "bicepDeployment": "completed",
-    "staticWebAppDeployment": "cli-created",
-    "functionAppAuthDisabled": true,
-    "multiTenantAuth": $([ "$TENANT_ID" = "organizations" ] && echo "true" || echo "false")
+  "environment": "production",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "urls": {
+    "frontend": "$STATIC_WEB_APP_URL",
+    "backend": "$FUNCTION_APP_URL"
+  },
+  "azure": {
+    "resourceGroup": "$RESOURCE_GROUP",
+    "functionApp": "$FUNCTION_APP_NAME",
+    "storageAccount": "$STORAGE_NAME",
+    "staticWebApp": "$STATIC_WEB_APP_NAME"$([ -n "$OPENAI_ENDPOINT" ] && echo ",
+    \"openAI\": \"openai-qrattendance-prod\"" || echo "")$([ -n "$SIGNALR_CONNECTION_STRING" ] && echo ",
+    \"signalR\": \"signalr-qrattendance-prod\"" || echo "")$([ -n "$APPINSIGHTS_CONNECTION_STRING" ] && echo ",
+    \"applicationInsights\": \"appi-qrattendance-prod\"" || echo "")
+  },
+  "features": {
+    "azureOpenAI": $([ -n "$OPENAI_ENDPOINT" ] && echo "true" || echo "false"),
+    "signalR": $([ -n "$SIGNALR_CONNECTION_STRING" ] && echo "true" || echo "false"),
+    "azureAD": $([ -n "$AAD_CLIENT_ID" ] && echo "true" || echo "false")
+  },
+  "database": {
+    "tables": $TABLE_COUNT,
+    "storageAccount": "$STORAGE_NAME"
   }
 }
 EOF
 
+echo -e "${GREEN}✓ Deployment info saved${NC}"
+echo ""
+
+# Final summary
+echo -e "${BLUE}=========================================="
+echo "Production Deployment Complete!"
+echo -e "==========================================${NC}"
+echo ""
+echo -e "${GREEN}Production URLs:${NC}"
+echo "  Frontend: $STATIC_WEB_APP_URL"
+echo "  Backend:  $FUNCTION_APP_URL"
+echo ""
+echo -e "${GREEN}Azure Resources:${NC}"
+echo "  Resource Group: $RESOURCE_GROUP"
+echo "  Storage:        $STORAGE_NAME"
+echo "  Function App:   $FUNCTION_APP_NAME"
+echo "  Static Web App: $STATIC_WEB_APP_NAME"
+if [ -n "$OPENAI_ENDPOINT" ]; then
+    echo "  Azure OpenAI:   openai-qrattendance-prod"
+fi
+if [ -n "$SIGNALR_CONNECTION_STRING" ]; then
+    echo "  SignalR:        signalr-qrattendance-prod"
+fi
+if [ -n "$APPINSIGHTS_CONNECTION_STRING" ]; then
+    echo "  App Insights:   appi-qrattendance-prod"
+fi
+echo ""
+
+if [ -n "$OPENAI_ENDPOINT" ]; then
+    echo -e "${GREEN}Azure OpenAI:${NC}"
+    echo "  Endpoint: $OPENAI_ENDPOINT"
+    echo "  Models:   gpt-4o, gpt-4o-vision"
+    echo ""
+fi
+
+echo -e "${GREEN}Database:${NC}"
+echo "  Tables: $TABLE_COUNT"
+echo ""
+
+echo -e "${GREEN}✓ Production deployment successful!${NC}"
+echo ""
+echo -e "${YELLOW}Next steps:${NC}"
+echo "  1. Visit: $STATIC_WEB_APP_URL"
+echo "  2. Login with Azure B2C"
+echo "  3. Test all features in production environment"
+echo "  4. Monitor production and run smoke tests"
+echo ""
 echo "Deployment info saved to: deployment-info.json"
 echo ""

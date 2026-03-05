@@ -11,12 +11,53 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Configuration
-RESOURCE_GROUP="rg-qr-attendance-dev"
+usage() {
+    echo "Usage: $0 [-e <environment>] [-g <resource-group>]"
+    echo ""
+    echo "Options:"
+    echo "  -e, --environment     Environment (dev|staging|prod). Default: dev"
+    echo "  -g, --resource-group  Resource group name. Default: rg-qr-attendance-<environment>"
+    echo "  -h, --help            Show this help"
+    exit 1
+}
+
+ENVIRONMENT="dev"
+RESOURCE_GROUP=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -e|--environment)
+            ENVIRONMENT="$2"
+            shift 2
+            ;;
+        -g|--resource-group)
+            RESOURCE_GROUP="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+if [[ ! "$ENVIRONMENT" =~ ^(dev|staging|prod)$ ]]; then
+    echo -e "${RED}✗ Invalid environment: $ENVIRONMENT${NC}"
+    echo "  Use one of: dev, staging, prod"
+    exit 1
+fi
+
+RESOURCE_GROUP="${RESOURCE_GROUP:-rg-qr-attendance-${ENVIRONMENT}}"
 
 echo -e "${BLUE}=========================================="
 echo "Quick Backend Deployment"
 echo -e "==========================================${NC}"
+echo ""
+echo "Environment: $ENVIRONMENT"
+echo "Resource Group: $RESOURCE_GROUP"
 echo ""
 
 # Get Function App details
@@ -26,7 +67,7 @@ FUNCTION_APP_NAME=$(az functionapp list --resource-group "$RESOURCE_GROUP" --que
 
 if [ -z "$FUNCTION_APP_NAME" ] || [ "$FUNCTION_APP_NAME" = "null" ]; then
     echo -e "${RED}✗ Function App not found${NC}"
-    echo "Run deploy-full-development.sh first to create infrastructure"
+    echo "Run deploy-full-${ENVIRONMENT}.sh first to create infrastructure"
     exit 1
 fi
 
@@ -34,7 +75,7 @@ echo -e "${GREEN}✓ Found Function App: $FUNCTION_APP_NAME${NC}"
 echo ""
 
 echo -e "${YELLOW}ℹ OTP SMTP settings are managed by Bicep during infrastructure deployment.${NC}"
-echo "  Run ./deploy-full-development.sh after updating .otp-email-credentials."
+echo "  Run ./deploy-full-${ENVIRONMENT}.sh after updating .otp-email-credentials."
 echo ""
 
 # Get connection strings
@@ -111,7 +152,7 @@ cat > local.settings.json << EOF
     "AzureOpenAI__Endpoint": "$OPENAI_ENDPOINT",
     "AzureOpenAI__ApiKey": "$OPENAI_KEY",
     "AZURE_OPENAI_API_VERSION": "2025-04-01-preview",
-    "Environment": "dev",
+        "Environment": "$ENVIRONMENT",
     "DEBUG": "*"
   },
   "Host": {

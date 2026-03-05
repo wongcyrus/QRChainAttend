@@ -7,6 +7,11 @@ param storageAccountName string
 @description('Location for the storage account')
 param location string
 
+@description('Allowed origins for blob CORS')
+param blobCorsAllowedOrigins array = [
+  'https://*.azurestaticapps.net'
+]
+
 @description('Tags to apply to the resource')
 param tags object
 
@@ -151,11 +156,7 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
     cors: {
       corsRules: [
         {
-          allowedOrigins: [
-            'https://*.azurestaticapps.net'
-            'http://localhost:3000'
-            'http://127.0.0.1:3000'
-          ]
+          allowedOrigins: blobCorsAllowedOrigins
           allowedMethods: [
             'GET'
             'PUT'

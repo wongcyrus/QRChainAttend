@@ -11,13 +11,61 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Configuration
-RESOURCE_GROUP="rg-qr-attendance-dev"
-STATIC_WEB_APP_NAME="swa-qrattendance-dev"
+usage() {
+    echo "Usage: $0 [-e <environment>] [-g <resource-group>] [-s <static-web-app-name>]"
+    echo ""
+    echo "Options:"
+    echo "  -e, --environment      Environment (dev|staging|prod). Default: dev"
+    echo "  -g, --resource-group   Resource group name. Default: rg-qr-attendance-<environment>"
+    echo "  -s, --static-web-app   Static Web App name. Default: swa-qrattendance-<environment>"
+    echo "  -h, --help             Show this help"
+    exit 1
+}
+
+ENVIRONMENT="dev"
+RESOURCE_GROUP=""
+STATIC_WEB_APP_NAME=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -e|--environment)
+            ENVIRONMENT="$2"
+            shift 2
+            ;;
+        -g|--resource-group)
+            RESOURCE_GROUP="$2"
+            shift 2
+            ;;
+        -s|--static-web-app)
+            STATIC_WEB_APP_NAME="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+if [[ ! "$ENVIRONMENT" =~ ^(dev|staging|prod)$ ]]; then
+    echo -e "${RED}✗ Invalid environment: $ENVIRONMENT${NC}"
+    echo "  Use one of: dev, staging, prod"
+    exit 1
+fi
+
+RESOURCE_GROUP="${RESOURCE_GROUP:-rg-qr-attendance-${ENVIRONMENT}}"
+STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-qrattendance-${ENVIRONMENT}}"
 
 echo -e "${BLUE}=========================================="
 echo "Quick Frontend Deployment"
 echo -e "==========================================${NC}"
+echo ""
+echo "Environment: $ENVIRONMENT"
+echo "Resource Group: $RESOURCE_GROUP"
+echo "Static Web App (preferred): $STATIC_WEB_APP_NAME"
 echo ""
 
 # Load credentials
@@ -33,7 +81,7 @@ echo -e "${BLUE}Step 1: Getting Static Web App details...${NC}"
 
 # Try to find the SWA
 SWA_FOUND=""
-for SWA_NAME in "$STATIC_WEB_APP_NAME" "swa-qrattendance-dev" "$(az staticwebapp list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null)"; do
+for SWA_NAME in "$STATIC_WEB_APP_NAME" "$(az staticwebapp list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null)"; do
     if [ -n "$SWA_NAME" ] && [ "$SWA_NAME" != "null" ]; then
         if az staticwebapp show --name "$SWA_NAME" --resource-group "$RESOURCE_GROUP" --output none 2>/dev/null; then
             STATIC_WEB_APP_NAME="$SWA_NAME"
@@ -45,7 +93,7 @@ done
 
 if [ -z "$SWA_FOUND" ]; then
     echo -e "${RED}✗ Static Web App not found${NC}"
-    echo "Run deploy-full-development.sh first to create infrastructure"
+    echo "Run deploy-full-${ENVIRONMENT}.sh first to create infrastructure"
     exit 1
 fi
 
@@ -58,7 +106,7 @@ echo ""
 
 # Get Function App URL for API configuration
 echo -e "${BLUE}Step 2: Getting Function App URL...${NC}"
-FUNCTION_APP_NAME=$(az functionapp list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "func-qrattendance-dev")
+FUNCTION_APP_NAME=$(az functionapp list --resource-group "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "func-qrattendance-${ENVIRONMENT}")
 FUNCTION_APP_URL="https://${FUNCTION_APP_NAME}.azurewebsites.net"
 
 # Check if SWA has linked backend
@@ -84,7 +132,7 @@ npm install
 # Create environment file
 cat > .env.local << EOF
 NEXT_PUBLIC_API_URL=$FRONTEND_API_URL
-NEXT_PUBLIC_ENVIRONMENT=dev
+NEXT_PUBLIC_ENVIRONMENT=$ENVIRONMENT
 NEXT_PUBLIC_AAD_CLIENT_ID=$AAD_CLIENT_ID
 NEXT_PUBLIC_AAD_TENANT_ID=$TENANT_ID
 NEXT_PUBLIC_AAD_REDIRECT_URI=$STATIC_WEB_APP_URL/.auth/login/aad/callback

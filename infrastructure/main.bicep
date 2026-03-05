@@ -24,12 +24,8 @@ param location string = resourceGroup().location
 @maxLength(20)
 param baseName string = 'qrattendance'
 
-@description('Frontend URLs for CORS configuration (fallback only - Static Web App uses linked backend)')
-param frontendUrls array = [
-  'http://localhost:3000'  // For local development only
-  // Static Web App URLs not needed when using linked backend (reverse proxy)
-  // Add here only if direct Function App access is required
-]
+@description('Frontend URLs for CORS configuration (optional, used for direct API/blob access)')
+param frontendUrls array = []
 
 @description('Deploy Azure OpenAI resource (optional)')
 param deployAzureOpenAI bool = false
@@ -143,6 +139,9 @@ module storage 'modules/storage.bicep' = {
   params: {
     storageAccountName: storageAccountName
     location: location
+    blobCorsAllowedOrigins: length(frontendUrls) > 0 ? frontendUrls : [
+      'https://*.azurestaticapps.net'
+    ]
     tags: tags
   }
 }
@@ -255,8 +254,8 @@ output signalREndpoint string = signalr.outputs.endpoint
 @description('SignalR Service connection string')
 output signalRConnectionString string = signalr.outputs.connectionString
 
-@description('Frontend URL (manually deployed)')
-output frontendUrl string = 'https://agreeable-pebble-05aa6201e.1.azurestaticapps.net'
+@description('Frontend URL hint from provided frontendUrls (if supplied)')
+output frontendUrl string = length(frontendUrls) > 0 ? frontendUrls[0] : ''
 
 @description('Function App name')
 output functionAppName string = functions.outputs.functionAppName
@@ -306,7 +305,7 @@ output deploymentSummary object = {
   location: location
   storageAccount: storage.outputs.storageAccountName
   signalR: signalr.outputs.signalRName
-  frontend: 'CLI-deployed (https://agreeable-pebble-05aa6201e.1.azurestaticapps.net)'
+  frontend: length(frontendUrls) > 0 ? 'CLI-deployed (${frontendUrls[0]})' : 'CLI-deployed (URL set outside Bicep)'
   functionApp: functions.outputs.functionAppName
   appInsights: appInsights.outputs.appInsightsName
   openAI: deployAzureOpenAI ? openai.outputs.openAIName : 'Not deployed'

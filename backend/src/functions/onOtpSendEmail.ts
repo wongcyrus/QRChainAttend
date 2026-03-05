@@ -40,6 +40,15 @@ function parseBoolean(value: string | undefined, defaultValue: boolean): boolean
   return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
 }
 
+function parsePositiveNumber(value: string | undefined, defaultValue: number): number {
+  if (!value) return defaultValue;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return defaultValue;
+  }
+  return parsed;
+}
+
 function buildEmailHtml(otpCode: string, appName: string): string {
   return `
   <html>
@@ -57,23 +66,27 @@ export async function onOtpSendEmail(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const body = (await request.json()) as OnOtpSendRequestBody;
+    const rawBody = await request.text();
+    if (!rawBody || !rawBody.trim()) {
+      context.warn('[onOtpSendEmail] Empty request body; continuing with default behavior');
+      return getOtpSendResponse();
+    }
+
+    let body: OnOtpSendRequestBody;
+    try {
+      body = JSON.parse(rawBody) as OnOtpSendRequestBody;
+    } catch {
+      context.warn('[onOtpSendEmail] Invalid JSON payload; continuing with default behavior');
+      return getOtpSendResponse();
+    }
 
     const recipientEmail = body?.data?.otpContext?.identifier;
     const otpCode = body?.data?.otpContext?.oneTimeCode || body?.data?.otpContext?.onetimecode;
     const correlationId = body?.data?.authenticationContext?.correlationId || 'n/a';
 
     if (!recipientEmail || !otpCode) {
-      context.error(`[onOtpSendEmail] Invalid payload. correlationId=${correlationId}`);
-      return {
-        status: 400,
-        jsonBody: {
-          error: {
-            code: 'INVALID_REQUEST',
-            message: 'Missing otpContext.identifier or otpContext.oneTimeCode'
-          }
-        }
-      };
+      context.warn(`[onOtpSendEmail] Missing required OTP fields. correlationId=${correlationId}. Continuing with default behavior`);
+      return getOtpSendResponse();
     }
 
     const smtpHost = process.env.OTP_SMTP_HOST || 'smtp.gmail.com';
@@ -85,24 +98,24 @@ export async function onOtpSendEmail(
     const fromName = process.env.OTP_FROM_NAME || 'QR Chain Attend';
     const subject = process.env.OTP_EMAIL_SUBJECT || 'Your verification code';
     const appName = process.env.OTP_APP_NAME || 'QR Chain Attend';
+    const smtpConnectionTimeoutMs = parsePositiveNumber(process.env.OTP_SMTP_CONNECTION_TIMEOUT_MS, 1200);
+    const smtpGreetingTimeoutMs = parsePositiveNumber(process.env.OTP_SMTP_GREETING_TIMEOUT_MS, 1200);
+    const smtpSocketTimeoutMs = parsePositiveNumber(process.env.OTP_SMTP_SOCKET_TIMEOUT_MS, 1500);
+    const smtpDnsTimeoutMs = parsePositiveNumber(process.env.OTP_SMTP_DNS_TIMEOUT_MS, 1000);
 
     if (!smtpUser || !smtpPass || !fromEmail) {
-      context.error('[onOtpSendEmail] Missing SMTP environment variables');
-      return {
-        status: 500,
-        jsonBody: {
-          error: {
-            code: 'CONFIG_ERROR',
-            message: 'Missing OTP SMTP configuration'
-          }
-        }
-      };
+      context.warn('[onOtpSendEmail] Missing SMTP environment variables; continuing with default behavior');
+      return getOtpSendResponse();
     }
 
     const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
       secure: smtpSecure,
+      connectionTimeout: smtpConnectionTimeoutMs,
+      greetingTimeout: smtpGreetingTimeoutMs,
+      socketTimeout: smtpSocketTimeoutMs,
+      dnsTimeout: smtpDnsTimeoutMs,
       auth: {
         user: smtpUser,
         pass: smtpPass
@@ -120,16 +133,8 @@ export async function onOtpSendEmail(
     context.log(`[onOtpSendEmail] OTP sent. correlationId=${correlationId} recipient=${recipientEmail}`);
     return getOtpSendResponse();
   } catch (error: any) {
-    context.error(`[onOtpSendEmail] Failed to send OTP: ${error?.message || 'unknown error'}`);
-    return {
-      status: 500,
-      jsonBody: {
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to send OTP email'
-        }
-      }
-    };
+    context.error(`[onOtpSendEmail] Failed to send OTP: ${error?.message || 'unknown error'}. Continuing with default behavior`);
+    return getOtpSendResponse();
   }
 }
 

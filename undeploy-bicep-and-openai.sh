@@ -6,8 +6,52 @@
 set -e
 set -o pipefail
 
-RESOURCE_GROUP="rg-qr-attendance-dev"
+ENVIRONMENT="dev"
+RESOURCE_GROUP=""
 LOCATION="eastus2"
+
+usage() {
+    echo "Usage: $0 [-e <environment>] [-g <resource-group>] [-l <location>]"
+    echo ""
+    echo "Options:"
+    echo "  -e, --environment     Environment (dev|staging|prod). Default: dev"
+    echo "  -g, --resource-group  Resource group. Default: rg-qr-attendance-<environment>"
+    echo "  -l, --location        Azure location. Default: eastus2"
+    echo "  -h, --help            Show this help"
+    exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -e|--environment)
+            ENVIRONMENT="$2"
+            shift 2
+            ;;
+        -g|--resource-group)
+            RESOURCE_GROUP="$2"
+            shift 2
+            ;;
+        -l|--location)
+            LOCATION="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+if [[ ! "$ENVIRONMENT" =~ ^(dev|staging|prod)$ ]]; then
+    echo "✗ Invalid environment: $ENVIRONMENT"
+    echo "  Use one of: dev, staging, prod"
+    exit 1
+fi
+
+RESOURCE_GROUP="${RESOURCE_GROUP:-rg-qr-attendance-${ENVIRONMENT}}"
 
 discover_openai_name() {
     local resource_group="$1"
@@ -18,7 +62,7 @@ discover_openai_name() {
         openai_name=$(az cognitiveservices account list --resource-group "$resource_group" --query "[?kind=='OpenAI'].name | [0]" -o tsv 2>/dev/null || echo "")
     fi
     if [ -z "$openai_name" ] || [ "$openai_name" = "null" ]; then
-        openai_name="openai-qrattendance-dev"
+        openai_name="openai-qrattendance-${ENVIRONMENT}"
     fi
 
     echo "$openai_name"
@@ -42,10 +86,24 @@ echo "=========================================="
 echo "Undeploy Infrastructure"
 echo "=========================================="
 echo ""
-echo "Scope: Development resource group only"
+echo "Scope: $ENVIRONMENT resource group"
 echo "  Resource Group: $RESOURCE_GROUP"
 echo "  Region: $LOCATION"
 echo "  Redeploy: Disabled in this script"
+echo ""
+
+echo "WARNING: This will delete backend infrastructure resources in $RESOURCE_GROUP"
+echo "Static Web App is preserved by design."
+if [ "$ENVIRONMENT" = "prod" ]; then
+    echo ""
+    echo "Production safety confirmation required."
+    echo "Type EXACTLY: DELETE-PROD"
+    read -r CONFIRM_TOKEN
+    if [ "$CONFIRM_TOKEN" != "DELETE-PROD" ]; then
+        echo "✗ Confirmation token mismatch. Aborting."
+        exit 1
+    fi
+fi
 echo ""
 
 # Step 0: Validate Azure tenant/token context
@@ -156,13 +214,13 @@ DELETED_ACCOUNTS=$(az cognitiveservices account list-deleted --query "[?location
 
 if [ -n "$DELETED_ACCOUNTS" ]; then
     for ACCOUNT_NAME in $DELETED_ACCOUNTS; do
-        echo "Purging deleted account (dev scope): $ACCOUNT_NAME"
+        echo "Purging deleted account ($ENVIRONMENT scope): $ACCOUNT_NAME"
         az cognitiveservices account purge --name "$ACCOUNT_NAME" --resource-group "$RESOURCE_GROUP" --location "$LOCATION" 2>/dev/null || true
     done
     echo "Waiting 10 seconds after purge..."
     sleep 10
 else
-    echo "No deleted dev OpenAI account to purge."
+    echo "No deleted $ENVIRONMENT OpenAI account to purge."
 fi
 
 # Final verification for OpenAI cleanup in dev RG
@@ -170,7 +228,7 @@ echo ""
 echo "Step 5: Verifying OpenAI cleanup..."
 REMAINING_OPENAI=$(az cognitiveservices account list --resource-group "$RESOURCE_GROUP" --query "[?name=='$OPENAI_NAME'].name | [0]" -o tsv 2>/dev/null || echo "")
 if [ -z "$REMAINING_OPENAI" ] || [ "$REMAINING_OPENAI" = "null" ]; then
-    echo "✓ OpenAI account removed from dev resource group"
+    echo "✓ OpenAI account removed from $ENVIRONMENT resource group"
 else
     echo "⚠ OpenAI account still present: $REMAINING_OPENAI"
 fi

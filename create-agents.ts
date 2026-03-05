@@ -65,7 +65,7 @@ JSON FORMAT (return EXACTLY this structure):
 }
 
 REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra text.`,
-  model: 'gpt-4.1'
+  model: 'gpt-4o'
 };
 
 const POSITION_AGENT_CONFIG = {
@@ -109,7 +109,7 @@ JSON FORMAT (return EXACTLY this structure):
 }
 
 REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra text.`,
-  model: 'gpt-4.1'
+  model: 'gpt-4o'
 };
 
 interface AgentConfig {
@@ -124,6 +124,12 @@ interface CreateAgentResult {
   agentName: string;
   agentVersion: string;
   model: string;
+}
+
+interface ModelSelection {
+  agentModel: string;
+  visionDeployment: string;
+  availableDeployments: string[];
 }
 
 async function getFoundryHeaders(credential: DefaultAzureCredential): Promise<Record<string, string>> {
@@ -225,7 +231,7 @@ function getProjectCandidates(resourceGroup: string, openaiResource: string, exp
     // Ignore discovery failures and fall back to defaults
   }
 
-  return [...new Set(candidates.filter((value) => value.length > 0))];
+  return Array.from(new Set(candidates.filter((value) => value.length > 0)));
 }
 
 function getProjectProvisioningState(resourceGroup: string, openaiResource: string, projectName: string): string {
@@ -259,6 +265,56 @@ function endpointIsReachable(projectEndpoint: string): boolean {
   } catch {
     return false;
   }
+}
+
+function getOpenAIDeployments(resourceGroup: string, openaiResource: string): string[] {
+  try {
+    const raw = execSync(
+      `az resource list --resource-group "${resourceGroup}" --resource-type "Microsoft.CognitiveServices/accounts/deployments" --query "[?starts_with(name, '${openaiResource}/')].name" -o tsv`,
+      { encoding: 'utf-8' }
+    )
+      .trim()
+      .split('\n')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0 && value !== 'null')
+      .map((value) => (value.includes('/') ? value.split('/')[1] : value));
+
+    return Array.from(new Set(raw));
+  } catch {
+    return [];
+  }
+}
+
+function resolveModelSelection(resourceGroup: string, openaiResource: string): ModelSelection {
+  const availableDeployments = getOpenAIDeployments(resourceGroup, openaiResource);
+
+  const requestedModel = (process.env.AZURE_AI_AGENT_MODEL || '').trim();
+  const requestedVisionDeployment = (process.env.AZURE_OPENAI_VISION_DEPLOYMENT || '').trim();
+
+  const preferredModels = ['gpt-4o', 'gpt-4.1', 'gpt-5.2-chat'];
+  const fallbackModel = preferredModels.find((name) => availableDeployments.includes(name))
+    || availableDeployments[0]
+    || 'gpt-4o';
+
+  const agentModel = requestedModel.length > 0
+    ? requestedModel
+    : fallbackModel;
+
+  if (requestedModel.length > 0 && availableDeployments.length > 0 && !availableDeployments.includes(requestedModel)) {
+    printWarning(`Requested model '${requestedModel}' is not in deployed models: ${availableDeployments.join(', ')}`);
+    printWarning(`Proceeding with requested model override anyway.`);
+  }
+
+  const discoveredVisionDeployment = availableDeployments.find((name) => /vision/i.test(name));
+  const visionDeployment = requestedVisionDeployment.length > 0
+    ? requestedVisionDeployment
+    : (discoveredVisionDeployment || agentModel);
+
+  return {
+    agentModel,
+    visionDeployment,
+    availableDeployments
+  };
 }
 
 const projectBootstrapAttempts = new Set<string>();
@@ -439,6 +495,21 @@ async function main() {
   }
   
   const [resourceGroup, openaiResource, explicitProjectName] = args;
+
+  const modelSelection = resolveModelSelection(resourceGroup, openaiResource);
+  printInfo(`Available OpenAI deployments: ${modelSelection.availableDeployments.length > 0 ? modelSelection.availableDeployments.join(', ') : 'none discovered'}`);
+  printInfo(`Selected agent model: ${modelSelection.agentModel}`);
+  printInfo(`Selected vision deployment: ${modelSelection.visionDeployment}`);
+
+  const quizAgentConfig: AgentConfig = {
+    ...QUIZ_AGENT_CONFIG,
+    model: modelSelection.agentModel
+  };
+
+  const positionAgentConfig: AgentConfig = {
+    ...POSITION_AGENT_CONFIG,
+    model: modelSelection.agentModel
+  };
   
   printInfo('Creating persistent agents using New Agents API');
   console.log('');
@@ -526,7 +597,7 @@ async function main() {
   
   // Create quiz question generation agent
   console.log(`${colors.blue}Creating Quiz Question Generation Agent...${colors.reset}`);
-  const quizAgent = await createAgentWithRecovery(QUIZ_AGENT_CONFIG);
+  const quizAgent = await createAgentWithRecovery(quizAgentConfig);
   
   console.log('');
   console.log('==========================================');
@@ -544,7 +615,7 @@ async function main() {
   
   // Create position estimation agent
   console.log(`${colors.blue}Creating Position Estimation Agent...${colors.reset}`);
-  const positionAgent = await createAgentWithRecovery(POSITION_AGENT_CONFIG);
+  const positionAgent = await createAgentWithRecovery(positionAgentConfig);
   
   console.log('');
   console.log('==========================================');
@@ -581,7 +652,7 @@ AZURE_AI_AGENT_VERSION=${quizAgent.agentVersion}
 AZURE_AI_POSITION_AGENT_NAME=${positionAgent.agentName}
 AZURE_AI_POSITION_AGENT_VERSION=${positionAgent.agentVersion}
 AZURE_OPENAI_API_VERSION=2025-04-01-preview
-AZURE_OPENAI_VISION_DEPLOYMENT=gpt-4.1
+AZURE_OPENAI_VISION_DEPLOYMENT=${modelSelection.visionDeployment}
 AZURE_OPENAI_ENDPOINT=${openaiEndpoint}
 `;
   
@@ -620,7 +691,7 @@ AZURE_OPENAI_ENDPOINT=${openaiEndpoint}
           AZURE_AI_POSITION_AGENT_NAME: positionAgent.agentName,
           AZURE_AI_POSITION_AGENT_VERSION: positionAgent.agentVersion,
           AZURE_OPENAI_API_VERSION: '2025-04-01-preview',
-          AZURE_OPENAI_VISION_DEPLOYMENT: 'gpt-4.1'
+          AZURE_OPENAI_VISION_DEPLOYMENT: modelSelection.visionDeployment
         });
       } else {
         printWarning('No Function App found in resource group');
