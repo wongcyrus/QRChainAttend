@@ -6,6 +6,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
+import { checkSessionAccess } from '../utils/sessionAccess';
 import * as crypto from 'crypto';
 
 function encryptToken(data: any): string {
@@ -38,6 +39,7 @@ async function getEarlyLeaveQR(request: HttpRequest, context: InvocationContext)
     }
 
     const sessionId = request.params.sessionId;
+    const teacherId = getUserId(principal);
     
     if (!sessionId) {
       return {
@@ -46,12 +48,21 @@ async function getEarlyLeaveQR(request: HttpRequest, context: InvocationContext)
       };
     }
 
-    // Verify session exists
+    // Verify session exists and teacher has access
     const sessionsTable = getTableClient(TableNames.SESSIONS);
+    let session: any;
     try {
-      await sessionsTable.getEntity('session', sessionId);
+      session = await sessionsTable.getEntity('SESSION', sessionId);
+      
+      const access = checkSessionAccess(session, teacherId);
+      if (!access.hasAccess) {
+        return {
+          status: 403,
+          jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not have access to this session', timestamp: Date.now() } }
+        };
+      }
     } catch (error: any) {
-      if (error.code === 'ResourceNotFound') {
+      if (error.statusCode === 404 || error.code === 'ResourceNotFound') {
         return {
           status: 404,
           jsonBody: { error: { code: 'SESSION_NOT_FOUND', message: 'Session not found' } }

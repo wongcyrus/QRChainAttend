@@ -6,6 +6,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
+import { checkSessionAccess, getCoTeachers } from '../utils/sessionAccess';
 // Inline types
 interface Session {
   partitionKey: string;
@@ -91,12 +92,15 @@ export async function getSession(
       throw error;
     }
 
-    // Check ownership for teachers
-    if (isTeacher && session.teacherId !== userId) {
-      return {
-        status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not own this session', timestamp: Date.now() } }
-      };
+    // Check ownership for teachers (owner or co-teacher)
+    if (isTeacher) {
+      const access = checkSessionAccess(session, userId);
+      if (!access.hasAccess) {
+        return {
+          status: 403,
+          jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not have access to this session', timestamp: Date.now() } }
+        };
+      }
     }
 
     // Get attendance records
@@ -167,11 +171,13 @@ export async function getSession(
     };
 
     // Build response
+    const coTeachers = getCoTeachers(session);
     const response: any = {
       session: {
         sessionId: session.rowKey,
         classId: session.classId || session.courseName, // Support both new and legacy field names
         teacherId: session.teacherId,
+        coTeachers, // Include co-teachers in response
         startAt: session.startAt || toISOString(session.startTime) || new Date().toISOString(),
         endAt: session.endAt || toISOString(session.endTime),
         lateCutoffMinutes: 15, // Default value

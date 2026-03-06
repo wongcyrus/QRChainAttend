@@ -6,6 +6,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { parseUserPrincipal, hasRole, getUserId, getRolesFromEmail } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
+import { checkSessionAccess } from '../utils/sessionAccess';
 interface UpdateSessionRequest {
   classId?: string;
   startAt?: string;
@@ -74,16 +75,17 @@ export async function updateSession(
 
     const sessionsTable = getTableClient(TableNames.SESSIONS);
     
-    // Verify session exists and belongs to this teacher
+    // Verify session exists and teacher has access (owner or co-teacher)
     let session: any;
     try {
       const entity = await sessionsTable.getEntity('SESSION', sessionId);
       session = entity as any;
       
-      if (session.teacherId !== userId) {
+      const access = checkSessionAccess(session, userId);
+      if (!access.hasAccess) {
         return {
           status: 403,
-          jsonBody: { error: { code: 'FORBIDDEN', message: 'You can only update your own sessions', timestamp: Date.now() } }
+          jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not have access to update this session', timestamp: Date.now() } }
         };
       }
     } catch (error: any) {

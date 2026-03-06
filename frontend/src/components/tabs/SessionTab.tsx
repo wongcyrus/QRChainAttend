@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { SessionEndAndExportControls } from '../SessionEndAndExportControls';
+import { CoTeacherManagement } from '../CoTeacherManagement';
 
 interface Session {
   sessionId: string;
@@ -34,6 +35,7 @@ interface Session {
 interface SessionTabProps {
   session: Session;
   sessionId: string;
+  currentUserId?: string;
   onSessionEnded: (finalAttendance: any) => void;
   onError: (error: string) => void;
 }
@@ -41,9 +43,12 @@ interface SessionTabProps {
 export const SessionTab: React.FC<SessionTabProps> = ({
   session,
   sessionId,
+  currentUserId,
   onSessionEnded,
   onError,
 }) => {
+  const isOwner = currentUserId?.toLowerCase() === session.teacherId?.toLowerCase();
+  
   return (
     <div>
       {/* Session Details */}
@@ -259,6 +264,13 @@ export const SessionTab: React.FC<SessionTabProps> = ({
           onError={onError}
         />
       </div>
+
+      {/* Co-Teacher Management */}
+      <CoTeacherManagement
+        sessionId={sessionId}
+        isOwner={isOwner}
+        onError={onError}
+      />
     </div>
   );
 };

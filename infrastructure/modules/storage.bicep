@@ -141,6 +141,12 @@ resource captureResultsTable 'Microsoft.Storage/storageAccounts/tableServices/ta
   name: 'CaptureResults'
 }
 
+// External teachers table (for granting teacher role to non-VTC emails)
+resource externalTeachersTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'ExternalTeachers'
+}
+
 // ============================================================================
 // BLOB SERVICE
 // ============================================================================

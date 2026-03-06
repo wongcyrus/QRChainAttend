@@ -6,6 +6,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
+import { getCoTeachers } from '../utils/sessionAccess';
 // Inline types
 interface Session {
   partitionKey: string;
@@ -79,8 +80,9 @@ export async function getTeacherSessions(
       };
     }
 
-    // Get sessions from storage
-    const sessions: Session[] = [];
+    // Get sessions from storage (owned + shared with this teacher)
+    const ownedSessions: (Session & { isShared?: boolean })[] = [];
+    const sharedSessions: (Session & { isShared?: boolean })[] = [];
     
     context.log('Querying sessions table for teacherId:', teacherId);
     
@@ -88,20 +90,31 @@ export async function getTeacherSessions(
       const sessionsTable = getTableClient(TableNames.SESSIONS);
       context.log('Table client created successfully');
       
-      // Query all sessions and filter by teacherId
+      // Query all sessions and filter by teacherId or coTeachers
       let entityCount = 0;
+      const teacherIdLower = teacherId.toLowerCase();
+      
       for await (const entity of sessionsTable.listEntities({ 
         queryOptions: { filter: `PartitionKey eq 'SESSION'` } 
       })) {
         entityCount++;
         const session = entity as unknown as Session;
+        
+        // Check if teacher owns this session
         if (session.teacherId === teacherId) {
-          sessions.push(session);
+          ownedSessions.push({ ...session, isShared: false });
+        } else {
+          // Check if teacher is a co-teacher
+          const coTeachers = getCoTeachers(session);
+          if (coTeachers.some(ct => ct.toLowerCase() === teacherIdLower)) {
+            sharedSessions.push({ ...session, isShared: true });
+          }
         }
       }
       
       context.log('Total entities scanned:', entityCount);
-      context.log('Found sessions for teacher:', sessions.length);
+      context.log('Found owned sessions:', ownedSessions.length);
+      context.log('Found shared sessions:', sharedSessions.length);
     } catch (storageError: any) {
       context.error('Storage query error:', storageError);
       context.error('Error name:', storageError.name);
@@ -111,6 +124,9 @@ export async function getTeacherSessions(
       // Return empty sessions instead of error (graceful degradation)
       context.log('Returning empty sessions due to storage error');
     }
+
+    // Combine owned and shared sessions
+    const sessions = [...ownedSessions, ...sharedSessions];
 
     // Sort by start time (most recent first)
     sessions.sort((a, b) => {
@@ -135,9 +151,11 @@ export async function getTeacherSessions(
         sessionId: s.rowKey,
         classId: s.classId || s.courseName,  // Support both field names for backward compatibility
         teacherId: s.teacherId,
+        coTeachers: getCoTeachers(s),
         status: s.status,
         startAt: s.startAt || toISOString(s.startTime) || new Date().toISOString(),
-        endAt: s.endAt || toISOString(s.endTime)
+        endAt: s.endAt || toISOString(s.endTime),
+        isShared: (s as any).isShared || false  // Indicates if this is a shared session
       }))
     };
 

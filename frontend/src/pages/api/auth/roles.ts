@@ -1,7 +1,7 @@
 /**
  * Custom Role Assignment API
  * This endpoint is called by Azure Static Web Apps after authentication
- * to assign custom roles based on email domain
+ * to assign custom roles based on email domain or external teacher table
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -17,7 +17,40 @@ interface RoleResponse {
   roles: string[];
 }
 
-export default function handler(req: NextApiRequest, res: NextApiResponse<RoleResponse>) {
+// External teachers list - fetched from backend
+let externalTeachersCache: Set<string> | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 60000; // 1 minute
+
+async function fetchExternalTeachers(): Promise<Set<string>> {
+  const now = Date.now();
+  if (externalTeachersCache && (now - cacheTimestamp) < CACHE_TTL_MS) {
+    return externalTeachersCache;
+  }
+
+  try {
+    // In production, this calls the backend API
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    const response = await fetch(`${backendUrl}/api/admin/external-teachers`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      const teachers = new Set<string>(
+        (data.teachers || []).map((t: { email: string }) => t.email.toLowerCase())
+      );
+      externalTeachersCache = teachers;
+      cacheTimestamp = now;
+      return teachers;
+    }
+  } catch (error) {
+    // If fetch fails, return empty set (VTC users still work)
+    console.error('Failed to fetch external teachers:', error);
+  }
+
+  return externalTeachersCache || new Set();
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse<RoleResponse>) {
   // Get the authenticated user info from the header
   const clientPrincipalHeader = (req.headers['x-ms-client-principal'] || req.headers['x-client-principal']) as string;
   
@@ -43,6 +76,12 @@ export default function handler(req: NextApiRequest, res: NextApiResponse<RoleRe
       roles.push('student');
     } else if (emailLower.endsWith('@vtc.edu.hk')) {
       roles.push('teacher');
+    } else {
+      // Check external teachers table
+      const externalTeachers = await fetchExternalTeachers();
+      if (externalTeachers.has(emailLower)) {
+        roles.push('teacher');
+      }
     }
     
     return res.status(200).json({ roles });

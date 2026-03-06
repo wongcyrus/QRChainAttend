@@ -144,11 +144,13 @@ interface ChainUpdate {
 
 interface TeacherDashboardProps {
   sessionId: string;
+  currentUserId?: string;
   onError?: (error: string) => void;
 }
 
 const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
   sessionId,
+  currentUserId,
   onError,
 }) => {
   // Tab state
@@ -887,6 +889,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
         <SessionTab
           session={session}
           sessionId={sessionId}
+          currentUserId={currentUserId}
           onSessionEnded={(finalAttendance) => {
             fetchSessionData();
           }}

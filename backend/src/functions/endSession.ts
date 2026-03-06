@@ -6,6 +6,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
+import { checkSessionAccess } from '../utils/sessionAccess';
 
 export async function endSession(
   request: HttpRequest,
@@ -61,11 +62,12 @@ export async function endSession(
       throw error;
     }
 
-    // Verify ownership
-    if (session.teacherId !== teacherId) {
+    // Verify access (owner or co-teacher)
+    const access = checkSessionAccess(session, teacherId);
+    if (!access.hasAccess) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not own this session', timestamp: now } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not have access to this session', timestamp: now } }
       };
     }
 

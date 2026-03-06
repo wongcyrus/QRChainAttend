@@ -666,6 +666,7 @@ export default function TeacherPage() {
         
         <TeacherDashboard 
           sessionId={selectedSessionId}
+          currentUserId={user?.userDetails}
           onError={handleError}
         />
         

@@ -65,8 +65,20 @@ export async function onOtpSendEmail(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
+  context.log('[onOtpSendEmail] Request received');
+  
   try {
-    const rawBody = await request.text();
+    let rawBody: string;
+    try {
+      rawBody = await request.text();
+    } catch (readError: any) {
+      // This catches "Unexpected end of request content" errors
+      context.warn(`[onOtpSendEmail] Failed to read request body: ${readError?.message || 'unknown'}. Continuing with default behavior`);
+      return getOtpSendResponse();
+    }
+    
+    context.log(`[onOtpSendEmail] Body length: ${rawBody?.length || 0}`);
+    
     if (!rawBody || !rawBody.trim()) {
       context.warn('[onOtpSendEmail] Empty request body; continuing with default behavior');
       return getOtpSendResponse();
@@ -76,13 +88,15 @@ export async function onOtpSendEmail(
     try {
       body = JSON.parse(rawBody) as OnOtpSendRequestBody;
     } catch {
-      context.warn('[onOtpSendEmail] Invalid JSON payload; continuing with default behavior');
+      context.warn(`[onOtpSendEmail] Invalid JSON payload (first 200 chars): ${rawBody.substring(0, 200)}. Continuing with default behavior`);
       return getOtpSendResponse();
     }
 
     const recipientEmail = body?.data?.otpContext?.identifier;
     const otpCode = body?.data?.otpContext?.oneTimeCode || body?.data?.otpContext?.onetimecode;
     const correlationId = body?.data?.authenticationContext?.correlationId || 'n/a';
+
+    context.log(`[onOtpSendEmail] Parsed: correlationId=${correlationId}, recipient=${recipientEmail ? 'present' : 'missing'}, otp=${otpCode ? 'present' : 'missing'}`);
 
     if (!recipientEmail || !otpCode) {
       context.warn(`[onOtpSendEmail] Missing required OTP fields. correlationId=${correlationId}. Continuing with default behavior`);
