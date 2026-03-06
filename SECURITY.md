@@ -1,6 +1,6 @@
 # Security Guidelines
 
-Complete security guide for the QR Chain Attendance System.
+Complete security guide for the ProvePresent.
 
 ---
 

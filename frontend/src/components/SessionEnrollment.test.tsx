@@ -1,13 +1,13 @@
 /**
  * Session Enrollment Component Tests
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 13.1
  */
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SessionEnrollment } from './SessionEnrollment';
-import type { SessionQRData } from '@qr-attendance/shared';
+import type { SessionQRData } from '@/types/shared';
 
 // Mock QRScanner component
 jest.mock('./QRScanner', () => ({
@@ -53,7 +53,7 @@ describe('SessionEnrollment', () => {
     it('should render the enrollment page with scan button', () => {
       render(<SessionEnrollment />);
 
-      expect(screen.getByText('QR Chain Attendance')).toBeInTheDocument();
+      expect(screen.getByText('ProvePresent')).toBeInTheDocument();
       expect(screen.getByText('Scan your class session QR code to get started')).toBeInTheDocument();
       expect(screen.getByText('📷 Scan Session QR Code')).toBeInTheDocument();
     });

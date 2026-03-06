@@ -1,6 +1,6 @@
 /**
  * Offline Handling Examples
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirement: 20.5 - Offline message display and handling
  * 
  * This file demonstrates various ways to use the offline handling features.
@@ -439,7 +439,7 @@ export function Example7_AppLayout() {
       
       {/* App content */}
       <div style={{ padding: '20px', marginTop: '60px' }}>
-        <h1>QR Chain Attendance</h1>
+        <h1>ProvePresent</h1>
         <p>This is your app content. The offline indicator will appear at the top when you lose connection.</p>
         
         <div style={{ marginTop: '24px' }}>

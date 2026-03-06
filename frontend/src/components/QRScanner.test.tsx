@@ -1,13 +1,13 @@
 /**
  * QR Scanner Component Unit Tests
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 13.1, 13.5
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { QRScanner } from './QRScanner';
-import type { SessionQRData, ChainQRData, ChainScanResponse } from '@qr-attendance/shared';
+import type { SessionQRData, ChainQRData, ChainScanResponse } from '@/types/shared';
 
 // Mock react-qr-reader
 jest.mock('react-qr-reader', () => ({

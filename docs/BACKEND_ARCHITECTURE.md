@@ -2,7 +2,7 @@
 
 ## Overview
 
-The backend is built on Azure Functions with TypeScript, providing a serverless API for the QR Chain Attendance system.
+The backend is built on Azure Functions with TypeScript, providing a serverless API for the ProvePresent system.
 
 ## Azure Functions Configuration
 

@@ -20,7 +20,7 @@ load_auth_credentials() {
 }
 
 echo -e "${BLUE}=========================================="
-echo "QR Chain Attendance - Development Environment Cleanup"
+echo "ProvePresent - Development Environment Cleanup"
 echo -e "==========================================${NC}"
 echo ""
 

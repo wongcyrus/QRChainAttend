@@ -1,8 +1,8 @@
-# Implementation Plan: QR Chain Attendance System
+# Implementation Plan: ProvePresent System
 
 ## Overview
 
-This implementation plan breaks down the QR Chain Attendance System into discrete, incremental coding tasks. The system will be built using TypeScript with Azure Static Web Apps for the frontend and Azure Functions for the backend. Each task builds on previous work, with testing integrated throughout to validate correctness early.
+This implementation plan breaks down the ProvePresent System into discrete, incremental coding tasks. The system will be built using TypeScript with Azure Static Web Apps for the frontend and Azure Functions for the backend. Each task builds on previous work, with testing integrated throughout to validate correctness early.
 
 The implementation follows a bottom-up approach: core services first, then API endpoints, then frontend components, with integration and real-time features at the end.
 

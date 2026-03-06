@@ -1,6 +1,6 @@
 /**
  * Rotating QR Display Component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 4.1, 4.2, 5.1, 5.2
  * 
  * Displays rotating QR codes for late entry and early leave with auto-refresh.

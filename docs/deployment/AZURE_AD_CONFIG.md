@@ -1,12 +1,12 @@
 # Azure AD Configuration
 
-This document explains the Azure AD configuration for the QR Chain Attendance System.
+This document explains the Azure AD configuration for the ProvePresent.
 
 ## Overview
 
 The system uses Azure AD authentication with the following configuration:
 
-- **App Name**: QR Chain Attendance System  
+- **App Name**: ProvePresent  
 - **Client ID**: `dc482c34-ebaa-4239-aca3-2810a4f51728`
 - **Multi-tenant**: Yes (`organizations`)
 

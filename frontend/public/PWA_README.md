@@ -2,7 +2,7 @@
 
 ## Overview
 
-The QR Chain Attendance system is implemented as a Progressive Web App (PWA), providing native app-like experience on mobile devices with offline capabilities.
+The ProvePresent system is implemented as a Progressive Web App (PWA), providing native app-like experience on mobile devices with offline capabilities.
 
 **Requirements Satisfied:**
 - **20.1**: PWA installability with valid manifest.json and service worker

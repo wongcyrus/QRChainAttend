@@ -1,8 +1,8 @@
-# Design Document: QR Chain Attendance System
+# Design Document: ProvePresent System
 
 ## Overview
 
-The QR Chain Attendance System is an Azure-based classroom attendance solution that uses peer-to-peer QR code chains and rotating QR codes to verify student presence while resisting common cheating methods (screenshots, remote scans, proxy attendance). The system implements a full entry-exit verification cycle with support for late arrivals and early departures.
+The ProvePresent System is an Azure-based classroom attendance solution that uses peer-to-peer QR code chains and rotating QR codes to verify student presence while resisting common cheating methods (screenshots, remote scans, proxy attendance). The system implements a full entry-exit verification cycle with support for late arrivals and early departures.
 
 ### Key Design Principles
 
@@ -1247,14 +1247,14 @@ Both approaches are complementary and necessary. Unit tests catch concrete bugs 
 **Test Configuration**:
 - Minimum 100 iterations per property test (due to randomization)
 - Each property test must reference its design document property
-- Tag format: `// Feature: qr-chain-attendance, Property {number}: {property_text}`
+- Tag format: `// Feature: prove-present, Property {number}: {property_text}`
 
 **Example Property Test Structure**:
 
 ```typescript
 import fc from 'fast-check';
 
-// Feature: qr-chain-attendance, Property 17: Single-use token enforcement
+// Feature: prove-present, Property 17: Single-use token enforcement
 test('Property 17: Tokens can only be scanned once', async () => {
   await fc.assert(
     fc.asyncProperty(

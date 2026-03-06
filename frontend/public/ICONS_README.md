@@ -6,7 +6,7 @@ The PWA manifest requires icon files in PNG format. Currently, placeholder files
 - `icon-192.png.placeholder`
 - `icon-512.png.placeholder`
 
-An SVG template has been created at `icon.svg` that represents the QR Chain Attendance app with:
+An SVG template has been created at `icon.svg` that represents the ProvePresent app with:
 - Blue background (#0078d4)
 - QR code pattern
 - Chain link symbol

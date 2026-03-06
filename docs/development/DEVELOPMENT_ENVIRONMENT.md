@@ -1,6 +1,6 @@
 # Development Environment Guide
 
-This guide explains how to set up and use the development environment for QR Chain Attendance.
+This guide explains how to set up and use the development environment for ProvePresent.
 
 ## 🚀 Quick Start
 
@@ -67,7 +67,7 @@ param deploySignalR = true        // Enabled for real-time features
 param gpt4ModelVersion = '1106-Preview'  // Latest dev version
 param tags = {
   Environment: 'Development'
-  Application: 'QR Chain Attendance'
+  Application: 'ProvePresent'
   ManagedBy: 'Bicep'
   CostCenter: 'Engineering'
 }

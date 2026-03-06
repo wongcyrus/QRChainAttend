@@ -34,12 +34,12 @@ param otpSmtpPassword = readEnvironmentVariable('OTP_SMTP_PASSWORD', '')
 param otpFromEmail = readEnvironmentVariable('OTP_FROM_EMAIL', '')
 param otpFromName = readEnvironmentVariable('OTP_FROM_NAME', 'VTC Attendance')
 param otpEmailSubject = readEnvironmentVariable('OTP_EMAIL_SUBJECT', 'Your verification code')
-param otpAppName = readEnvironmentVariable('OTP_APP_NAME', 'QR Chain Attend')
+param otpAppName = readEnvironmentVariable('OTP_APP_NAME', 'ProvePresent')
 
 // Tags
 param tags = {
   Environment: 'Staging'
-  Application: 'QR Chain Attendance'
+  Application: 'ProvePresent'
   ManagedBy: 'Bicep'
   CostCenter: 'Engineering'
 }

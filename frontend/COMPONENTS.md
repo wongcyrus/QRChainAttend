@@ -1,6 +1,6 @@
 # Frontend Components Guide
 
-This document provides an overview of all React components in the QR Chain Attendance system.
+This document provides an overview of all React components in the ProvePresent system.
 
 ## Teacher Components
 

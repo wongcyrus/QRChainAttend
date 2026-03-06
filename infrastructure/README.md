@@ -469,4 +469,4 @@ For issues or questions:
 
 ## License
 
-This infrastructure code is part of the QR Chain Attendance System project.
+This infrastructure code is part of the ProvePresent project.

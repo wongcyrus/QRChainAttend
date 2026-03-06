@@ -1,4 +1,4 @@
-# QR Chain Attendance System - Project Status
+# ProvePresent - Project Status
 
 **Last Updated**: March 3, 2026  
 **Status**: ✅ PRODUCTION READY - All Features Complete
@@ -370,7 +370,7 @@ Results stored and broadcast to teacher
 3. Scan entry QR
 4. When prompted, allow camera access and capture photo
 5. Answer quiz questions
-6. Pass QR chain
+6. Pass verification chain
 7. Scan exit QR
 
 ---

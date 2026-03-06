@@ -2,7 +2,7 @@
 
 ## Overview
 
-Next.js-based Progressive Web App (PWA) for QR Chain Attendance system.
+Next.js-based Progressive Web App (PWA) for ProvePresent system.
 
 ## Key Features
 

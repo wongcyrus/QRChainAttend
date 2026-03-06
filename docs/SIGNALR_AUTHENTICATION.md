@@ -1,4 +1,4 @@
-# SignalR Authentication in QR Chain Attendance System
+# SignalR Authentication in ProvePresent
 
 ## Overview
 

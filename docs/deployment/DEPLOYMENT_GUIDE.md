@@ -1,7 +1,9 @@
 # Production Deployment Guide
 
-**Last Updated**: March 5, 2026  
+**Last Updated**: March 6, 2026  
 **Status**: ✅ Live and Running
+
+> **Note**: Azure resources use the naming convention `qrattendance-*` for historical reasons. The project has been renamed to ProvePresent but existing Azure deployments retain the original resource names.
 
 ---
 
@@ -9,20 +11,27 @@
 
 ### First Time Setup
 
-**1. Create Azure AD App Registration**
+**1. Set up Azure AD External ID** (Manual - Azure Portal)
+
+Azure AD External ID requires manual configuration through the Azure Portal:
+- Create External ID tenant
+- Create app registration  
+- Configure user flows
+- See **[Azure AD Config Guide](AZURE_AD_CONFIG.md)** for detailed steps
+
+**2. Create credentials file**
 ```bash
-./setup-azure-ad-app.sh
+cp .external-id-credentials.template .external-id-credentials
+# Edit with your Azure AD app credentials
 ```
 
-This creates the Azure AD app and saves credentials to `.external-id-credentials`.
-
-**2. (Optional) Configure OTP Email**
+**3. (Optional) Configure OTP Email**
 ```bash
 cp .otp-email-credentials.example .otp-email-credentials
 # Edit with your SMTP settings
 ```
 
-**3. Deploy to Production**
+**4. Deploy to Production**
 ```bash
 ./deploy-full-production.sh
 ```
@@ -131,7 +140,7 @@ az login
 ```
 
 This script will:
-- Check for existing "QR Chain Attendance" app
+- Check for existing "ProvePresent" app
 - Create new app or reuse existing one
 - Configure redirect URIs for Static Web App
 - Create client secret (2-year expiry)

@@ -64,7 +64,7 @@ load_otp_email_credentials() {
     OTP_SMTP_SECURE="${OTP_SMTP_SECURE:-true}"
     OTP_FROM_NAME="${OTP_FROM_NAME:-VTC Attendance}"
     OTP_EMAIL_SUBJECT="${OTP_EMAIL_SUBJECT:-Your verification code}"
-    OTP_APP_NAME="${OTP_APP_NAME:-QR Chain Attend}"
+    OTP_APP_NAME="${OTP_APP_NAME:-ProvePresent}"
     OTP_FROM_EMAIL="${OTP_FROM_EMAIL:-${OTP_SMTP_USERNAME:-}}"
 
     export OTP_SMTP_HOST OTP_SMTP_PORT OTP_SMTP_SECURE OTP_SMTP_USERNAME OTP_SMTP_PASSWORD
@@ -661,7 +661,7 @@ if ! az group show --name "$RESOURCE_GROUP" --output none 2>/dev/null; then
     az group create \
         --name "$RESOURCE_GROUP" \
         --location "$LOCATION" \
-        --tags Environment=Production Application="QR Chain Attendance" ManagedBy=Bicep
+        --tags Environment=Production Application="ProvePresent" ManagedBy=Bicep
     echo -e "${GREEN}✓ Resource group created${NC}"
 else
     echo -e "${YELLOW}ℹ Resource group already exists${NC}"

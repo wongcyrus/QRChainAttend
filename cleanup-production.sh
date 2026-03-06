@@ -13,7 +13,7 @@ NC='\033[0m'
 RESOURCE_GROUP="rg-qr-attendance-prod"
 
 echo -e "${BLUE}=========================================="
-echo "QR Chain Attendance - Production Cleanup"
+echo "ProvePresent - Production Cleanup"
 echo -e "==========================================${NC}"
 echo ""
 

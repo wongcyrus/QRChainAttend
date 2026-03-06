@@ -10,7 +10,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 echo -e "${BLUE}=========================================="
-echo "QR Chain Attendance - Production"
+echo "ProvePresent - Production"
 echo -e "==========================================${NC}"
 echo ""
 

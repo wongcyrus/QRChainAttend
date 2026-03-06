@@ -207,7 +207,7 @@ OTP_SMTP_PASSWORD=<app-password>
 OTP_FROM_EMAIL=<sender-email>
 OTP_FROM_NAME=VTC Attendance
 OTP_EMAIL_SUBJECT=Your verification code
-OTP_APP_NAME=QR Chain Attend
+OTP_APP_NAME=ProvePresent
 ```
 
 ### .agent-config.env

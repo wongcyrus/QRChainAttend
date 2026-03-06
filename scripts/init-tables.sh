@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Initialize Tables for QR Chain Attendance System
+# Initialize Tables for ProvePresent System
 # Works for both local (Azurite) and Azure environments
 
 # Get script directory

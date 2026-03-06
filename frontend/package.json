@@ -1,7 +1,7 @@
 {
-  "name": "@qr-attendance/frontend",
+  "name": "@prove-present/frontend",
   "version": "1.0.0",
-  "description": "React/Next.js frontend for QR Chain Attendance System",
+  "description": "React/Next.js frontend for ProvePresent System",
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0",

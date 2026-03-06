@@ -1,6 +1,6 @@
 /**
  * Session Enrollment Component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 13.1
  * 
  * Landing page for students to scan Session_QR codes and join sessions.
@@ -125,7 +125,7 @@ export function SessionEnrollment({
       {/* Header */}
       <div className="header">
         <div className="header-content">
-          <h1>QR Chain Attendance</h1>
+          <h1>ProvePresent</h1>
           <p className="subtitle">Scan your class session QR code to get started</p>
         </div>
       </div>

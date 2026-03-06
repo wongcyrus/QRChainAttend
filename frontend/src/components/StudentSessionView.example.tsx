@@ -1,12 +1,12 @@
 /**
  * StudentSessionView Component Examples
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * 
  * Demonstrates various usage scenarios for the StudentSessionView component
  */
 
 import { StudentSessionView } from './StudentSessionView';
-import type { Session } from '@qr-attendance/shared';
+import type { Session } from '@/types/shared';
 
 /**
  * Example 1: Basic Usage
@@ -241,7 +241,7 @@ export function WithEnrollmentFlow() {
   import { useState } from 'react';
   import { QRScanner } from '@/components/QRScanner';
   import { StudentSessionView } from '@/components/StudentSessionView';
-  import type { SessionQRData } from '@qr-attendance/shared';
+  import type { SessionQRData } from '@/types/shared';
 
   export default function SessionEnrollment() {
     const [sessionId, setSessionId] = useState<string | null>(null);

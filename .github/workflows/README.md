@@ -1,6 +1,6 @@
 # GitHub Actions Workflows
 
-This directory contains CI/CD workflows for the QR Chain Attendance System.
+This directory contains CI/CD workflows for the ProvePresent.
 
 ## Workflows Overview
 

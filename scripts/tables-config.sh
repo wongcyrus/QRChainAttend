@@ -5,7 +5,7 @@
 # Single source of truth for all table names
 # ============================================================================
 
-# All tables used in the QR Chain Attendance system
+# All tables used in the ProvePresent system
 # NOTE: ScanLogs and DeletionLog are optional/legacy tables
 TABLES=(
   "Sessions"

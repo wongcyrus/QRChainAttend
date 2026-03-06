@@ -1,12 +1,12 @@
 /**
  * StudentSessionView Component Tests
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 13.1, 13.2, 13.3, 13.5
  */
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { StudentSessionView } from './StudentSessionView';
-import type { Session, ChainScanResponse } from '@qr-attendance/shared';
+import type { Session, ChainScanResponse } from '@/types/shared';
 
 // Mock the child components
 jest.mock('./QRScanner', () => ({

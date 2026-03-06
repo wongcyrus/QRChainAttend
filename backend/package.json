@@ -1,7 +1,7 @@
 {
-  "name": "@qr-attendance/backend",
+  "name": "@prove-present/backend",
   "version": "1.0.0",
-  "description": "Azure Functions backend for QR Chain Attendance System",
+  "description": "Azure Functions backend for ProvePresent System",
   "main": "dist/src/functions/*.js",
   "scripts": {
     "build": "tsc",

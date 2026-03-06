@@ -1,4 +1,4 @@
-# Requirements Document: QR Chain Attendance System
+# Requirements Document: ProvePresent System
 
 ## Introduction
 
@@ -6,7 +6,7 @@ This document specifies the requirements for a full-cycle anti-cheat classroom a
 
 ## Glossary
 
-- **System**: The QR Chain Attendance System
+- **System**: The ProvePresent System
 - **Session**: A single class period with defined start/end times and attendance tracking
 - **Student**: A user authenticated with an @stu.edu.hk email address
 - **Teacher**: A user authenticated with an @vtc.edu.hk email address

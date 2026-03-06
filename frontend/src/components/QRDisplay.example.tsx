@@ -1,6 +1,6 @@
 /**
  * QR Display Component Examples
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 13.2, 13.3
  * 
  * This file demonstrates various usage patterns for the QRDisplay component.
@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { QRDisplay } from './QRDisplay';
-import type { ChainQRData, RotatingQRData } from '@qr-attendance/shared';
+import type { ChainQRData, RotatingQRData } from '@/types/shared';
 
 /**
  * Example 1: Basic Chain Token Display

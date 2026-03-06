@@ -1,7 +1,7 @@
 {
-  "name": "QR Chain Attendance",
-  "short_name": "QR Attend",
-  "description": "Anti-cheat classroom attendance system with QR code chains",
+  "name": "ProvePresent",
+  "short_name": "ProvePresent",
+  "description": "Peer-verified classroom attendance with chain verification",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

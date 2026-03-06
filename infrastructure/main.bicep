@@ -105,7 +105,7 @@ param otpFromName string = 'VTC Attendance'
 param otpEmailSubject string = 'Your verification code'
 
 @description('OTP app name used in email body')
-param otpAppName string = 'QR Chain Attend'
+param otpAppName string = 'ProvePresent'
 
 @description('Tags to apply to all resources')
 param tags object = {

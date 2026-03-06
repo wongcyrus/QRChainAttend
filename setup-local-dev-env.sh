@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}=========================================="
-echo "QR Chain Attendance - Local Dev Configuration"
+echo "ProvePresent - Local Dev Configuration"
 echo -e "==========================================${NC}"
 echo ""
 

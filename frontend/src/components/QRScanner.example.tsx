@@ -1,13 +1,13 @@
 /**
  * QR Scanner Component Usage Example
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * 
  * This file demonstrates how to use the QRScanner component
  */
 
 import { useState } from 'react';
 import { QRScanner } from './QRScanner';
-import type { SessionQRData, ChainScanResponse } from '@qr-attendance/shared';
+import type { SessionQRData, ChainScanResponse } from '@/types/shared';
 
 export function QRScannerExample() {
   const [isScanning, setIsScanning] = useState(false);

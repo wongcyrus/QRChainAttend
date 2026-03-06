@@ -1,6 +1,6 @@
 /**
  * OfflineMessage Component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirement: 20.5 - Offline message display and handling
  * 
  * Displays a user-friendly message when a network operation cannot be

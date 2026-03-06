@@ -1,6 +1,6 @@
-# QR Chain Attendance System - Monitoring and Alerting
+# ProvePresent - Monitoring and Alerting
 
-This document describes the monitoring and alerting configuration for the QR Chain Attendance System, including Application Insights setup, custom metrics, alert rules, and operational procedures.
+This document describes the monitoring and alerting configuration for the ProvePresent, including Application Insights setup, custom metrics, alert rules, and operational procedures.
 
 ## Overview
 
@@ -660,8 +660,8 @@ telemetryClient.addTelemetryProcessor((envelope) => {
 
 - [Alert Response Procedures](ALERT_RESPONSE.md)
 - [Deployment Guide](../DEPLOYMENT_GUIDE.md)
-- [Design Document](../.kiro/specs/qr-chain-attendance/design.md)
-- [Requirements](../.kiro/specs/qr-chain-attendance/requirements.md)
+- [Design Document](../.kiro/specs/prove-present/design.md)
+- [Requirements](../.kiro/specs/prove-present/requirements.md)
 
 ## Support
 

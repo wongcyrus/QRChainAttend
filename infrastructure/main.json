@@ -223,7 +223,7 @@
     },
     "otpAppName": {
       "type": "string",
-      "defaultValue": "QR Chain Attend",
+      "defaultValue": "ProvePresent",
       "metadata": {
         "description": "OTP app name used in email body"
       }
@@ -232,7 +232,7 @@
       "type": "object",
       "defaultValue": {
         "Environment": "[parameters('environment')]",
-        "Application": "QR Chain Attendance",
+        "Application": "ProvePresent",
         "ManagedBy": "Bicep"
       },
       "metadata": {
@@ -1109,7 +1109,7 @@
               },
               "properties": {
                 "displayName": "QR Attendance Project",
-                "description": "Project for QR Chain Attendance application with Agent Service"
+                "description": "Project for ProvePresent application with Agent Service"
               },
               "dependsOn": [
                 "[resourceId('Microsoft.CognitiveServices/accounts', parameters('openAIName'))]"
@@ -1476,7 +1476,7 @@
             },
             "otpAppName": {
               "type": "string",
-              "defaultValue": "QR Chain Attend",
+              "defaultValue": "ProvePresent",
               "metadata": {
                 "description": "OTP app name used in email body"
               }

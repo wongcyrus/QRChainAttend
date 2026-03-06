@@ -95,9 +95,9 @@ export async function onOtpSendEmail(
     const smtpUser = process.env.OTP_SMTP_USERNAME;
     const smtpPass = process.env.OTP_SMTP_PASSWORD;
     const fromEmail = process.env.OTP_FROM_EMAIL || smtpUser;
-    const fromName = process.env.OTP_FROM_NAME || 'QR Chain Attend';
+    const fromName = process.env.OTP_FROM_NAME || 'ProvePresent';
     const subject = process.env.OTP_EMAIL_SUBJECT || 'Your verification code';
-    const appName = process.env.OTP_APP_NAME || 'QR Chain Attend';
+    const appName = process.env.OTP_APP_NAME || 'ProvePresent';
     const smtpConnectionTimeoutMs = parsePositiveNumber(process.env.OTP_SMTP_CONNECTION_TIMEOUT_MS, 1200);
     const smtpGreetingTimeoutMs = parsePositiveNumber(process.env.OTP_SMTP_GREETING_TIMEOUT_MS, 1200);
     const smtpSocketTimeoutMs = parsePositiveNumber(process.env.OTP_SMTP_SOCKET_TIMEOUT_MS, 1500);

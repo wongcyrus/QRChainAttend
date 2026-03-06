@@ -1,6 +1,6 @@
 /**
  * Offline Queue Utility
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirement: 20.5 - Queue operations for retry when connection restored
  * 
  * Provides utilities for queuing failed network operations and retrying

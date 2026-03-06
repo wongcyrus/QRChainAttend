@@ -1,6 +1,6 @@
 /**
  * Error Handling Utility Tests
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Task: 20.2
  * Requirements: 3.5, 3.7, 9.3, 10.1, 10.2
  */
@@ -18,7 +18,7 @@ import {
   ERROR_MESSAGES,
   RATE_LIMIT_COOLDOWN,
 } from './errorHandling';
-import type { ErrorCode, ErrorResponse } from '@qr-attendance/shared';
+import type { ErrorCode, ErrorResponse } from '@/types/shared';
 
 describe('Error Handling Utility', () => {
   describe('getUserFriendlyMessage', () => {

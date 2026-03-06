@@ -1,6 +1,6 @@
 /**
- * Shared types for QR Chain Attendance
- * These replace the archived @qr-attendance/shared package
+ * Shared types for ProvePresent
+ * These replace the archived @prove-present/shared package
  */
 
 // Session types
@@ -156,3 +156,7 @@ export interface SnapshotComparison {
     timeDifference: number;
   };
 }
+
+
+// Error code type (string-based for flexibility)
+export type ErrorCode = string;

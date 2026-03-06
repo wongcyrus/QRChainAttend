@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   const smtpUser = getValue('OTP_SMTP_USERNAME');
   const smtpPass = getValue('OTP_SMTP_PASSWORD');
   const fromEmail = getValue('OTP_FROM_EMAIL', smtpUser);
-  const fromName = getValue('OTP_FROM_NAME', 'QR Chain Attend');
+  const fromName = getValue('OTP_FROM_NAME', 'ProvePresent');
 
   if (!smtpUser || !smtpPass || !fromEmail) {
     console.error('Missing required SMTP settings. Need OTP_SMTP_USERNAME, OTP_SMTP_PASSWORD, OTP_FROM_EMAIL.');
@@ -134,7 +134,7 @@ async function main(): Promise<void> {
     await transporter.sendMail({
       from: `${fromName} <${fromEmail}>`,
       to,
-      subject: 'SMTP test from QR Chain Attend',
+      subject: 'SMTP test from ProvePresent',
       text: 'SMTP settings are valid. This is a test email.'
     });
     console.log(`✅ Test email sent to ${to}`);

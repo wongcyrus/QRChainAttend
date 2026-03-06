@@ -1,10 +1,10 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Deploy QR Chain Attendance System infrastructure to Azure
+    Deploy ProvePresent System infrastructure to Azure
 
 .DESCRIPTION
-    This script deploys all Azure resources for the QR Chain Attendance System
+    This script deploys all Azure resources for the ProvePresent System
     using Bicep templates. It supports multiple environments (dev, staging, prod)
     and handles parameter validation.
 
@@ -90,7 +90,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Split-Path -Parent $ScriptDir
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "QR Chain Attendance System Deployment" -ForegroundColor Cyan
+Write-Host "ProvePresent System Deployment" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Environment:     $Environment" -ForegroundColor Yellow

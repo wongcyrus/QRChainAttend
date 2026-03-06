@@ -1,6 +1,6 @@
 # Getting Started
 
-Quick guide to get the QR Chain Attendance System running locally.
+Quick guide to get the ProvePresent running locally.
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ Quick guide to get the QR Chain Attendance System running locally.
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd QRChainAttend
+cd ProvePresent
 
 # Install all dependencies
 npm run install:all
@@ -192,12 +192,9 @@ NEXT_PUBLIC_ENVIRONMENT=local
 
 ## Next Steps
 
-- [QR Chain Flow](QR_CHAIN_FLOW.md) - Understand how the system works
-- [Geolocation Feature](GEOLOCATION_FEATURE.md) - Learn about location tracking
-- [Snapshot Deployment](SNAPSHOT_DEPLOYMENT.md) - Understand snapshots
-- [Test Flow](TEST_FLOW.md) - Testing guide
-- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Deploy to Azure
-- [Quick Reference](QUICK_REFERENCE.md) - Common commands
+- [System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md) - Understand how the system works
+- [Deployment Guide](docs/deployment/DEPLOYMENT_GUIDE.md) - Deploy to Azure
+- [Local Development](docs/development/LOCAL_DEVELOPMENT.md) - Development setup
 
 ## Development Tools
 

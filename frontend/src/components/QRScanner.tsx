@@ -1,6 +1,6 @@
 /**
  * QR Scanner Component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 13.1, 13.5
  * 
  * Implements camera access and QR code scanning for students to:

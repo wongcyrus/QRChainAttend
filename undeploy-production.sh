@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# QR Chain Attendance - Complete Production Undeploy Script
+# ProvePresent - Complete Production Undeploy Script
 # This script properly cleans up ALL resources including soft-deleted ones
 # and removes production URLs from Azure AD redirect URIs
 
@@ -18,7 +18,7 @@ ENVIRONMENT="dev"
 RESOURCE_GROUP=""
 BASE_NAME="qrattendance"
 LOCATION="eastus2"
-AAD_CLIENT_ID="dc482c34-ebaa-4239-aca3-2810a4f51728"  # QR Chain Attendance System
+AAD_CLIENT_ID="dc482c34-ebaa-4239-aca3-2810a4f51728"  # ProvePresent System
 
 usage() {
     echo "Usage: $0 [-e <environment>] [-g <resource-group>] [-l <location>]"
@@ -64,7 +64,7 @@ fi
 RESOURCE_GROUP="${RESOURCE_GROUP:-rg-qr-attendance-${ENVIRONMENT}}"
 
 echo -e "${BLUE}=========================================="
-echo "QR Chain Attendance - Complete Cleanup"
+echo "ProvePresent - Complete Cleanup"
 echo -e "==========================================${NC}"
 echo ""
 echo "Environment: $ENVIRONMENT"
@@ -198,7 +198,7 @@ fi
 echo ""
 
 # Step 3: Confirm deletion
-echo -e "${RED}WARNING: This will permanently delete ALL resources related to QR Chain Attendance!${NC}"
+echo -e "${RED}WARNING: This will permanently delete ALL resources related to ProvePresent!${NC}"
 echo -e "${RED}This action CANNOT be undone.${NC}"
 echo ""
 read -p "Are you sure you want to continue? (type 'DELETE' to confirm): " confirmation

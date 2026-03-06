@@ -1,4 +1,4 @@
-# Database Tables - QR Chain Attendance System
+# Database Tables - ProvePresent
 
 **Date**: February 25, 2026  
 **Storage**: Azure Table Storage

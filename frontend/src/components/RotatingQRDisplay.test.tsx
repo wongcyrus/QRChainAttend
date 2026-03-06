@@ -1,13 +1,13 @@
 /**
  * Rotating QR Display Component Unit Tests
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 4.1, 4.2, 5.1, 5.2
  */
 
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { RotatingQRDisplay } from './RotatingQRDisplay';
-import type { RotatingQRData } from '@qr-attendance/shared';
+import type { RotatingQRData } from '@/types/shared';
 
 // Mock QRDisplay component
 jest.mock('./QRDisplay', () => ({

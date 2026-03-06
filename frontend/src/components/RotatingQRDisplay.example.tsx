@@ -1,6 +1,6 @@
 /**
  * Rotating QR Display Component Examples
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 4.1, 4.2, 5.1, 5.2
  * 
  * This file demonstrates various usage patterns for the RotatingQRDisplay component.

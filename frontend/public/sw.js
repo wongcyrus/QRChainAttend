@@ -1,6 +1,6 @@
 /**
  * Service Worker for Progressive Web App
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 20.1, 20.2, 20.3, 20.4, 20.5
  * 
  * This service worker implements:

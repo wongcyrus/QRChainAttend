@@ -1,6 +1,6 @@
 /**
  * useOnlineStatus Hook
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirement: 20.5 - Offline message display and handling
  * 
  * Detects network connectivity status and provides real-time updates

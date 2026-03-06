@@ -1,6 +1,6 @@
 /**
  * Offline Handling Tests
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirement: 20.5 - Offline message display and handling
  * 
  * Tests for offline detection, messaging, and operation queuing.

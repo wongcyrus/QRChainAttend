@@ -21,7 +21,7 @@ if [ -n "$1" ]; then
     echo "Using provided Client ID: $APP_ID"
 else
     # Option 2: Search by name
-    APP_NAME="QR Chain Attendance"
+    APP_NAME="ProvePresent"
     echo -e "${BLUE}Searching for app: $APP_NAME${NC}"
     
     APPS=$(az ad app list --display-name "$APP_NAME" --query "[].{Name:displayName, AppId:appId}" -o table)

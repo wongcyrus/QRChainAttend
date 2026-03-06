@@ -3,7 +3,7 @@
 # Quick start script for local development
 # Opens 3 terminal tabs/windows for backend, frontend, and optional Azurite
 
-echo "🚀 Starting QR Chain Attendance - Local Development"
+echo "🚀 Starting ProvePresent - Local Development"
 echo ""
 
 # Check if configuration exists

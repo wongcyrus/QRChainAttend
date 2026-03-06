@@ -13,7 +13,7 @@ This feature enables teachers to capture student photos during online sessions a
 - **Upload_Service**: The system component that handles direct uploads to Azure Blob Storage
 - **Position_Estimator**: The system component that uses GPT to analyze images and estimate seating positions
 - **SAS_URL**: Shared Access Signature URL that provides temporary, secure access to Azure Blob Storage
-- **Session**: An existing attendance session in the QR chain attendance system
+- **Session**: An existing attendance session in the ProvePresent system
 - **Capture_Window**: The 30-second time period during which students can upload photos
 
 ## Requirements

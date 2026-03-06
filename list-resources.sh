@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# QR Chain Attendance - Resource Discovery Script (Safe - No Deletion)
+# ProvePresent - Resource Discovery Script (Safe - No Deletion)
 # This script identifies all resources that would be cleaned up, without deleting anything
 
 set -e
@@ -17,7 +17,7 @@ RESOURCE_GROUP="rg-qr-attendance-prod"
 BASE_NAME="qrattendance"
 
 echo -e "${BLUE}=========================================="
-echo "QR Chain Attendance - Resource Discovery"
+echo "ProvePresent - Resource Discovery"
 echo "=========================================="
 echo "This script identifies resources WITHOUT deleting them"
 echo -e "${NC}"

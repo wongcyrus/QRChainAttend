@@ -1,6 +1,6 @@
 /**
  * Home Page
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  */
 
 import { useEffect, useState } from 'react';
@@ -143,7 +143,7 @@ export default function Home() {
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1>QR Chain Attendance System</h1>
+        <h1>ProvePresent</h1>
         {user ? (
           <div style={{ textAlign: 'right' }}>
             <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem' }}>
@@ -215,7 +215,7 @@ export default function Home() {
         </div>
       )}
 
-      <p>Welcome to the QR Chain Attendance System.</p>
+      <p>Welcome to ProvePresent.</p>
       
       <div style={{ marginTop: '2rem' }}>
         <h2>Getting Started</h2>

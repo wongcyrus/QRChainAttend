@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🚀 QR Chain Attendance - Local Development Setup"
+echo "🚀 ProvePresent - Local Development Setup"
 echo "================================================"
 echo ""
 

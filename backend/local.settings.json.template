@@ -20,9 +20,9 @@
     "OTP_SMTP_USERNAME": "",
     "OTP_SMTP_PASSWORD": "",
     "OTP_FROM_EMAIL": "",
-    "OTP_FROM_NAME": "QR Chain Attend",
+    "OTP_FROM_NAME": "ProvePresent",
     "OTP_EMAIL_SUBJECT": "Your verification code",
-    "OTP_APP_NAME": "QR Chain Attend"
+    "OTP_APP_NAME": "ProvePresent"
   },
   "Host": {
     "CORS": "*",

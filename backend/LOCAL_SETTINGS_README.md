@@ -65,9 +65,9 @@ Used by HTTP function route `/api/auth/on-otp-send-email`.
 "OTP_SMTP_USERNAME": "your@gmail.com",
 "OTP_SMTP_PASSWORD": "your-16-char-google-app-password",
 "OTP_FROM_EMAIL": "your@gmail.com",
-"OTP_FROM_NAME": "QR Chain Attend",
+"OTP_FROM_NAME": "ProvePresent",
 "OTP_EMAIL_SUBJECT": "Your verification code",
-"OTP_APP_NAME": "QR Chain Attend"
+"OTP_APP_NAME": "ProvePresent"
 ```
 
 For Google Workspace, use an App Password (not your normal account password).

@@ -1,6 +1,6 @@
 /**
  * Student Session View Component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 13.1, 13.2, 13.3, 13.5
  * 
  * Main student interface for participating in attendance verification:

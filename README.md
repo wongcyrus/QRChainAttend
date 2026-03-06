@@ -49,13 +49,30 @@ Hosting:      Azure Static Web Apps
 
 ### Deploy to Azure
 
-```bash
-# Production
-./deploy-full-production.sh
+**⚠️ Prerequisites**: Azure AD External ID tenant must be configured manually first.
 
-# Development
-./deploy-full-development.sh
-```
+1. **Set up Azure AD External ID** (manual - Azure Portal)
+   - Create External ID tenant
+   - Create app registration
+   - Configure user flows
+   - See **[Azure AD Config Guide](docs/deployment/AZURE_AD_CONFIG.md)**
+
+2. **Create credentials file**
+   ```bash
+   cp .external-id-credentials.template .external-id-credentials
+   # Edit with your Azure AD app credentials
+   ```
+
+3. **Deploy**
+   ```bash
+   ./deploy-full-production.sh
+   ```
+
+4. **Post-deployment** (manual - Azure Portal)
+   - Add Static Web App URL to app registration redirect URIs
+   - Configure custom OTP email extension (optional)
+
+See **[Deployment Guide](docs/deployment/DEPLOYMENT_GUIDE.md)** for complete instructions.
 
 ### Local Development
 
@@ -124,4 +141,4 @@ MIT
 
 ---
 
-**Last Updated**: March 5, 2026
+**Last Updated**: March 6, 2026

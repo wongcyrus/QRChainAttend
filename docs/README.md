@@ -1,6 +1,6 @@
 # Documentation Index
 
-Welcome to the QR Chain Attendance System documentation.
+Welcome to the ProvePresent documentation.
 
 ## 🚀 Getting Started
 
@@ -144,7 +144,7 @@ cd scripts && ./configure-monitoring.sh <resource-group>
 
 ## 🎯 Key Concepts
 
-**QR Chain Attendance:**
+**ProvePresent:**
 - Students scan QR codes in sequence to verify presence
 - Tokens rotate every 20-60 seconds to prevent screenshots
 - Blockchain-inspired chain validation ensures authenticity

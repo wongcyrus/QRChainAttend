@@ -1,6 +1,6 @@
 /**
  * Unit tests for SessionEndAndExportControls component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 2.3, 14.1, 14.2, 14.3
  */
 

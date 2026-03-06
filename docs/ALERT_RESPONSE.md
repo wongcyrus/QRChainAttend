@@ -1,6 +1,6 @@
-# QR Chain Attendance System - Alert Response Procedures
+# ProvePresent - Alert Response Procedures
 
-This document provides step-by-step procedures for responding to monitoring alerts in the QR Chain Attendance System.
+This document provides step-by-step procedures for responding to monitoring alerts in the ProvePresent.
 
 ## Overview
 

@@ -1,6 +1,6 @@
 /**
  * Next.js App Component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 20.1, 20.2, 20.3, 20.5
  */
 
@@ -55,15 +55,15 @@ export default function App({ Component, pageProps }: AppProps) {
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <meta name="theme-color" content="#0078d4" />
-        <meta name="description" content="QR Chain Attendance System - Anti-cheat classroom attendance with peer-to-peer verification" />
+        <meta name="description" content="ProvePresent - Peer-verified classroom attendance with chain verification" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="QR Attend" />
+        <meta name="apple-mobile-web-app-title" content="ProvePresent" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        <title>QR Chain Attendance</title>
+        <title>ProvePresent</title>
       </Head>
       
       {/* Offline indicator - Requirement 20.5 */}

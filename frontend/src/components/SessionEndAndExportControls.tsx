@@ -1,6 +1,6 @@
 /**
  * Session End and Export Controls Component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 2.3, 14.1, 14.2, 14.3
  * 
  * Provides controls for teachers to:

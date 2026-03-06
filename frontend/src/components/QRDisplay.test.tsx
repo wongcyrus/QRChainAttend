@@ -1,13 +1,13 @@
 /**
  * QR Display Component Unit Tests
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 13.2, 13.3
  */
 
 import { render, screen, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { QRDisplay } from './QRDisplay';
-import type { ChainQRData, RotatingQRData } from '@qr-attendance/shared';
+import type { ChainQRData, RotatingQRData } from '@/types/shared';
 import QRCode from 'qrcode';
 
 // Mock QRCode library

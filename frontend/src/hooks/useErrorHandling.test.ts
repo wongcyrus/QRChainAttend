@@ -1,13 +1,13 @@
 /**
  * Error Handling Hook Tests
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Task: 20.2
  * Requirements: 3.5, 3.7, 9.3, 10.1, 10.2
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useErrorHandling, useApiErrorHandling } from './useErrorHandling';
-import type { ErrorCode } from '@qr-attendance/shared';
+import type { ErrorCode } from '@/types/shared';
 
 describe('useErrorHandling', () => {
   beforeEach(() => {

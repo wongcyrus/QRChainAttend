@@ -344,7 +344,7 @@ function ensureProjectExists(resourceGroup: string, openaiResource: string, proj
     printWarning(`Project not found in ARM state lookup; creating project: ${projectName}`);
 
     execSync(
-      `az rest --method put --url "https://management.azure.com${resourceId}?api-version=2025-04-01-preview" --body '{"location":"eastus2","identity":{"type":"SystemAssigned"},"properties":{"displayName":"QR Attendance Project","description":"Project for QR Chain Attendance application with Agent Service"}}' --output none`,
+      `az rest --method put --url "https://management.azure.com${resourceId}?api-version=2025-04-01-preview" --body '{"location":"eastus2","identity":{"type":"SystemAssigned"},"properties":{"displayName":"QR Attendance Project","description":"Project for ProvePresent application with Agent Service"}}' --output none`,
       { stdio: 'pipe' }
     );
 

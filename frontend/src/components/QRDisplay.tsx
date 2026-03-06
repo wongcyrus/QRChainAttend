@@ -1,6 +1,6 @@
 /**
  * QR Display Component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 13.2, 13.3
  * 
  * Displays a holder's QR code with countdown timer for:

@@ -1,4 +1,4 @@
-# QR Chain Attendance System - Monitoring Configuration Script (PowerShell)
+# ProvePresent System - Monitoring Configuration Script (PowerShell)
 # This script configures Application Insights monitoring, custom metrics, alerts, and log retention
 # Requirements: 15.6 (90-day log retention), 16.1 (p95 latency < 400ms)
 
@@ -47,7 +47,7 @@ function Write-ErrorLog {
 # MAIN EXECUTION
 # ============================================================================
 
-Write-Log "Starting monitoring configuration for QR Chain Attendance System"
+Write-Log "Starting monitoring configuration for ProvePresent System"
 Write-Log "Environment: $Environment"
 Write-Log "Resource Group: $ResourceGroup"
 Write-Log "Function App: $FunctionAppName"

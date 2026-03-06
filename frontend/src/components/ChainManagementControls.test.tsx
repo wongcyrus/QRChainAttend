@@ -1,6 +1,6 @@
 /**
  * Unit tests for ChainManagementControls component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  * Requirements: 3.1, 6.1, 11.3
  */
 

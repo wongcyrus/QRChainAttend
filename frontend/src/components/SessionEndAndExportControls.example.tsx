@@ -1,11 +1,11 @@
 /**
  * Example usage of SessionEndAndExportControls component
- * Feature: qr-chain-attendance
+ * Feature: prove-present
  */
 
 import React, { useState } from 'react';
 import { SessionEndAndExportControls } from './SessionEndAndExportControls';
-import { SessionStatus } from '@qr-attendance/shared';
+import { SessionStatus } from '@/types/shared';
 
 /**
  * Example 1: Basic usage with active session
