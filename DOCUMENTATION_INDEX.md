@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Last Updated**: March 3, 2026  
+**Last Updated**: March 5, 2026  
 **Status**: ✅ Organized and Current
 
 ---
@@ -14,9 +14,6 @@
 - **[SECURITY.md](SECURITY.md)** - Security guidelines
 - **[SCRIPTS_README.md](SCRIPTS_README.md)** - Script documentation
 - **[AGENT_SERVICE_GUIDE.md](AGENT_SERVICE_GUIDE.md)** - Azure AI Foundry Agent Service guide
-- **[AGENT_API_STATUS.md](AGENT_API_STATUS.md)** - Classic vs New Agents explanation
-- **[API_KEY_REMOVAL_SUMMARY.md](API_KEY_REMOVAL_SUMMARY.md)** - API key removal and migration plan
-- **[POSITION_ESTIMATION_MIGRATION.md](POSITION_ESTIMATION_MIGRATION.md)** - Position estimation agent migration
 
 ---
 
@@ -25,9 +22,12 @@
 **Location**: `docs/architecture/`
 
 - **[SYSTEM_ARCHITECTURE.md](docs/architecture/SYSTEM_ARCHITECTURE.md)** - Complete system design
-- **[DATABASE_TABLES.md](docs/architecture/DATABASE_TABLES.md)** - Database schema (12 tables)
+- **[INFRASTRUCTURE_BICEP.md](docs/architecture/INFRASTRUCTURE_BICEP.md)** - Bicep IaC module details
+- **[DEPLOYMENT_SCRIPTS.md](docs/architecture/DEPLOYMENT_SCRIPTS.md)** - Deployment script architecture
+- **[DATABASE_TABLES.md](docs/architecture/DATABASE_TABLES.md)** - Database schema (16 tables)
 - **[DATABASE_MANAGEMENT.md](docs/architecture/DATABASE_MANAGEMENT.md)** - Database operations
 - **[LIVE_QUIZ.md](docs/architecture/LIVE_QUIZ.md)** - AI-powered quiz feature
+- **[ENTRY_CHAIN_DUPLICATE_PREVENTION.md](docs/architecture/ENTRY_CHAIN_DUPLICATE_PREVENTION.md)** - Chain holder prevention
 
 ---
 
@@ -37,6 +37,10 @@
 
 - **[DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md)** - Complete deployment guide
 - **[AZURE_AD_CONFIG.md](docs/deployment/AZURE_AD_CONFIG.md)** - Azure AD configuration
+
+**Location**: `infrastructure/`
+
+- **[infrastructure/README.md](infrastructure/README.md)** - Infrastructure as Code overview
 
 ---
 
@@ -78,6 +82,8 @@
 
 **...deploy to production**
 - Read [docs/deployment/DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md)
+- Understand [docs/architecture/INFRASTRUCTURE_BICEP.md](docs/architecture/INFRASTRUCTURE_BICEP.md)
+- Review [docs/architecture/DEPLOYMENT_SCRIPTS.md](docs/architecture/DEPLOYMENT_SCRIPTS.md)
 - Configure [docs/deployment/AZURE_AD_CONFIG.md](docs/deployment/AZURE_AD_CONFIG.md)
 
 **...understand the database**
@@ -111,13 +117,17 @@
 ├── SECURITY.md                        # Security guidelines
 ├── SCRIPTS_README.md                  # Script documentation
 ├── DOCUMENTATION_INDEX.md             # This file
+├── deploy-full-production.sh          # Production deployment
+├── deploy-full-development.sh         # Development deployment
 │
 ├── docs/
 │   ├── architecture/                  # System design docs
-│   │   ├── SYSTEM_ARCHITECTURE.md
-│   │   ├── DATABASE_TABLES.md
-│   │   ├── DATABASE_MANAGEMENT.md
-│   │   └── LIVE_QUIZ.md
+│   │   ├── SYSTEM_ARCHITECTURE.md     # Overall architecture
+│   │   ├── INFRASTRUCTURE_BICEP.md    # Bicep IaC details
+│   │   ├── DEPLOYMENT_SCRIPTS.md      # Script architecture
+│   │   ├── DATABASE_TABLES.md         # Database schema
+│   │   ├── DATABASE_MANAGEMENT.md     # DB operations
+│   │   └── LIVE_QUIZ.md               # Quiz feature
 │   │
 │   ├── deployment/                    # Deployment guides
 │   │   ├── DEPLOYMENT_GUIDE.md
@@ -130,16 +140,23 @@
 │   │   └── REFACTORING_FINAL_REPORT.md
 │   │
 │   └── archive/                       # Historical docs
-│       ├── CODE_REVIEW_ANALYSIS.md
-│       ├── DOCUMENTATION_UPDATES.md
-│       ├── REFACTORING_COMPLETE.md
-│       ├── UTILITY_EXTRACTION_SUMMARY.md
-│       ├── EXTERNAL_ID_MIGRATION.md
-│       └── SECURITY_AUDIT.md
+│
+├── infrastructure/                    # IaC templates
+│   ├── main.bicep                     # Main orchestrator
+│   ├── modules/                       # Bicep modules
+│   │   ├── storage.bicep
+│   │   ├── signalr.bicep
+│   │   ├── functions.bicep
+│   │   ├── appinsights.bicep
+│   │   ├── openai.bicep
+│   │   └── rbac.bicep
+│   ├── parameters/                    # Environment params
+│   │   ├── dev.bicepparam
+│   │   └── prod.bicepparam
+│   └── README.md
 │
 ├── backend/                           # Backend code
 ├── frontend/                          # Frontend code
-├── infrastructure/                    # IaC templates
 └── scripts/                          # Utility scripts
 ```
 
@@ -147,17 +164,18 @@
 
 ## 🔄 Recent Changes
 
-### March 3, 2026 (Latest)
+### March 5, 2026 (Latest)
+- ✅ Created INFRASTRUCTURE_BICEP.md - detailed Bicep module documentation
+- ✅ Created DEPLOYMENT_SCRIPTS.md - deployment script architecture
+- ✅ Updated SYSTEM_ARCHITECTURE.md with current infrastructure
+- ✅ Updated DEPLOYMENT_GUIDE.md with current deployment process
+- ✅ Updated infrastructure/README.md with current state
+- ✅ Updated database table count to 16 (added capture tables)
+
+### March 3, 2026
 - ✅ Migrated position estimation to agent service (no API keys)
 - ✅ Created position estimation agent creation script
 - ✅ Updated deployment script to create both agents
-- ✅ Added POSITION_ESTIMATION_MIGRATION.md documentation
-
-### March 3, 2026 (Earlier)
-- ✅ Removed API key from `.agent-config.env`
-- ✅ Updated agent creation script to use managed identity only
-- ✅ Added API_KEY_REMOVAL_SUMMARY.md documenting migration plan
-- ✅ Updated AGENT_SERVICE_GUIDE.md with security status
 
 ### February 25, 2026
 - ✅ Organized documentation into subdirectories
@@ -168,5 +186,5 @@
 
 ---
 
-**Last Updated**: March 3, 2026  
+**Last Updated**: March 5, 2026  
 **Maintained By**: Development Team

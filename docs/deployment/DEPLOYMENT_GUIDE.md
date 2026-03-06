@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-**Last Deployment**: February 11, 2026 at 12:33 UTC  
+**Last Updated**: March 5, 2026  
 **Status**: ✅ Live and Running
 
 ---
@@ -16,16 +16,20 @@
 
 This creates the Azure AD app and saves credentials to `.external-id-credentials`.
 
-**2. Deploy to Production**
+**2. (Optional) Configure OTP Email**
 ```bash
-source .external-id-credentials
+cp .otp-email-credentials.example .otp-email-credentials
+# Edit with your SMTP settings
+```
+
+**3. Deploy to Production**
+```bash
 ./deploy-full-production.sh
 ```
 
 ### Subsequent Deployments
 
 ```bash
-source .external-id-credentials
 ./deploy-full-production.sh
 ```
 
@@ -51,10 +55,6 @@ Or delete both at once:
 ./verify-production.sh
 ```
 
-### Access Production
-- **Frontend**: https://ashy-desert-0fc9a700f.6.azurestaticapps.net
-- **Backend**: https://func-qrattendance-prod.azurewebsites.net
-
 ---
 
 ## Current Production Configuration
@@ -62,28 +62,54 @@ Or delete both at once:
 ### Azure Resources
 | Resource | Name | Tier/SKU | Status |
 |----------|------|----------|--------|
+| Resource Group | rg-qr-attendance-prod | - | ✅ Active |
+| Storage Account | stqrattendanceprod | Standard LRS | ✅ Active |
 | SignalR | signalr-qrattendance-prod | Standard S1 (1000 connections) | ✅ Active |
-| Azure OpenAI | openai-qrattendance-prod | S0 (AIServices, API 2024-10-01) | ✅ Active |
-| Function App | func-qrattendance-prod | Consumption (44 functions) | ✅ Running |
-| Static Web App | swa-qrattendance-prod2 | Free | ✅ Running |
-| Storage | stqrattendanceprod | Standard LRS (12 tables) | ✅ Active |
+| Azure OpenAI | openai-qrattendance-prod | S0 (AIServices) | ✅ Active |
+| Foundry Project | openai-qrattendance-prod-project | - | ✅ Active |
+| Function App | func-qrattendance-prod | Consumption (Node.js 22) | ✅ Running |
+| Static Web App | swa-qrattendance-prod | Standard | ✅ Running |
+| App Insights | appi-qrattendance-prod | Pay-as-you-go | ✅ Active |
 
-### Cost
-**Estimated**: ~$55-70/month
+### Cost Estimation
+**Estimated**: ~$144-239/month
 - SignalR Standard S1: ~$50/month
-- Azure OpenAI: ~$5-20/month (usage-based)
-- Other services: Minimal
+- Azure OpenAI: ~$50-100/month (usage-based)
+- Static Web App Standard: ~$9/month
+- Function App: ~$20-50/month
+- Other services: ~$15-30/month
 
 ---
 
 ## Deployment Process
+
+### Infrastructure as Code (Bicep)
+
+The deployment uses Azure Bicep templates located in `infrastructure/`:
+
+```
+infrastructure/
+├── main.bicep              # Main orchestrator
+├── modules/
+│   ├── storage.bicep       # Storage Account + Tables + Blobs
+│   ├── signalr.bicep       # SignalR Service
+│   ├── functions.bicep     # Function App
+│   ├── appinsights.bicep   # Application Insights
+│   ├── openai.bicep        # Azure OpenAI + Foundry Project
+│   └── rbac.bicep          # RBAC role assignments
+└── parameters/
+    ├── dev.bicepparam      # Development parameters
+    └── prod.bicepparam     # Production parameters
+```
+
+See [INFRASTRUCTURE_BICEP.md](../architecture/INFRASTRUCTURE_BICEP.md) for detailed module documentation.
 
 ### Authentication SKU Requirement
 
 For Microsoft Entra External ID / Azure AD B2C custom authentication in Static Web Apps, **Standard SKU is required**. Free SKU can fall back to default auth behavior and ignore custom provider registration settings.
 
 - Official reference: https://learn.microsoft.com/azure/static-web-apps/authentication-custom
-- This project enforces Standard SKU in deployment scripts when External ID is configured.
+- Deployment scripts automatically upgrade to Standard when External ID is configured.
 
 ### Prerequisites
 ```bash
@@ -113,21 +139,32 @@ This script will:
 
 **Step 2: Deploy Infrastructure and Application**
 ```bash
-source .external-id-credentials
 ./deploy-full-production.sh
 ```
 
 **Duration**: 10-15 minutes
 
 **What it does**:
-- Creates resource group
-- Deploys infrastructure (Storage, SignalR S1, Functions, OpenAI, Static Web App)
-- Builds and deploys backend (44 functions)
-- Creates database tables (12 tables)
-- Configures CORS
-- Configures Azure AD authentication (Client ID, Secret, Tenant ID)
-- Builds and deploys frontend
-- Verifies deployment
+1. Validates credentials and prerequisites
+2. Creates resource group (rg-qr-attendance-prod)
+3. Deploys Bicep infrastructure:
+   - Storage Account with 16 tables and 2 blob containers
+   - SignalR Service (Standard S1)
+   - Azure OpenAI with Foundry Project
+   - Function App with managed identity
+   - Application Insights
+   - RBAC role assignments
+4. Sets up Foundry project:
+   - Ensures RBAC access for user and project MI
+   - Creates tracing connection to App Insights
+   - Creates AI agents (quiz generator, position analyzer)
+5. Deploys backend functions (44+ functions)
+6. Builds and deploys frontend:
+   - Upgrades SWA to Standard SKU
+   - Links Function App backend
+   - Configures Azure AD settings
+7. Configures SignalR CORS
+8. Verifies deployment health
 
 **Step 3: Verify Deployment**
 ```bash
@@ -136,20 +173,20 @@ source .external-id-credentials
 
 **Checks**:
 - ✅ SignalR Standard S1 tier
-- ✅ Function App running
+- ✅ Function App running (44+ functions)
 - ✅ Azure OpenAI (AIServices kind)
-- ✅ Static Web App deployed
-- ✅ All 12 tables created
-- ✅ Azure AD configured
-
-**Step 4: Test Production**
-- ✅ All 12 tables created
-- ✅ SignalR connection configured
+- ✅ Foundry Project created
+- ✅ AI Agents deployed
+- ✅ Static Web App deployed (Standard SKU)
+- ✅ Backend linked to SWA
+- ✅ All 16 tables created
+- ✅ Azure AD External ID configured
+- ✅ Login redirect validation
 
 **Step 4: Test Production**
 1. Wait 2-3 minutes for Azure AD settings to propagate
-2. Open: https://ashy-desert-0fc9a700f.6.azurestaticapps.net
-3. You should be redirected to Azure AD login
+2. Open the Static Web App URL from deployment output
+3. You should be redirected to Azure AD External ID login
 4. Login with VTC credentials
 5. Check browser console for "SignalR connected"
 6. Create a session and test quiz feature
@@ -175,9 +212,60 @@ This ensures complete cleanup with no lingering resources or AD apps.
 
 ---
 
+## Credential Files
+
+### .external-id-credentials (Required)
+
+```bash
+AAD_CLIENT_ID=<app-registration-client-id>
+AAD_CLIENT_SECRET=<client-secret>
+TENANT_ID=<azure-ad-tenant-id>
+EXTERNAL_ID_ISSUER=https://<tenant>.ciamlogin.com/<tenant-id>/v2.0
+```
+
+### .otp-email-credentials (Optional)
+
+```bash
+OTP_SMTP_HOST=smtp.gmail.com
+OTP_SMTP_PORT=465
+OTP_SMTP_SECURE=true
+OTP_SMTP_USERNAME=<email>
+OTP_SMTP_PASSWORD=<app-password>
+OTP_FROM_EMAIL=<sender-email>
+OTP_FROM_NAME=VTC Attendance
+```
+
+### .agent-config.env (Auto-generated)
+
+Created by deployment script with agent references:
+```bash
+AZURE_AI_PROJECT_ENDPOINT=https://openai-qrattendance-prod.cognitiveservices.azure.com/api/projects/openai-qrattendance-prod-project
+AZURE_AI_AGENT_NAME=quiz-question-generator
+AZURE_AI_AGENT_VERSION=1
+```
+
+---
+
 ## Recent Fixes & Improvements
 
-### February 11, 2026 Deployment
+### March 2026 Updates
+
+**Infrastructure**:
+- ✅ Updated to Node.js 22 runtime
+- ✅ Added Foundry Project for Agent Service
+- ✅ Keyless authentication for OpenAI (managed identity)
+- ✅ Added 4 new tables for capture feature
+- ✅ Added 2 blob containers for images
+- ✅ Token TTL increased to 25 seconds
+
+**Deployment Scripts**:
+- ✅ Automatic Foundry RBAC setup
+- ✅ Tracing connection to App Insights
+- ✅ Agent creation via TypeScript SDK
+- ✅ External ID login verification
+- ✅ Improved error handling and recovery
+
+### February 2026 Deployment
 
 **Infrastructure Updates**:
 - ✅ Updated Azure OpenAI to API 2024-10-01 with AIServices kind
@@ -321,7 +409,7 @@ az signalr show \
 
 ## Database Schema
 
-**12 Tables** in Azure Table Storage:
+**16 Tables** in Azure Table Storage:
 1. Sessions - Class sessions
 2. Attendance - Student attendance records
 3. Chains - QR chain state
@@ -330,10 +418,17 @@ az signalr show \
 6. AttendanceSnapshots - Instant attendance captures
 7. ChainHistory - Chain scan history
 8. ScanLogs - Detailed scan logs
-9. QuizQuestions - Generated quiz questions
-10. QuizResponses - Student answers
-11. QuizMetrics - Quiz performance metrics
-12. DeletionLog - Deletion audit trail
+9. DeletionLog - Deletion audit trail
+10. QuizQuestions - Generated quiz questions
+11. QuizResponses - Student answers
+12. QuizMetrics - Quiz performance metrics
+13. CaptureRequests - Image capture requests
+14. CaptureUploads - Image uploads
+15. CaptureResults - Capture analysis results
+
+**2 Blob Containers**:
+- quiz-slides - Slide images for quiz generation
+- student-captures - Student image captures
 
 ---
 
@@ -372,12 +467,14 @@ az consumption budget create \
 
 ## Additional Documentation
 
-- **System Architecture**: `SYSTEM_ARCHITECTURE.md`
-- **Database Details**: `DATABASE_TABLES.md`
-- **Live Quiz Feature**: `LIVE_QUIZ.md`
-- **Security Guidelines**: `SECURITY.md`
-- **Local Development**: `LOCAL_DEVELOPMENT.md`
-- **All Documentation**: `DOCUMENTATION_INDEX.md`
+- **System Architecture**: [../architecture/SYSTEM_ARCHITECTURE.md](../architecture/SYSTEM_ARCHITECTURE.md)
+- **Infrastructure Bicep**: [../architecture/INFRASTRUCTURE_BICEP.md](../architecture/INFRASTRUCTURE_BICEP.md)
+- **Deployment Scripts**: [../architecture/DEPLOYMENT_SCRIPTS.md](../architecture/DEPLOYMENT_SCRIPTS.md)
+- **Database Details**: [../architecture/DATABASE_TABLES.md](../architecture/DATABASE_TABLES.md)
+- **Live Quiz Feature**: [../architecture/LIVE_QUIZ.md](../architecture/LIVE_QUIZ.md)
+- **Security Guidelines**: [SECURITY.md](../../SECURITY.md)
+- **Local Development**: [../development/](../development/)
+- **All Documentation**: [DOCUMENTATION_INDEX.md](../../DOCUMENTATION_INDEX.md)
 
 ---
 

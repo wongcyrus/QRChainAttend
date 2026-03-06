@@ -1,44 +1,45 @@
 # System Architecture
 
-**Last Updated**: February 10, 2026  
-**Version**: 2.0
+**Last Updated**: March 5, 2026  
+**Version**: 3.0
 
 ---
 
 ## Overview
 
-The QR Chain Attendance System is a real-time attendance tracking application built on Azure services with a focus on security, scalability, and user experience.
+The QR Chain Attendance System is a real-time attendance tracking application built on Azure services with a focus on security, scalability, and user experience. Infrastructure is managed via Azure Bicep (IaC) with automated deployment scripts.
 
 ## Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         Frontend                             │
-│  Next.js + React + TypeScript (Azure Static Web Apps)       │
+│  Next.js 15 + React 18 + TypeScript (Azure Static Web Apps) │
 │  - Teacher Dashboard (Real-time monitoring)                  │
 │  - Student View (QR scanning & display)                      │
 │  - Session Management (CRUD with recurring)                  │
+│  - Live Quiz (AI-powered question generation)                │
 └─────────────────┬───────────────────────────────────────────┘
                   │
-                  │ HTTPS + Auth Headers
+                  │ HTTPS + x-ms-client-principal (via SWA proxy)
                   │
 ┌─────────────────▼───────────────────────────────────────────┐
 │                    Backend API                               │
-│  Azure Functions (Node.js 20 + TypeScript)                  │
-│  - 36 HTTP-triggered functions                               │
-│  - Authentication & Authorization                            │
-│  - Business Logic                                            │
+│  Azure Functions v4 (Node.js 22 + TypeScript)               │
+│  - 44+ HTTP-triggered functions                              │
+│  - Managed Identity authentication                           │
+│  - Business Logic + AI Integration                           │
 └─────────────────┬───────────────────────────────────────────┘
                   │
-        ┌─────────┼─────────┐
-        │         │         │
-        ▼         ▼         ▼
-┌───────────┐ ┌──────────┐ ┌─────────────┐
-│  Azure    │ │  Azure   │ │   Azure     │
-│  Table    │ │  SignalR │ │   AD        │
-│  Storage  │ │  Service │ │   (Auth)    │
-│  (9 tables)│ │ (Real-time)│ │           │
-└───────────┘ └──────────┘ └─────────────┘
+        ┌─────────┼─────────┬─────────────┐
+        │         │         │             │
+        ▼         ▼         ▼             ▼
+┌───────────┐ ┌──────────┐ ┌─────────┐ ┌─────────────┐
+│  Azure    │ │  Azure   │ │ Azure   │ │   Azure     │
+│  Table    │ │  SignalR │ │ OpenAI  │ │   AD        │
+│  Storage  │ │  Service │ │ + Foundry│ │ External ID │
+│ (16 tables)│ │(Real-time)│ │ (AI)    │ │   (Auth)    │
+└───────────┘ └──────────┘ └─────────┘ └─────────────┘
 ```
 
 ---
@@ -58,6 +59,7 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 - Offline functionality with service workers
 - Mobile-first responsive design
 - Real-time dashboard updates
+- Live Quiz with AI-generated questions
 
 **Pages**:
 - `/` - Home page with role selection
@@ -71,16 +73,18 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 - Real-time attendance monitoring
 - Snapshot management
 - Export controls
+- Live Quiz interface
 
 ### 2. Backend (Azure Functions)
 
 **Technology Stack**:
 - Azure Functions v4 (4.11.1)
-- Node.js 20 runtime
+- Node.js 22 runtime
 - TypeScript
 - HTTP triggers (anonymous auth level)
+- Managed Identity for Azure service access
 
-**Function Categories** (44 total):
+**Function Categories** (44+ total):
 
 **Authentication** (2):
 - `getRoles` - Get user roles
@@ -149,12 +153,12 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 
 ### 3. Database (Azure Table Storage)
 
-**12 Tables**:
+**16 Tables** (managed by Bicep):
 
 1. **Sessions** - Session metadata
 2. **Attendance** - Student attendance records
 3. **Chains** - QR chain state
-4. **Tokens** - Chain tokens (10s TTL)
+4. **Tokens** - Chain tokens (25s TTL)
 5. **UserSessions** - User-session mapping
 6. **AttendanceSnapshots** - Snapshot metadata
 7. **ChainHistory** - Chain transfer audit
@@ -163,12 +167,21 @@ The QR Chain Attendance System is a real-time attendance tracking application bu
 10. **QuizQuestions** - AI-generated quiz questions
 11. **QuizResponses** - Student quiz answers
 12. **QuizMetrics** - Quiz performance metrics
+13. **CaptureRequests** - Image capture requests
+14. **CaptureUploads** - Image uploads
+15. **CaptureResults** - Capture analysis results
+
+**Blob Containers**:
+- `quiz-slides` - Slide images for quiz generation
+- `student-captures` - Student image captures
 
 See [DATABASE_TABLES.md](DATABASE_TABLES.md) for detailed schemas.
 
 ### 4. Real-time Communication (Azure SignalR)
 
-**Configuration**: Standard S1 tier (1000 concurrent connections) in production
+**Configuration**: 
+- Production: Standard S1 tier (1000 concurrent connections)
+- Development: Free tier (20 connections)
 
 **Connections**:
 - Teacher Dashboard: Real-time attendance updates
@@ -186,9 +199,27 @@ See [DATABASE_TABLES.md](DATABASE_TABLES.md) for detailed schemas.
 - Status polling: 15 seconds (when not holder and SignalR unavailable)
 - Auth header caching: 30 minutes
 
-### 5. Authentication (Azure AD)
+### 5. AI Services (Azure OpenAI + Foundry)
 
-**Provider**: Azure Active Directory via Static Web Apps
+**Configuration**:
+- Azure AI Services account (AIServices kind)
+- Foundry Project for Agent Service
+- Keyless authentication (managed identity)
+
+**Model Deployments**:
+| Model | Purpose | Capacity |
+|-------|---------|----------|
+| GPT-4.1 | Quiz generation, answer evaluation | 50K TPM |
+| GPT-4.1 Vision | Slide analysis | 1K TPM |
+| GPT-5.2-chat | Advanced agents (optional) | 100K TPM |
+
+**Agents** (via Foundry Agent Service):
+- Quiz Question Generator - Creates questions from slides
+- Seating Position Analyzer - Analyzes classroom photos
+
+### 6. Authentication (Azure AD External ID)
+
+**Provider**: Azure AD External ID via Static Web Apps (Standard SKU)
 
 **Role Assignment**:
 - Email domain-based automatic role assignment
@@ -197,11 +228,16 @@ See [DATABASE_TABLES.md](DATABASE_TABLES.md) for detailed schemas.
 
 **Authentication Flow**:
 1. User clicks "Login"
-2. Redirected to Azure AD
+2. Redirected to Azure AD External ID (ciamlogin.com)
 3. Authenticates with Microsoft account
 4. Redirected back with auth token
-5. Frontend reads `/.auth/me` endpoint
-6. Backend validates `x-ms-client-principal` header
+5. Static Web App validates token
+6. Backend receives `x-ms-client-principal` header via SWA proxy
+
+**Security**:
+- Standard SKU required for custom auth providers
+- Function App auth disabled (SWA handles auth)
+- Backend linked to SWA for seamless proxy
 
 ---
 
@@ -375,9 +411,9 @@ Exit Chain (different chain):
 - Records metadata in AttendanceSnapshots
 - No special trace/comparison features
 
-### 4. Token TTL: 10 Seconds
+### 4. Token TTL: 25 Seconds
 
-**Decision**: Chain tokens expire after 10 seconds
+**Decision**: Chain tokens expire after 25 seconds
 
 **Rationale**:
 - Fast rotation prevents cheating
@@ -385,7 +421,7 @@ Exit Chain (different chain):
 - Short enough to prevent sharing
 - Long enough for legitimate scans
 
-**Configuration**: `CHAIN_TOKEN_TTL_SECONDS=10`
+**Configuration**: `CHAIN_TOKEN_TTL_SECONDS=25`
 
 ### 5. Default Geofence: 1000 Meters
 
@@ -587,21 +623,39 @@ Exit Chain (different chain):
 
 ## Deployment
 
-### CI/CD
-- GitHub Actions (planned)
-- Manual deployment scripts (current)
+### Infrastructure as Code (Bicep)
+
+All Azure resources are defined in Bicep templates:
+
+```
+infrastructure/
+├── main.bicep              # Orchestrator
+├── modules/
+│   ├── storage.bicep       # Table + Blob storage
+│   ├── signalr.bicep       # Real-time messaging
+│   ├── functions.bicep     # Backend API
+│   ├── appinsights.bicep   # Monitoring
+│   ├── openai.bicep        # AI services + Foundry
+│   └── rbac.bicep          # Role assignments
+└── parameters/
+    ├── dev.bicepparam      # Development config
+    ├── staging.bicepparam  # Staging config
+    └── prod.bicepparam     # Production config
+```
+
+### Deployment Scripts
+
+- `deploy-full-production.sh` - Complete production deployment (fail-fast)
+- `deploy-full-development.sh` - Development deployment (with retries)
+- `deploy-frontend-only.sh` - Frontend only
+- `deploy-backend-only.sh` - Backend only
 
 ### Environments
 - **Local**: Azurite + localhost
-- **Production**: Azure resources
+- **Development**: Azure resources (dev parameters)
+- **Production**: Azure resources (prod parameters)
 
-### Deployment Scripts
-- `deploy-production.sh` - Full deployment
-- `deploy-frontend-only.sh` - Frontend only
-- `deploy-backend-only.sh` - Backend only
-- `quick-deploy.sh` - Fast deployment
-
-See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for details.
+See [INFRASTRUCTURE_BICEP.md](INFRASTRUCTURE_BICEP.md) and [DEPLOYMENT_SCRIPTS.md](DEPLOYMENT_SCRIPTS.md) for details.
 
 ---
 
@@ -625,12 +679,14 @@ See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for details.
 
 ## References
 
-- [README.md](README.md) - Project overview
+- [README.md](../../README.md) - Project overview
 - [DATABASE_TABLES.md](DATABASE_TABLES.md) - Database schemas
-- [ENTRY_EXIT_METHODS.md](ENTRY_EXIT_METHODS.md) - Method tracking
-- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) - Deployment instructions
-- [GETTING_STARTED.md](GETTING_STARTED.md) - Setup guide
+- [INFRASTRUCTURE_BICEP.md](INFRASTRUCTURE_BICEP.md) - Bicep module details
+- [DEPLOYMENT_SCRIPTS.md](DEPLOYMENT_SCRIPTS.md) - Deployment script architecture
+- [ENTRY_CHAIN_DUPLICATE_PREVENTION.md](ENTRY_CHAIN_DUPLICATE_PREVENTION.md) - Chain holder prevention
+- [../deployment/DEPLOYMENT_GUIDE.md](../deployment/DEPLOYMENT_GUIDE.md) - Deployment instructions
+- [GETTING_STARTED.md](../../GETTING_STARTED.md) - Setup guide
 
 ---
 
-**Last Updated**: February 10, 2026
+**Last Updated**: March 5, 2026

@@ -6,14 +6,17 @@ This directory contains Bicep templates and deployment scripts for provisioning 
 
 The infrastructure is defined using Azure Bicep (Infrastructure as Code) and includes:
 
-- **Azure Static Web Apps** - Frontend hosting with built-in authentication
-- **Azure Functions** - Serverless backend API (Consumption plan)
-- **Azure Table Storage** - Data persistence for sessions, attendance, tokens, chains, and scan logs
+- **Azure Functions** - Serverless backend API (Consumption plan, Node.js 22)
+- **Azure Table Storage** - Data persistence (16 tables for sessions, attendance, tokens, chains, quizzes, captures)
+- **Azure Blob Storage** - Image storage (quiz slides, student captures)
 - **Azure SignalR Service** - Real-time updates for teacher dashboard
-- **Azure OpenAI** (Optional) - AI-powered insights for session analysis
+- **Azure OpenAI (AIServices)** - AI-powered quiz generation and analysis
+- **Azure AI Foundry Project** - Agent Service for persistent AI agents
 - **Application Insights** - Monitoring and logging
 - **Managed Identity** - Secure authentication between Azure services
 - **RBAC Role Assignments** - Least-privilege access control
+
+**Note**: Static Web Apps are deployed via CLI in the main deployment scripts, not via Bicep.
 
 ## Requirements Mapping
 
@@ -21,8 +24,8 @@ This infrastructure satisfies the following requirements:
 
 - **Requirement 19.1**: Managed Identity for Table Storage authentication
 - **Requirement 19.2**: Managed Identity for SignalR Service authentication
-- **Requirement 19.3**: Managed Identity for Azure OpenAI authentication (optional)
-- **Requirement 19.4**: Storage Table Data Contributor role for Static Web App and Function App
+- **Requirement 19.3**: Managed Identity for Azure OpenAI authentication
+- **Requirement 19.4**: Storage Table Data Contributor role for Function App
 - **Requirement 19.5**: SignalR Service Owner role for Function App
 
 ## Architecture
@@ -33,34 +36,19 @@ This infrastructure satisfies the following requirements:
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌──────────────────┐         ┌──────────────────┐        │
-│  │ Static Web App   │         │ Function App     │        │
-│  │ (Frontend)       │         │ (Backend API)    │        │
-│  │ [Managed ID]     │         │ [Managed ID]     │        │
-│  └────────┬─────────┘         └────────┬─────────┘        │
-│           │                            │                   │
-│           │ Storage Table              │ Storage Table     │
-│           │ Data Contributor           │ Data Contributor  │
-│           │                            │                   │
-│           │                            │ SignalR Service   │
-│           │                            │ Owner             │
-│           │                            │                   │
-│           ▼                            ▼                   │
-│  ┌──────────────────────────────────────────────┐         │
-│  │      Azure Table Storage                     │         │
-│  │  - Sessions, Attendance, Tokens, Chains      │         │
-│  └──────────────────────────────────────────────┘         │
-│                                                             │
-│                                  ▼                         │
-│                         ┌──────────────────┐              │
-│                         │ SignalR Service  │              │
-│                         │ (Real-time)      │              │
-│                         └──────────────────┘              │
-│                                                             │
-│                                  ▼                         │
-│                         ┌──────────────────┐              │
-│                         │ Azure OpenAI     │              │
-│                         │ (Optional)       │              │
-│                         └──────────────────┘              │
+│  │ Static Web App   │ ──────► │ Function App     │        │
+│  │ (Frontend)       │  proxy  │ (Backend API)    │        │
+│  │ [Standard SKU]   │         │ [Managed ID]     │        │
+│  └──────────────────┘         └────────┬─────────┘        │
+│                                        │                   │
+│           ┌────────────────────────────┼───────────────┐  │
+│           │                            │               │  │
+│           ▼                            ▼               ▼  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌─────────┐ │
+│  │ Azure Table      │  │ SignalR Service  │  │ OpenAI  │ │
+│  │ Storage          │  │ (Real-time)      │  │ + Foundry│ │
+│  │ (16 tables)      │  │                  │  │ Project │ │
+│  └──────────────────┘  └──────────────────┘  └─────────┘ │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -71,21 +59,30 @@ This infrastructure satisfies the following requirements:
 infrastructure/
 ├── main.bicep                  # Main orchestration template
 ├── modules/                    # Modular Bicep templates
-│   ├── storage.bicep          # Azure Storage Account with Table Storage
+│   ├── storage.bicep          # Azure Storage Account with Table + Blob Storage
 │   ├── signalr.bicep          # Azure SignalR Service
 │   ├── functions.bicep        # Azure Functions (Backend)
-│   ├── staticwebapp.bicep     # Azure Static Web App (Frontend)
-│   ├── appinsights.bicep      # Application Insights
-│   ├── openai.bicep           # Azure OpenAI (Optional)
+│   ├── appinsights.bicep      # Application Insights + Log Analytics
+│   ├── openai.bicep           # Azure OpenAI + Foundry Project
 │   └── rbac.bicep             # RBAC role assignments
 ├── parameters/                 # Environment-specific parameters
 │   ├── dev.bicepparam         # Development environment
 │   ├── staging.bicepparam     # Staging environment
 │   └── prod.bicepparam        # Production environment
-├── deploy.sh                   # Bash deployment script
+├── deploy.sh                   # Bash deployment script (standalone)
 ├── deploy.ps1                  # PowerShell deployment script
+├── validate.sh                 # Bicep validation script
 └── README.md                   # This file
 ```
+
+## Main Deployment Scripts
+
+The primary deployment scripts are in the project root:
+
+- `deploy-full-production.sh` - Complete production deployment
+- `deploy-full-development.sh` - Complete development deployment
+
+These scripts orchestrate Bicep deployment plus additional configuration.
 
 ## Prerequisites
 
@@ -96,20 +93,27 @@ Before deploying, ensure you have:
    az --version
    ```
 
-2. **Azure subscription** with appropriate permissions
+2. **Azure Functions Core Tools** installed (v4)
+   ```bash
+   func --version
+   ```
+
+3. **Node.js 22** installed (via NVM recommended)
+   ```bash
+   node --version  # Should be v22.x
+   ```
+
+4. **Azure subscription** with appropriate permissions
    - Owner or Contributor role on the subscription
    - User Access Administrator role (for RBAC assignments)
 
-3. **Azure AD application** registered for authentication
+5. **Azure AD External ID** application registered
    - Client ID
    - Client Secret
-   - Redirect URIs configured
+   - Tenant ID
+   - External ID Issuer URL
 
-4. **GitHub repository** (for Static Web App deployment)
-   - Repository URL
-   - Personal Access Token (PAT) with `repo` scope
-
-5. **Logged in to Azure CLI**
+6. **Logged in to Azure CLI**
    ```bash
    az login
    az account set --subscription "<your-subscription-id>"
@@ -117,85 +121,48 @@ Before deploying, ensure you have:
 
 ## Quick Start
 
-### 1. Register Azure AD Application
+### 1. Set Up Credentials
 
-First, create an Azure AD application for authentication:
-
+Create `.external-id-credentials` in project root:
 ```bash
-# Create app registration
-az ad app create \
-  --display-name "QR Chain Attendance System" \
-  --sign-in-audience AzureADMyOrg
-
-# Note the Application (client) ID from the output
+AAD_CLIENT_ID=<your-client-id>
+AAD_CLIENT_SECRET=<your-client-secret>
+TENANT_ID=<your-tenant-id>
+EXTERNAL_ID_ISSUER=https://<tenant>.ciamlogin.com/<tenant-id>/v2.0
 ```
 
-See [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md) for detailed Azure AD setup instructions.
+Or run the setup script:
+```bash
+./setup-azure-ad-app.sh
+```
 
-### 2. Deploy Infrastructure
-
-#### Using Bash (Linux/macOS)
+### 2. Deploy to Production
 
 ```bash
-# Make the script executable
-chmod +x infrastructure/deploy.sh
+./deploy-full-production.sh
+```
 
-# Deploy to development environment
+### 3. Deploy to Development
+
+```bash
+./deploy-full-development.sh
+```
+
+### Using Standalone Bicep Script
+
+For infrastructure-only deployment:
+
+```bash
+# Deploy to development
 ./infrastructure/deploy.sh \
   --environment dev \
-  --resource-group rg-qr-attendance-dev \
-  --repository-url "https://github.com/your-org/your-repo" \
-  --token "ghp_your_github_token" \
-  --client-id "your-aad-client-id" \
-  --client-secret "your-aad-client-secret"
+  --resource-group rg-qr-attendance-dev
 
 # Deploy to production with Azure OpenAI
 ./infrastructure/deploy.sh \
   --environment prod \
   --resource-group rg-qr-attendance-prod \
-  --repository-url "https://github.com/your-org/your-repo" \
-  --token "ghp_your_github_token" \
-  --client-id "your-aad-client-id" \
-  --client-secret "your-aad-client-secret" \
   --deploy-openai true
-```
-
-#### Using PowerShell (Windows)
-
-```powershell
-# Deploy to development environment
-.\infrastructure\deploy.ps1 `
-  -Environment dev `
-  -ResourceGroup rg-qr-attendance-dev `
-  -RepositoryUrl "https://github.com/your-org/your-repo" `
-  -RepositoryToken "ghp_your_github_token" `
-  -AadClientId "your-aad-client-id" `
-  -AadClientSecret "your-aad-client-secret"
-
-# Deploy to production with Azure OpenAI
-.\infrastructure\deploy.ps1 `
-  -Environment prod `
-  -ResourceGroup rg-qr-attendance-prod `
-  -RepositoryUrl "https://github.com/your-org/your-repo" `
-  -RepositoryToken "ghp_your_github_token" `
-  -AadClientId "your-aad-client-id" `
-  -AadClientSecret "your-aad-client-secret" `
-  -DeployOpenAI $true
-```
-
-### 3. Verify Deployment
-
-After deployment completes, verify the resources:
-
-```bash
-# List all resources in the resource group
-az resource list --resource-group rg-qr-attendance-dev --output table
-
-# Verify managed identity role assignments
-./scripts/verify-managed-identity.sh \
-  --resource-group rg-qr-attendance-dev \
-  --swa-name swa-qrattendance-dev \
-  --function-app-name func-qrattendance-dev
 ```
 
 ## Deployment Options
@@ -260,20 +227,15 @@ Resources are named using the pattern: `<resource-type>-<base-name>-<environment
 Examples:
 - Storage Account: `stqrattendancedev` (no hyphens, lowercase)
 - SignalR Service: `signalr-qrattendance-dev`
-- Static Web App: `swa-qrattendance-dev`
 - Function App: `func-qrattendance-dev`
 - App Service Plan: `asp-qrattendance-dev`
 - Application Insights: `appi-qrattendance-dev`
 - Azure OpenAI: `openai-qrattendance-dev`
+- Foundry Project: `openai-qrattendance-dev-project`
 
 ## Managed Identity and RBAC
 
 The deployment automatically configures:
-
-### Static Web App Managed Identity
-- **Storage Table Data Contributor** on Storage Account
-  - Read, write, delete table entities
-  - Required for direct table access (if needed)
 
 ### Function App Managed Identity
 - **Storage Table Data Contributor** on Storage Account
@@ -282,9 +244,12 @@ The deployment automatically configures:
 - **SignalR Service Owner** on SignalR Service
   - Full access to send messages
   - Manage connections and groups
-- **Cognitive Services OpenAI User** on Azure OpenAI (if deployed)
+- **Cognitive Services OpenAI User** on Azure OpenAI
   - Read access to OpenAI resources
   - Call OpenAI API endpoints
+- **Azure AI User** on OpenAI Account and Foundry Project
+  - Agent Service operations
+  - Project-scoped permissions
 
 Role assignments may take 5-10 minutes to propagate after deployment.
 
@@ -390,21 +355,21 @@ az functionapp delete --name func-qrattendance-dev --resource-group rg-qr-attend
 ## Cost Estimation
 
 ### Development Environment
-- Static Web App: Free tier ($0/month)
 - Function App: Consumption plan (~$5-10/month for light usage)
-- Storage Account: ~$1-2/month
+- Storage Account: ~$2/month
 - SignalR Service: Free tier ($0/month, 20 connections)
 - Application Insights: ~$2-5/month
-- **Total: ~$8-17/month**
+- Azure OpenAI: ~$10-30/month (if enabled)
+- **Total: ~$19-47/month**
 
 ### Production Environment
-- Static Web App: Free tier ($0/month)
 - Function App: Consumption plan (~$20-50/month for moderate usage)
 - Storage Account: ~$5-10/month
 - SignalR Service: Standard tier (~$50/month, 1000 connections)
 - Application Insights: ~$10-20/month
-- Azure OpenAI: ~$50-100/month (if enabled)
-- **Total: ~$85-230/month**
+- Azure OpenAI: ~$50-100/month
+- Static Web App: Standard tier (~$9/month)
+- **Total: ~$144-239/month**
 
 Costs vary based on actual usage. Monitor costs in Azure Cost Management.
 
@@ -488,11 +453,10 @@ steps:
 
 ## Related Documentation
 
-- [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md) - Complete deployment guide
-- [MANAGED_IDENTITY_RBAC.md](../MANAGED_IDENTITY_RBAC.md) - Managed Identity configuration
-- [AZURE_STATIC_WEB_APP_CONFIG.md](../AZURE_STATIC_WEB_APP_CONFIG.md) - Static Web App configuration
-- [Design Document](.kiro/specs/qr-chain-attendance/design.md) - System architecture
-- [Requirements](.kiro/specs/qr-chain-attendance/requirements.md) - System requirements
+- [docs/architecture/INFRASTRUCTURE_BICEP.md](../docs/architecture/INFRASTRUCTURE_BICEP.md) - Detailed Bicep module documentation
+- [docs/architecture/DEPLOYMENT_SCRIPTS.md](../docs/architecture/DEPLOYMENT_SCRIPTS.md) - Deployment script architecture
+- [docs/deployment/DEPLOYMENT_GUIDE.md](../docs/deployment/DEPLOYMENT_GUIDE.md) - Complete deployment guide
+- [docs/architecture/SYSTEM_ARCHITECTURE.md](../docs/architecture/SYSTEM_ARCHITECTURE.md) - System architecture
 
 ## Support
 
