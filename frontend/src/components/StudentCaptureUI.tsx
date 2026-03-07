@@ -42,6 +42,7 @@ export function StudentCaptureUI({
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [showCamera, setShowCamera] = useState(false);
   const [connectionWarning, setConnectionWarning] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user'); // Track camera facing mode
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -109,13 +110,15 @@ export function StudentCaptureUI({
     return null;
   }
 
-  const startCamera = async () => {
+  const startCamera = async (requestedFacingMode?: 'user' | 'environment') => {
     try {
       setErrorMessage(null);
       console.log('[Camera] Requesting camera access...');
       
+      const mode = requestedFacingMode || facingMode;
+      
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
       });
       
@@ -216,6 +219,21 @@ export function StudentCaptureUI({
     }
   };
 
+  const switchCamera = async () => {
+    // Stop current stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    // Toggle facing mode
+    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newFacingMode);
+    
+    // Restart camera with new facing mode
+    await startCamera(newFacingMode);
+  };
+
   const stopCamera = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -238,12 +256,17 @@ export function StudentCaptureUI({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    // Mirror horizontally to match the preview (video has scaleX(-1) CSS)
-    ctx.save();
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1); // Flip horizontally
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    ctx.restore();
+    // Mirror horizontally only for front camera to match the preview
+    if (facingMode === 'user') {
+      ctx.save();
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1); // Flip horizontally
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    } else {
+      // Back camera - no mirroring needed
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
     
     // Convert canvas to blob
     canvas.toBlob(async (blob) => {
@@ -595,7 +618,7 @@ export function StudentCaptureUI({
             {errorMessage.includes('camera permissions') && (
               <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
-                  onClick={startCamera}
+                  onClick={() => startCamera()}
                   style={{
                     padding: '0.5rem 1rem',
                     backgroundColor: '#007bff',
@@ -671,7 +694,7 @@ export function StudentCaptureUI({
                 backgroundColor: '#000',
                 display: 'block',
                 objectFit: 'cover',
-                transform: 'scaleX(-1)' // Mirror horizontally for natural selfie view
+                transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' // Mirror only for front camera
               }}
             />
             {/* Loading indicator while video initializes */}
@@ -687,6 +710,41 @@ export function StudentCaptureUI({
               {videoRef.current?.readyState === 0 && '⏳ Initializing camera...'}
             </div>
             <canvas ref={canvasRef} style={{ display: 'none' }} />
+            
+            {/* Camera swap button overlay */}
+            <button
+              onClick={switchCamera}
+              style={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                padding: '0.75rem',
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                color: 'white',
+                border: '2px solid white',
+                borderRadius: '50%',
+                width: '50px',
+                height: '50px',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                zIndex: 10
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+              title={facingMode === 'user' ? 'Switch to back camera' : 'Switch to front camera'}
+            >
+              🔄
+            </button>
             
             <div style={{
               display: 'flex',
@@ -841,7 +899,7 @@ export function StudentCaptureUI({
             </p>
             
             <button
-              onClick={startCamera}
+              onClick={() => startCamera()}
               disabled={uploadStatus === 'success'}
               style={{
                 width: '100%',
