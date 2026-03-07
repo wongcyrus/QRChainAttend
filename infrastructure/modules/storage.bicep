@@ -168,7 +168,11 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
     cors: {
       corsRules: [
         {
-          allowedOrigins: blobCorsAllowedOrigins
+          allowedOrigins: union(blobCorsAllowedOrigins, [
+            'https://*.azurestaticapps.net'
+            'http://localhost:3000'
+            'http://localhost:7071'
+          ])
           allowedMethods: [
             'GET'
             'PUT'

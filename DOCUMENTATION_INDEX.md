@@ -12,7 +12,6 @@
 | [GETTING_STARTED.md](GETTING_STARTED.md) | Setup guide |
 | [PROJECT_STATUS.md](PROJECT_STATUS.md) | Current status |
 | [SECURITY.md](SECURITY.md) | Security guidelines |
-| [AGENT_SERVICE_GUIDE.md](AGENT_SERVICE_GUIDE.md) | Azure AI Foundry agents |
 
 ---
 
@@ -38,11 +37,20 @@
 
 ---
 
+## Features
+
+| Document | Description |
+|----------|-------------|
+| [BATCH_IMAGE_ANALYSIS.md](docs/features/BATCH_IMAGE_ANALYSIS.md) | Custom image analysis with AI |
+
+---
+
 ## Deployment
 
 | Document | Description |
 |----------|-------------|
 | [DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md) | Full deployment instructions |
+| [AGENT_SETUP.md](docs/deployment/AGENT_SETUP.md) | Azure AI agent configuration |
 | [BACKEND_AUTH_MIGRATION.md](docs/deployment/BACKEND_AUTH_MIGRATION.md) | JWT authentication migration |
 | [DEV_SCRIPT_MIGRATION_COMPLETE.md](docs/deployment/DEV_SCRIPT_MIGRATION_COMPLETE.md) | Development script migration |
 | [infrastructure/README.md](infrastructure/README.md) | Infrastructure overview |

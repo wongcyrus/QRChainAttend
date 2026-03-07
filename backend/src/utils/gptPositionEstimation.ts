@@ -148,7 +148,7 @@ async function callPositionEstimationAgent(
   context.log(`Analyzing ${imageUrls.length} images`);
 
   const response = await agentClient.runSingleVisionInteraction({
-    userMessage: userPrompt,
+    userPrompt: userPrompt,
     imageUrls: imageUrls.map((img) => img.url),
     agentName: positionAgentName,
     agentVersion: positionAgentVersion,

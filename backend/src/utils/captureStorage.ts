@@ -314,3 +314,41 @@ export async function getCaptureResult(
     }
   }, `getCaptureResult(${captureRequestId})`);
 }
+
+/**
+ * List all uploads for a capture request
+ * 
+ * @param sessionId - Session ID (not used, kept for API compatibility)
+ * @param captureRequestId - Capture request ID (partition key)
+ * @returns Array of capture uploads
+ */
+export async function listCaptureUploads(
+  sessionId: string,
+  captureRequestId: string
+): Promise<CaptureUpload[]> {
+  return withRetry(async () => {
+    const client = getTableClient(CaptureTableNames.CAPTURE_UPLOADS);
+    
+    const uploads: CaptureUpload[] = [];
+    // CaptureUpload uses captureRequestId as partition key, not sessionId
+    const entities = client.listEntities({
+      queryOptions: {
+        filter: `PartitionKey eq '${captureRequestId}'`
+      }
+    });
+
+    for await (const entity of entities) {
+      uploads.push({
+        partitionKey: entity.partitionKey as string,
+        rowKey: entity.rowKey as string,
+        sessionId: entity.sessionId as string,
+        blobName: entity.blobName as string,
+        blobUrl: entity.blobUrl as string,
+        uploadedAt: entity.uploadedAt as string,
+        fileSizeBytes: entity.fileSizeBytes as number
+      });
+    }
+
+    return uploads;
+  }, 'listCaptureUploads');
+}

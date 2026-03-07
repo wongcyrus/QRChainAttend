@@ -337,10 +337,12 @@ export class AgentServiceClient {
   }
 
   async runSingleVisionInteraction(config: {
-    userMessage: string;
+    userPrompt: string;
     imageUrls: string[];
     agentName: string;
     agentVersion: string;
+    maxTokens?: number;
+    timeoutMs?: number;
     model?: string;
   }): Promise<AgentResponse> {
     const openAIClient = this.projectClient.getOpenAIClient();
@@ -351,7 +353,7 @@ export class AgentServiceClient {
     const inputContent: any[] = [
       {
         type: 'input_text',
-        text: config.userMessage
+        text: config.userPrompt
       }
     ];
 

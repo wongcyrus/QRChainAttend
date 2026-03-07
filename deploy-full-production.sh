@@ -933,6 +933,8 @@ AZURE_AI_AGENT_NAME=""
 AZURE_AI_AGENT_VERSION=""
 AZURE_AI_POSITION_AGENT_NAME=""
 AZURE_AI_POSITION_AGENT_VERSION=""
+AZURE_AI_ANALYSIS_AGENT_NAME=""
+AZURE_AI_ANALYSIS_AGENT_VERSION=""
 AZURE_AI_PROJECT_ENDPOINT=""
 
 # First, try to use the project endpoint from infrastructure deployment
@@ -958,6 +960,11 @@ if [ -f "../.agent-config.env" ]; then
     # Load position agent reference
     if [ -n "$AZURE_AI_POSITION_AGENT_NAME" ] && [ -n "$AZURE_AI_POSITION_AGENT_VERSION" ]; then
         echo "✓ Loaded position agent reference from config: ${AZURE_AI_POSITION_AGENT_NAME}:${AZURE_AI_POSITION_AGENT_VERSION}"
+    fi
+    
+    # Load analysis agent reference
+    if [ -n "$AZURE_AI_ANALYSIS_AGENT_NAME" ] && [ -n "$AZURE_AI_ANALYSIS_AGENT_VERSION" ]; then
+        echo "✓ Loaded analysis agent reference from config: ${AZURE_AI_ANALYSIS_AGENT_NAME}:${AZURE_AI_ANALYSIS_AGENT_VERSION}"
     fi
     
     # If infrastructure didn't provide endpoint, validate and fix config endpoint
@@ -1028,7 +1035,9 @@ cat > local.settings.json << EOF
     \"AZURE_AI_AGENT_NAME\": \"$AZURE_AI_AGENT_NAME\",
         \"AZURE_AI_AGENT_VERSION\": \"$AZURE_AI_AGENT_VERSION\"," || echo "")$([ -n "$AZURE_AI_POSITION_AGENT_NAME" ] && [ -n "$AZURE_AI_POSITION_AGENT_VERSION" ] && echo "
         \"AZURE_AI_POSITION_AGENT_NAME\": \"$AZURE_AI_POSITION_AGENT_NAME\",
-        \"AZURE_AI_POSITION_AGENT_VERSION\": \"$AZURE_AI_POSITION_AGENT_VERSION\"," || echo "")$([ -n "$JWT_SECRET" ] && echo "
+        \"AZURE_AI_POSITION_AGENT_VERSION\": \"$AZURE_AI_POSITION_AGENT_VERSION\"," || echo "")$([ -n "$AZURE_AI_ANALYSIS_AGENT_NAME" ] && [ -n "$AZURE_AI_ANALYSIS_AGENT_VERSION" ] && echo "
+        \"AZURE_AI_ANALYSIS_AGENT_NAME\": \"$AZURE_AI_ANALYSIS_AGENT_NAME\",
+        \"AZURE_AI_ANALYSIS_AGENT_VERSION\": \"$AZURE_AI_ANALYSIS_AGENT_VERSION\"," || echo "")$([ -n "$JWT_SECRET" ] && echo "
     \"JWT_SECRET\": \"$JWT_SECRET\"," || echo "")
     "JWT_EXPIRY_HOURS": "${JWT_EXPIRY_HOURS:-24}",
     "OTP_EXPIRY_MINUTES": "${OTP_EXPIRY_MINUTES:-5}",
