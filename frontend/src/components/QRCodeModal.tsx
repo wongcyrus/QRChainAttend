@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface QRCodeModalProps {
   sessionId: string;
@@ -6,6 +6,7 @@ interface QRCodeModalProps {
   type: 'ENTRY' | 'EXIT';
   qrDataUrl: string;
   studentUrl?: string; // URL to copy
+  expiresAt?: number; // Unix timestamp in seconds
   onClose: () => void;
 }
 
@@ -15,9 +16,32 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   type,
   qrDataUrl,
   studentUrl,
+  expiresAt,
   onClose
 }) => {
   const [copied, setCopied] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!expiresAt) return;
+
+    const updateTimer = () => {
+      const now = Math.floor(Date.now() / 1000);
+      const remaining = Math.max(0, expiresAt - now);
+      setTimeRemaining(remaining);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleCopy = async () => {
     console.log('QRCodeModal: handleCopy called');
@@ -127,6 +151,28 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             borderRadius: '8px'
           }} />
         </div>
+        
+        {/* Countdown Timer */}
+        {expiresAt && timeRemaining > 0 && (
+          <div style={{
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            backgroundColor: timeRemaining <= 5 ? '#fee' : timeRemaining <= 10 ? '#fff3cd' : '#e6f7ff',
+            borderRadius: '12px',
+            border: `2px solid ${timeRemaining <= 5 ? '#f44' : timeRemaining <= 10 ? '#ffc107' : '#1890ff'}`
+          }}>
+            <div style={{ fontSize: '0.875rem', color: '#4a5568', marginBottom: '0.25rem' }}>
+              Time Remaining
+            </div>
+            <div style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 'bold',
+              color: timeRemaining <= 5 ? '#d32f2f' : timeRemaining <= 10 ? '#f57c00' : '#1976d2'
+            }}>
+              {formatTime(timeRemaining)}
+            </div>
+          </div>
+        )}
         
         {/* Copy Button - Below QR Code */}
         {studentUrl ? (

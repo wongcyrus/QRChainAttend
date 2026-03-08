@@ -54,7 +54,7 @@ export default function TeacherPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [qrCodeData, setQrCodeData] = useState<{ sessionId: string; eventId: string; type: 'ENTRY' | 'EXIT'; qrDataUrl: string; studentUrl?: string; refreshIntervalMs?: number } | null>(null);
+  const [qrCodeData, setQrCodeData] = useState<{ sessionId: string; eventId: string; type: 'ENTRY' | 'EXIT'; qrDataUrl: string; studentUrl?: string; refreshIntervalMs?: number; expiresAt?: number } | null>(null);
   const [qrRefreshKey, setQrRefreshKey] = useState(0); // For triggering QR refresh
   
   // For delete confirmation dialog
@@ -228,7 +228,8 @@ export default function TeacherPage() {
           ...prev,
           qrDataUrl,
           studentUrl,
-          refreshIntervalMs: typeof data.refreshInterval === 'number' ? data.refreshInterval : prev.refreshIntervalMs
+          refreshIntervalMs: typeof data.refreshInterval === 'number' ? data.refreshInterval : prev.refreshIntervalMs,
+          expiresAt: data.expiresAt
         } : null);
       } catch (err) {
         console.error('Failed to refresh QR code:', err);
@@ -307,7 +308,8 @@ export default function TeacherPage() {
         type: 'ENTRY',
         qrDataUrl,
         studentUrl,
-        refreshIntervalMs: typeof data.refreshInterval === 'number' ? data.refreshInterval : 10000
+        refreshIntervalMs: typeof data.refreshInterval === 'number' ? data.refreshInterval : 10000,
+        expiresAt: data.expiresAt
       });
       setShowQRModal(true);
     } catch (err) {
@@ -378,7 +380,8 @@ export default function TeacherPage() {
         type: 'EXIT',
         qrDataUrl,
         studentUrl,
-        refreshIntervalMs: typeof data.refreshInterval === 'number' ? data.refreshInterval : 10000
+        refreshIntervalMs: typeof data.refreshInterval === 'number' ? data.refreshInterval : 10000,
+        expiresAt: data.expiresAt
       });
       setShowQRModal(true);
     } catch (err) {
@@ -664,6 +667,7 @@ export default function TeacherPage() {
             type={qrCodeData.type}
             qrDataUrl={qrCodeData.qrDataUrl}
             studentUrl={qrCodeData.studentUrl}
+            expiresAt={qrCodeData.expiresAt}
             onClose={handleCloseQRModal}
           />
         )}
@@ -789,6 +793,7 @@ export default function TeacherPage() {
           type={qrCodeData.type}
           qrDataUrl={qrCodeData.qrDataUrl}
           studentUrl={qrCodeData.studentUrl}
+          expiresAt={qrCodeData.expiresAt}
           onClose={handleCloseQRModal}
         />
       )}
