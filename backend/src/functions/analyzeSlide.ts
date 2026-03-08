@@ -1,12 +1,14 @@
 /**
  * Analyze Slide API Endpoint
- * Uses QuizQuestionGenerator agent to analyze presentation slides
+ * Uses SlideAnalysisAgent to analyze presentation slides
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { parseAuthFromRequest, hasRole } from '../utils/auth';
 import { BlobServiceClient } from '@azure/storage-blob';
+import { generateReadSasUrl } from '../utils/blobStorage';
 import { getAgentClient } from '../utils/agentService';
+import { upsertQuizConversation } from '../utils/quizConversationStorage';
 import { randomUUID } from 'crypto';
 
 export async function analyzeSlide(
@@ -34,7 +36,7 @@ export async function analyzeSlide(
 
     const sessionId = request.params.sessionId;
     const body = await request.json() as any;
-    const { image, imageUrl } = body;
+    const { image, imageUrl, conversationId } = body;
     
     if (!sessionId) {
       return {
@@ -76,7 +78,7 @@ export async function analyzeSlide(
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     let blobUrl: string;
-    let imageDataForAI: string;
+    let visionImageUrl: string;
 
     if (image) {
       // Upload base64 image to blob storage
@@ -91,17 +93,32 @@ export async function analyzeSlide(
         context.warn('Blob upload warning:', error.message);
         blobUrl = `local-${slideId}`;
       }
-      imageDataForAI = image; // Use base64 for OpenAI
+      visionImageUrl = image;
     } else {
       // Use provided URL
       blobUrl = imageUrl;
-      imageDataForAI = imageUrl;
+      if (typeof imageUrl === 'string' && imageUrl.includes('.blob.core.') && !imageUrl.includes('?')) {
+        try {
+          visionImageUrl = generateReadSasUrl(imageUrl);
+        } catch (sasError: any) {
+          context.warn('Failed to generate SAS URL for slide image, using raw URL', sasError?.message);
+          visionImageUrl = imageUrl;
+        }
+      } else {
+        visionImageUrl = imageUrl;
+      }
     }
 
-    // Use QuizQuestionGenerator agent to analyze slide
+    context.log('Slide analysis image source prepared', {
+      hasInlineImage: typeof image === 'string' && image.length > 0,
+      usingBlobSasUrl: typeof visionImageUrl === 'string' && visionImageUrl.includes('?')
+    });
+
+    // Use dedicated slide analysis agent
     const agentClient = getAgentClient();
+    const slideAnalysisAgentName = 'SlideAnalysisAgent';
     
-    const prompt = `Analyze this presentation slide image and extract the following information in JSON format:
+    const prompt = `Analyze the provided presentation slide image and extract the following information in JSON format:
 {
   "topic": "Main topic or concept (1-2 words)",
   "title": "Slide title if visible",
@@ -113,16 +130,22 @@ export async function analyzeSlide(
   "summary": "Brief 1-2 sentence summary of the slide content"
 }
 
-Image: ${imageDataForAI}
-
 Return ONLY valid JSON (no markdown, no code blocks).`;
 
-    context.log('Calling QuizQuestionGenerator agent to analyze slide...');
+    context.log('Calling SlideAnalysisAgent to analyze slide...');
     
-    const response = await agentClient.runSingleInteraction({
-      agentName: 'QuizQuestionGenerator',
-      userMessage: prompt
+    const response = await agentClient.runSingleVisionInteraction({
+      agentName: slideAnalysisAgentName,
+      userPrompt: prompt,
+      imageUrls: [visionImageUrl],
+      conversationId: typeof conversationId === 'string' && conversationId.trim().length > 0
+        ? conversationId
+        : undefined
     });
+
+    if (response.conversationId) {
+      await upsertQuizConversation(sessionId, response.conversationId);
+    }
 
     if (!response.content) {
       throw new Error('No content in agent response');
@@ -150,6 +173,7 @@ Return ONLY valid JSON (no markdown, no code blocks).`;
       jsonBody: {
         slideId,
         imageUrl: blobUrl,
+        conversationId: response.conversationId,
         analysis: {
           topic: analysis.topic || 'Unknown',
           title: analysis.title || '',
@@ -164,7 +188,12 @@ Return ONLY valid JSON (no markdown, no code blocks).`;
     };
 
   } catch (error: any) {
-    context.error('Error analyzing slide:', error);
+    context.error('Error analyzing slide:', {
+      message: error?.message,
+      code: error?.code,
+      status: error?.status,
+      stack: error?.stack
+    });
     
     return {
       status: 500,

@@ -181,6 +181,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [captureInterval, setCaptureInterval] = useState(30); // seconds
   const [lastCaptureTime, setLastCaptureTime] = useState<number>(0);
+  const [quizConversationId, setQuizConversationId] = useState<string | null>(null);
   const [quizStats, setQuizStats] = useState({
     capturesCount: 0,
     questionsGenerated: 0,
@@ -215,6 +216,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       
       setScreenStream(stream);
       setQuizActive(true);
+      setQuizConversationId(null);
       setLastCaptureTime(Date.now());
       
       stream.getVideoTracks()[0].addEventListener('ended', () => {
@@ -228,15 +230,42 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
     }
   };
 
+  const cleanupQuizConversation = useCallback(async (conversationId: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const headers = await getAuthHeaders();
+
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/quiz/conversation/${encodeURIComponent(conversationId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error?.message || 'Failed to cleanup quiz conversation');
+      }
+    } catch (error: any) {
+      console.warn('Conversation cleanup failed:', error?.message || error);
+    }
+  }, [sessionId]);
+
   /**
    * Stop screen sharing
    */
   const stopScreenShare = () => {
+    const conversationIdToDelete = quizConversationId;
+
     if (screenStream) {
       screenStream.getTracks().forEach(track => track.stop());
       setScreenStream(null);
     }
     setQuizActive(false);
+    setQuizConversationId(null);
+
+    if (conversationIdToDelete) {
+      void cleanupQuizConversation(conversationIdToDelete);
+    }
   };
 
   /**
@@ -258,6 +287,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           slideId,
           analysis,
           slideImageUrl,
+          conversationId: quizConversationId,
           difficulty: analysis.difficulty || 'MEDIUM',
           count: 1
         })
@@ -268,6 +298,9 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       }
       
       const genData = await genResponse.json();
+      if (typeof genData?.conversationId === 'string' && genData.conversationId.length > 0) {
+        setQuizConversationId(genData.conversationId);
+      }
       const questions = genData.questions || [];
       
       if (questions.length === 0) {
@@ -317,7 +350,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
     } catch (error: any) {
       console.error('Generate/send error:', error);
     }
-  }, [sessionId]);
+  }, [sessionId, quizConversationId]);
 
   /**
    * Capture screenshot and analyze with AI
@@ -351,7 +384,8 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          image: base64Image
+          image: base64Image,
+          conversationId: quizConversationId
         })
       });
       
@@ -360,6 +394,9 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       }
       
       const data = await response.json();
+      if (typeof data?.conversationId === 'string' && data.conversationId.length > 0) {
+        setQuizConversationId(data.conversationId);
+      }
       
       setQuizStats(prev => ({
         ...prev,
@@ -372,7 +409,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       console.error('Capture error:', error);
       setError('Failed to capture screen: ' + error.message);
     }
-  }, [sessionId, generateAndSendQuestion]); // Add generateAndSendQuestion as dependency
+  }, [sessionId, generateAndSendQuestion, quizConversationId]); // Add generateAndSendQuestion as dependency
 
   /**
    * Continuous capture loop (runs in background)

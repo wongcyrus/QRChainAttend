@@ -43,7 +43,7 @@ param deployGpt54Model = true
 param gpt4Capacity = 50
 param gpt4VisionCapacity = 1
 param gpt52ChatCapacity = 50
-param gpt54Capacity = 200  // 200K TPM for dev
+param gpt54Capacity = 2000  // 2000K TPM for dev
 
 // OTP SMTP settings (read from environment; no secrets committed)
 param otpSmtpHost = readEnvironmentVariable('OTP_SMTP_HOST', 'smtp.gmail.com')

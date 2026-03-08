@@ -7,6 +7,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { parseAuthFromRequest, hasRole } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import { getAgentClient } from '../utils/agentService';
+import { upsertQuizConversation } from '../utils/quizConversationStorage';
 import { randomUUID } from 'crypto';
 
 interface NormalizedQuestion {
@@ -116,6 +117,64 @@ function normalizeQuestion(raw: any, defaultDifficulty: string): NormalizedQuest
   };
 }
 
+function isMeaningfulText(value: unknown): boolean {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return !['n/a', 'na', 'unknown', 'none', 'not available'].includes(normalized);
+}
+
+function buildSlideContent(analysis: any): string {
+  const sections: string[] = [];
+
+  if (isMeaningfulText(analysis?.topic)) {
+    sections.push(`Topic: ${String(analysis.topic).trim()}`);
+  }
+
+  if (isMeaningfulText(analysis?.title)) {
+    sections.push(`Title: ${String(analysis.title).trim()}`);
+  }
+
+  if (Array.isArray(analysis?.keyPoints) && analysis.keyPoints.length > 0) {
+    const values = analysis.keyPoints
+      .map((v: any) => String(v || '').trim())
+      .filter((v: string) => isMeaningfulText(v));
+    if (values.length > 0) {
+      sections.push(`Key Points: ${values.join(', ')}`);
+    }
+  }
+
+  if (Array.isArray(analysis?.codeExamples) && analysis.codeExamples.length > 0) {
+    const values = analysis.codeExamples
+      .map((v: any) => String(v || '').trim())
+      .filter((v: string) => isMeaningfulText(v));
+    if (values.length > 0) {
+      sections.push(`Code Examples: ${values.join('\n')}`);
+    }
+  }
+
+  if (Array.isArray(analysis?.formulas) && analysis.formulas.length > 0) {
+    const values = analysis.formulas
+      .map((v: any) => String(v || '').trim())
+      .filter((v: string) => isMeaningfulText(v));
+    if (values.length > 0) {
+      sections.push(`Formulas: ${values.join(', ')}`);
+    }
+  }
+
+  if (isMeaningfulText(analysis?.summary)) {
+    sections.push(`Summary: ${String(analysis.summary).trim()}`);
+  }
+
+  return sections.join('\n');
+}
+
 export async function generateQuestions(
   request: HttpRequest,
   context: InvocationContext
@@ -141,7 +200,7 @@ export async function generateQuestions(
 
     const sessionId = request.params.sessionId;
     const body = await request.json() as any;
-    const { slideId, analysis, difficulty, count = 3 } = body;
+    const { slideId, analysis, difficulty, count = 3, conversationId } = body;
     
     if (!sessionId || !analysis) {
       return {
@@ -151,14 +210,7 @@ export async function generateQuestions(
     }
 
     // Prepare slide content for the agent
-    const slideContent = `
-Topic: ${analysis.topic}
-Title: ${analysis.title || 'N/A'}
-Key Points: ${analysis.keyPoints?.join(', ') || 'N/A'}
-Code Examples: ${analysis.codeExamples?.join('\n') || 'N/A'}
-Formulas: ${analysis.formulas?.join(', ') || 'N/A'}
-Summary: ${analysis.summary || 'N/A'}
-`;
+    const slideContent = buildSlideContent(analysis);
 
     const difficultyFilter = String(difficulty || analysis.difficulty || 'MEDIUM').toUpperCase();
     const requestedCount = Math.min(10, Math.max(1, Number(count) || 3));
@@ -167,7 +219,7 @@ Summary: ${analysis.summary || 'N/A'}
     // Agent is pre-configured in infrastructure with instructions
     const agentClient = getAgentClient();
 
-    const userMessage = `Based on this slide content:
+        const userMessage = `Based on this slide content:
 ${slideContent}
 
 Generate ${requestedCount} MULTIPLE CHOICE quiz questions at ${difficultyFilter} difficulty level.
@@ -182,13 +234,22 @@ Return ONLY valid JSON (no markdown, no code blocks).`;
 
     context.log('Calling AI Agent to generate questions...');
     
+    let activeConversationId: string | undefined =
+      typeof conversationId === 'string' && conversationId.trim().length > 0
+        ? conversationId
+        : undefined;
+
     const runGeneration = async (prompt: string): Promise<NormalizedQuestion[]> => {
       let response;
       try {
         response = await agentClient.runSingleInteraction({
           agentName: 'QuizQuestionGenerator',
-          userMessage: prompt
+          userMessage: prompt,
+          conversationId: activeConversationId
         });
+        if (response.conversationId) {
+          activeConversationId = response.conversationId;
+        }
       } catch (error: any) {
         context.error('Agent interaction failed:', error);
         throw new Error(`Agent failed: ${error.message}`);
@@ -240,6 +301,10 @@ No markdown. No extra text.`;
       throw new Error('Agent returned zero valid questions after retry');
     }
 
+    if (activeConversationId) {
+      await upsertQuizConversation(sessionId, activeConversationId);
+    }
+
     // Store questions in database
     const questionsTable = getTableClient(TableNames.QUIZ_QUESTIONS);
     const now = Math.floor(Date.now() / 1000);
@@ -282,7 +347,8 @@ No markdown. No extra text.`;
     return {
       status: 200,
       jsonBody: {
-        questions: storedQuestions
+        questions: storedQuestions,
+        conversationId: activeConversationId
       }
     };
 

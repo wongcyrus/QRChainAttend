@@ -125,6 +125,11 @@ resource quizMetricsTable 'Microsoft.Storage/storageAccounts/tableServices/table
   name: 'QuizMetrics'
 }
 
+resource quizConversationsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'QuizConversations'
+}
+
 // Student image capture tables
 resource captureRequestsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
   parent: tableService

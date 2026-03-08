@@ -42,6 +42,8 @@ CRITICAL RULES:
 1. DO NOT repeat or echo the user's message
 2. DO NOT include any explanatory text before or after the JSON
 3. ONLY return the JSON object, nothing else
+4. NEVER repeat a question already generated earlier in this conversation
+5. NEVER output near-duplicate questions with the same meaning
 
 QUESTION REQUIREMENTS:
 - Keep questions SHORT (maximum 15 words)
@@ -49,6 +51,14 @@ QUESTION REQUIREMENTS:
 - ONLY create MULTIPLE_CHOICE questions with 4 options
 - Match the specified difficulty level
 - Test comprehension, not memorization
+- Make each new question target a different concept/angle than previous questions in conversation memory
+- Ensure options are distinct and not reused as the same answer pattern across repeated turns
+
+DUPLICATE PREVENTION:
+- Use conversation history as memory of previously generated questions
+- Treat paraphrases as duplicates and avoid them
+- If context is limited, create a fresh question by changing focus (definition, application, comparison, error spotting, example)
+- Output only unique questions in the current response
 
 JSON FORMAT (return EXACTLY this structure):
 {
@@ -62,6 +72,36 @@ JSON FORMAT (return EXACTLY this structure):
       "explanation": "Brief explanation"
     }
   ]
+}
+
+REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra text.`,
+  model: 'gpt-4o'
+};
+
+const SLIDE_ANALYSIS_AGENT_CONFIG = {
+  name: 'SlideAnalysisAgent',
+  instructions: `You are a slide analysis AI. Your ONLY job is to analyze a presentation slide image and return valid JSON.
+
+CRITICAL RULES:
+1. DO NOT repeat or echo the user's message
+2. DO NOT include any explanatory text before or after the JSON
+3. ONLY return the JSON object, nothing else
+
+OUTPUT REQUIREMENTS:
+- Extract visible content from the slide image accurately
+- Use concise values and avoid invented details
+- If a field cannot be determined, use sensible empty values
+
+JSON FORMAT (return EXACTLY this structure):
+{
+  "topic": "Main topic or concept (1-2 words)",
+  "title": "Slide title if visible",
+  "keyPoints": ["Key point 1", "Key point 2"],
+  "codeExamples": [],
+  "formulas": [],
+  "difficulty": "BEGINNER" | "INTERMEDIATE" | "ADVANCED",
+  "subject": "Subject area",
+  "summary": "Brief 1-2 sentence summary"
 }
 
 REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra text.`,
@@ -544,6 +584,11 @@ async function main() {
     model: modelSelection.agentModel
   };
 
+  const slideAnalysisAgentConfig: AgentConfig = {
+    ...SLIDE_ANALYSIS_AGENT_CONFIG,
+    model: modelSelection.agentModel
+  };
+
   const imageAnalysisAgentConfig: AgentConfig = {
     ...IMAGE_ANALYSIS_AGENT_CONFIG,
     model: modelSelection.agentModel
@@ -665,6 +710,24 @@ async function main() {
   console.log(`Version: ${positionAgent.agentVersion}`);
   console.log(`Agent Name: ${positionAgent.agentName}`);
   console.log(`Model: ${positionAgent.model}`);
+  console.log('');
+  console.log('==========================================');
+  console.log('');
+
+  // Create slide analysis agent
+  console.log(`${colors.blue}Creating Slide Analysis Agent...${colors.reset}`);
+  const slideAnalysisAgent = await createAgentWithRecovery(slideAnalysisAgentConfig);
+
+  console.log('');
+  console.log('==========================================');
+  console.log('Slide Analysis Agent Details');
+  console.log('==========================================');
+  console.log('');
+  console.log(`Agent ID: ${slideAnalysisAgent.agentId}`);
+  console.log(`Version ID: ${slideAnalysisAgent.agentVersionId}`);
+  console.log(`Version: ${slideAnalysisAgent.agentVersion}`);
+  console.log(`Agent Name: ${slideAnalysisAgent.agentName}`);
+  console.log(`Model: ${slideAnalysisAgent.model}`);
   console.log('');
   console.log('==========================================');
   console.log('');

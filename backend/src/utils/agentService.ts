@@ -19,6 +19,16 @@ import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 // Initialize tracing once
 let tracingInitialized = false;
 
+function isConversationNotFoundError(error: any): boolean {
+  const message = String(error?.message || '').toLowerCase();
+  const status = Number(error?.status || error?.statusCode || 0);
+
+  const hasConversationNotFoundMessage =
+    message.includes('conversation with id') && message.includes('not found');
+
+  return hasConversationNotFoundMessage || status === 404;
+}
+
 async function initializeTracing(projectClient: AIProjectClient) {
   if (tracingInitialized) return;
   
@@ -62,6 +72,7 @@ async function initializeTracing(projectClient: AIProjectClient) {
 
 interface AgentResponse {
   content: string;
+  conversationId?: string;
   usage?: {
     promptTokens: number;
     completionTokens: number;
@@ -275,6 +286,7 @@ export class AgentServiceClient {
     agentName?: string;
     instructions?: string;
     userMessage: string;
+    conversationId?: string;
     model?: string;
   }): Promise<AgentResponse> {
     console.log('[AgentService] Starting runSingleInteraction');
@@ -291,30 +303,61 @@ export class AgentServiceClient {
       const openAIClient = await this.projectClient.getOpenAIClient();
       console.log('[AgentService] OpenAI client created');
 
-      // Create conversation with initial user message
-      console.log('[AgentService] Creating conversation...');
-      const conversation = await openAIClient.conversations.create({
-        items: [{ type: "message", role: "user", content: config.userMessage }]
-      });
-      console.log('[AgentService] Conversation created:', conversation.id);
+      let conversationId = config.conversationId;
+
+      if (!conversationId) {
+        console.log('[AgentService] Creating conversation...');
+        const conversation = await openAIClient.conversations.create();
+        conversationId = conversation.id;
+        console.log('[AgentService] Conversation created:', conversationId);
+      } else {
+        console.log('[AgentService] Reusing conversation:', conversationId);
+      }
 
       // Generate response using the agent
       console.log('[AgentService] Generating response with agent...');
       const startTime = Date.now();
       
-      const response = await openAIClient.responses.create(
-        {
-          conversation: conversation.id,
-        },
-        {
-          body: { 
-            agent: { 
-              name: agentName, 
-              type: "agent_reference" 
-            } 
+      let response: any;
+      try {
+        response = await openAIClient.responses.create(
+          {
+            conversation: conversationId,
+            input: config.userMessage,
           },
+          {
+            body: {
+              agent: {
+                name: agentName,
+                type: "agent_reference"
+              }
+            },
+          }
+        );
+      } catch (error: any) {
+        if (!config.conversationId || !isConversationNotFoundError(error)) {
+          throw error;
         }
-      );
+
+        console.warn('[AgentService] Conversation not found, creating a new conversation and retrying once');
+        const fallbackConversation = await openAIClient.conversations.create();
+        conversationId = fallbackConversation.id;
+
+        response = await openAIClient.responses.create(
+          {
+            conversation: conversationId,
+            input: config.userMessage,
+          },
+          {
+            body: {
+              agent: {
+                name: agentName,
+                type: "agent_reference"
+              }
+            },
+          }
+        );
+      }
       
       const duration = Date.now() - startTime;
       console.log(`[AgentService] Agent response received in ${duration}ms`);
@@ -325,7 +368,8 @@ export class AgentServiceClient {
       }
 
       return {
-        content: response.output_text
+        content: response.output_text,
+        conversationId
       };
 
     } catch (error: any) {
@@ -340,15 +384,19 @@ export class AgentServiceClient {
     userPrompt: string;
     imageUrls: string[];
     agentName: string;
-    agentVersion: string;
+    agentVersion?: string;
+    conversationId?: string;
     maxTokens?: number;
     timeoutMs?: number;
     model?: string;
   }): Promise<AgentResponse> {
     const openAIClient = this.projectClient.getOpenAIClient();
 
-    // Create a conversation first
-    const conversation = await openAIClient.conversations.create();
+    let conversationId = config.conversationId;
+    if (!conversationId) {
+      const conversation = await openAIClient.conversations.create();
+      conversationId = conversation.id;
+    }
 
     const inputContent: any[] = [
       {
@@ -368,7 +416,7 @@ export class AgentServiceClient {
     try {
       response = await openAIClient.responses.create(
         {
-          conversation: conversation.id,
+          conversation: conversationId,
           input: [
             {
               role: 'user',
@@ -386,6 +434,30 @@ export class AgentServiceClient {
         }
       );
     } catch (error: any) {
+      if (config.conversationId && isConversationNotFoundError(error)) {
+        const fallbackConversation = await openAIClient.conversations.create();
+        conversationId = fallbackConversation.id;
+
+        response = await openAIClient.responses.create(
+          {
+            conversation: conversationId,
+            input: [
+              {
+                role: 'user',
+                content: inputContent
+              }
+            ]
+          },
+          {
+            body: {
+              agent: {
+                name: config.agentName,
+                type: 'agent_reference'
+              }
+            }
+          }
+        );
+      } else {
       const errorMessage = String(error?.message || '');
       if (!errorMessage.includes('Missed model deployment')) {
         throw error;
@@ -394,7 +466,7 @@ export class AgentServiceClient {
       const fallbackModel = config.model || process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-5.4';
 
       response = await openAIClient.responses.create({
-        conversation: conversation.id,
+        conversation: conversationId,
         model: fallbackModel,
         input: [
           {
@@ -403,12 +475,14 @@ export class AgentServiceClient {
           }
         ]
       });
+      }
     }
 
     const outputText = (response as any).output_text;
     if (typeof outputText === 'string' && outputText.trim().length > 0) {
       return {
-        content: outputText
+        content: outputText,
+        conversationId
       };
     }
 
@@ -432,12 +506,41 @@ export class AgentServiceClient {
 
       if (textChunks.length > 0) {
         return {
-          content: textChunks.join('\n').trim()
+          content: textChunks.join('\n').trim(),
+          conversationId
         };
       }
     }
 
     throw new Error('Agent response contained no text output');
+  }
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    if (!conversationId || !conversationId.trim()) {
+      return;
+    }
+
+    const openAIClient = this.projectClient.getOpenAIClient() as any;
+
+    try {
+      if (openAIClient?.conversations?.delete) {
+        await openAIClient.conversations.delete(conversationId);
+        return;
+      }
+
+      if (openAIClient?.conversations?.del) {
+        await openAIClient.conversations.del(conversationId);
+        return;
+      }
+
+      throw new Error('Conversation delete API is not available in current SDK client');
+    } catch (error: any) {
+      const status = error?.status || error?.statusCode;
+      if (status === 404) {
+        return;
+      }
+      throw error;
+    }
   }
 
 }
