@@ -25,15 +25,15 @@ export async function endSession(
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: now } }
       };
     }    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher')) {
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: now } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: now } }
       };
     }
 
-    const teacherId = getUserId(principal);
+    const organizerId = getUserId(principal);
     const sessionId = request.params.sessionId;
     
     if (!sessionId) {
@@ -59,8 +59,8 @@ export async function endSession(
       throw error;
     }
 
-    // Verify access (owner or co-teacher)
-    const access = checkSessionAccess(session, teacherId);
+    // Verify access (owner or co-organizer)
+    const access = checkSessionAccess(session, organizerId);
     if (!access.hasAccess) {
       return {
         status: 403,
@@ -93,7 +93,7 @@ export async function endSession(
     
     for await (const entity of attendanceTable.listEntities({ queryOptions: { filter: `PartitionKey eq '${sessionId}'` } })) {
       attendance.push({
-        studentId: entity.rowKey,
+        attendeeId: entity.rowKey,
         entryStatus: entity.entryStatus,
         entryAt: entity.entryAt,
         exitVerified: entity.exitVerified,

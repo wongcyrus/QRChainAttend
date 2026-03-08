@@ -1,8 +1,8 @@
 /**
- * Azure Blob Storage Helper Functions for Student Image Capture
+ * Azure Blob Storage Helper Functions for Attendee Image Capture
  * 
  * This module provides SAS URL generation and blob verification for:
- * - Student photo uploads (write-only, 90-second expiry)
+ * - Attendee photo uploads (write-only, 90-second expiry)
  * - GPT image analysis (read-only, 5-minute expiry)
  * - Blob existence verification
  * 
@@ -17,9 +17,9 @@ import {
 } from '@azure/storage-blob';
 
 /**
- * Container name for student capture images
+ * Container name for attendee capture images
  */
-export const STUDENT_CAPTURES_CONTAINER = 'student-captures';
+export const STUDENT_CAPTURES_CONTAINER = 'attendee-captures';
 
 /**
  * Parse Azure Storage connection string to extract account name and key
@@ -46,17 +46,17 @@ function parseConnectionString(connectionString: string): {
 }
 
 /**
- * Generate a write-only SAS URL for student photo upload
+ * Generate a write-only SAS URL for attendee photo upload
  * 
- * This function creates a time-limited, write-only SAS URL that allows a student
+ * This function creates a time-limited, write-only SAS URL that allows a attendee
  * to upload their photo directly to Azure Blob Storage. The URL:
  * - Has write-only ('w') permissions
  * - Expires after 90 seconds (30s capture window + 60s grace period)
- * - Uses blob naming pattern: {sessionId}/{captureRequestId}/{studentId}.jpg
+ * - Uses blob naming pattern: {sessionId}/{captureRequestId}/{attendeeId}.jpg
  * 
  * @param sessionId - UUID of the session
  * @param captureRequestId - UUID of the capture request
- * @param studentId - Student email address
+ * @param attendeeId - Attendee email address
  * @returns SAS URL with write-only permissions
  * @throws Error if connection string is invalid or missing
  * 
@@ -65,7 +65,7 @@ function parseConnectionString(connectionString: string): {
 export function generateStudentSasUrl(
   sessionId: string,
   captureRequestId: string,
-  studentId: string
+  attendeeId: string
 ): string {
   const connectionString = process.env.AzureWebJobsStorage;
   
@@ -80,8 +80,8 @@ export function generateStudentSasUrl(
   const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
   const containerName = STUDENT_CAPTURES_CONTAINER;
   
-  // Construct blob name: {sessionId}/{captureRequestId}/{studentId}.jpg
-  const blobName = `${sessionId}/${captureRequestId}/${studentId}.jpg`;
+  // Construct blob name: {sessionId}/{captureRequestId}/{attendeeId}.jpg
+  const blobName = `${sessionId}/${captureRequestId}/${attendeeId}.jpg`;
   
   const containerClient = blobServiceClient.getContainerClient(containerName);
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
@@ -109,8 +109,8 @@ export function generateStudentSasUrl(
  * Generate a read-only SAS URL for GPT image analysis or viewing
  * 
  * This function creates a long-lived, read-only SAS URL that allows:
- * - GPT to access uploaded student photos for position estimation
- * - Teachers to view student photos in the seating plan anytime
+ * - GPT to access uploaded attendee photos for position estimation
+ * - Teachers to view attendee photos in the seating plan anytime
  * 
  * The URL:
  * - Has read-only ('r') permissions
@@ -171,12 +171,12 @@ export function generateReadSasUrl(blobUrl: string): string {
 /**
  * Verify that a blob exists in storage
  * 
- * This function checks if a student's uploaded photo exists in blob storage.
+ * This function checks if a attendee's uploaded photo exists in blob storage.
  * Used to validate upload completion before recording in the database.
  * 
  * Handles both URL-encoded and unencoded blob names for compatibility.
  * 
- * @param blobName - Full blob name (e.g., "{sessionId}/{captureRequestId}/{studentId}.jpg")
+ * @param blobName - Full blob name (e.g., "{sessionId}/{captureRequestId}/{attendeeId}.jpg")
  * @returns True if blob exists, false otherwise
  * @throws Error if connection string is invalid or storage is unreachable
  * 

@@ -3,12 +3,12 @@
  * 
  * POST /api/sessions/{sessionId}/capture/{captureRequestId}/upload
  * 
- * This function handles student upload completion notifications:
- * 1. Validates student authentication
+ * This function handles attendee upload completion notifications:
+ * 1. Validates attendee authentication
  * 2. Extracts sessionId, captureRequestId, blobName from request
  * 3. Validates timing and blob existence (Task 5.2)
  * 4. Records upload in Table Storage (Task 5.3)
- * 5. Notifies teacher via SignalR (Task 5.4)
+ * 5. Notifies organizer via SignalR (Task 5.4)
  * 6. Returns success response (Task 5.5)
  * 
  * Validates: Requirements 3.3
@@ -30,16 +30,16 @@ import { broadcastToHub } from '../utils/signalrBroadcast';
 import { logError, logInfo, logWarning } from '../utils/errorLogging';
 
 /**
- * Handle student upload completion notification
+ * Handle attendee upload completion notification
  * 
  * This is task 5.1 - creates the function skeleton with:
- * - Student authentication validation
+ * - Attendee authentication validation
  * - Parameter extraction (sessionId, captureRequestId, blobName)
  * 
  * Subsequent tasks (5.2-5.5) will add:
  * - Timing validation and blob verification
  * - Table Storage recording
- * - SignalR teacher notification
+ * - SignalR organizer notification
  * - Response handling
  */
 export async function notifyImageUpload(
@@ -50,11 +50,11 @@ export async function notifyImageUpload(
 
   let sessionId: string | undefined;
   let captureRequestId: string | undefined;
-  let studentId: string | undefined;
+  let attendeeId: string | undefined;
 
   try {
     // ========================================================================
-    // Step 1: Validate student authentication
+    // Step 1: Validate attendee authentication
     // ========================================================================
     
     const principal = parseAuthFromRequest(request);
@@ -71,22 +71,22 @@ export async function notifyImageUpload(
         }
       };
     }    
-    // Require Student role
-    if (!hasRole(principal, 'Student') && !hasRole(principal, 'student')) {
+    // Require Attendee role
+    if (!hasRole(principal, 'Attendee') && !hasRole(principal, 'attendee')) {
       return {
         status: 403,
         jsonBody: {
           error: {
             code: CaptureErrorCode.FORBIDDEN,
-            message: 'Student role required',
+            message: 'Attendee role required',
             timestamp: Date.now()
           }
         }
       };
     }
 
-    studentId = getUserId(principal);
-    context.log(`Student authenticated: ${studentId}`);
+    attendeeId = getUserId(principal);
+    context.log(`Attendee authenticated: ${attendeeId}`);
 
     // ========================================================================
     // Step 2: Extract sessionId, captureRequestId, blobName from request
@@ -240,7 +240,7 @@ export async function notifyImageUpload(
     // Create CaptureUpload entity
     const captureUpload: CaptureUpload = {
       partitionKey: captureRequestId,
-      rowKey: studentId,
+      rowKey: attendeeId,
       sessionId: sessionId,
       blobName: blobName,
       blobUrl: `https://${process.env.AzureWebJobsStorage?.match(/AccountName=([^;]+)/)?.[1]}.blob.core.windows.net/${STUDENT_CAPTURES_CONTAINER}/${blobName}`,
@@ -249,7 +249,7 @@ export async function notifyImageUpload(
     };
 
     await createCaptureUpload(captureUpload);
-    context.log(`Created CaptureUpload record for student: ${studentId}`);
+    context.log(`Created CaptureUpload record for attendee: ${attendeeId}`);
 
     // Increment uploadedCount in CaptureRequest
     const updatedRequest = await updateCaptureRequest(captureRequestId, {
@@ -262,12 +262,12 @@ export async function notifyImageUpload(
     context.log(`Upload count updated: ${uploadedCount}/${totalCount}`);
 
     // ========================================================================
-    // Task 5.4: Notify teacher via SignalR
+    // Task 5.4: Notify organizer via SignalR
     // ========================================================================
     
     const uploadCompleteEvent: UploadCompleteEvent = {
       captureRequestId: captureRequestId,
-      studentId: studentId,
+      attendeeId: attendeeId,
       uploadedAt: uploadedAtTimestamp,
       uploadedCount: uploadedCount,
       totalCount: totalCount
@@ -280,7 +280,7 @@ export async function notifyImageUpload(
       context
     );
     
-    context.log(`Broadcast uploadComplete event to teacher`);
+    context.log(`Broadcast uploadComplete event to organizer`);
 
     // ========================================================================
     // Task 6.2-6.5: Check for early termination and raise external event
@@ -319,12 +319,12 @@ export async function notifyImageUpload(
       uploadedAt: uploadedAtTimestamp
     };
 
-    context.log(`Upload notification processed successfully for student: ${studentId}`);
+    context.log(`Upload notification processed successfully for attendee: ${attendeeId}`);
 
     logInfo(context, 'Upload notification processed successfully', {
       sessionId,
       captureRequestId,
-      studentId
+      attendeeId
     });
 
     return {
@@ -340,7 +340,7 @@ export async function notifyImageUpload(
       {
         sessionId,
         captureRequestId,
-        studentId,
+        attendeeId,
         errorType: error.name,
         errorCode: CaptureErrorCode.INTERNAL_ERROR
       }

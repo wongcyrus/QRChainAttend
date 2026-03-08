@@ -24,11 +24,11 @@ export async function startExitChain(
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
     }    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer') && !hasRole(principal, 'organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
@@ -144,7 +144,7 @@ export async function startExitChain(
           sessionId,
           chainId,
           sequence: 0,
-          fromHolder: 'TEACHER',  // Initial seed
+          fromHolder: 'ORGANIZER',  // Initial seed
           toHolder: holderId,
           scannedAt: now,
           phase: 'EXIT'
@@ -167,7 +167,7 @@ export async function startExitChain(
 
       context.log(`Created exit chain ${chainId} with holder ${holderId}`);
       
-      // Broadcast chain update so student knows they're a holder
+      // Broadcast chain update so attendee knows they're a holder
       await broadcastChainUpdate(sessionId, {
         chainId,
         phase: 'EXIT',

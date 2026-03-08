@@ -22,7 +22,7 @@ jest.mock('./QRScanner', () => ({
             const sessionData: SessionQRData = {
               type: 'SESSION',
               sessionId: 'test-session-123',
-              classId: 'CS101',
+              eventId: 'CS101',
             };
             onSessionScanned(sessionData);
           }}
@@ -62,7 +62,7 @@ describe('SessionEnrollment', () => {
       render(<SessionEnrollment />);
 
       expect(screen.getByText('How It Works')).toBeInTheDocument();
-      expect(screen.getByText(/Your teacher will display a Session QR code/)).toBeInTheDocument();
+      expect(screen.getByText(/Your organizer will display a Session QR code/)).toBeInTheDocument();
     });
   });
 
@@ -102,7 +102,7 @@ describe('SessionEnrollment', () => {
         json: async () => ({
           success: true,
           sessionId: 'test-session-123',
-          studentId: 'student-456',
+          attendeeId: 'attendee-456',
           message: 'Successfully enrolled in session',
         }),
       });
@@ -217,14 +217,14 @@ describe('SessionEnrollment', () => {
   });
 
   describe('Requirement 13.1: Session enrollment via QR', () => {
-    it('should enroll student when scanning Session_QR code', async () => {
+    it('should enroll attendee when scanning Session_QR code', async () => {
       const mockFetch = global.fetch as jest.Mock;
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           success: true,
           sessionId: 'session-789',
-          studentId: 'student-123',
+          attendeeId: 'attendee-123',
           message: 'Successfully enrolled in session',
         }),
       });

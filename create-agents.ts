@@ -70,7 +70,7 @@ REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra tex
 
 const POSITION_AGENT_CONFIG = {
   name: 'PositionEstimationAgent',
-  instructions: `You are a seating position estimation AI. Analyze classroom photos to estimate student seating positions.
+  instructions: `You are a seating position estimation AI. Analyze venue photos to estimate attendee seating positions.
 
 CRITICAL RULES:
 1. DO NOT repeat or echo the user's message
@@ -80,32 +80,32 @@ CRITICAL RULES:
 ANALYSIS CRITERIA:
 - Projector screen visibility and angle (larger screen = closer to front)
 - Projector screen size in frame (larger = lower row number)
-- Classroom features in background
-- Relative positions compared to other students
+- Venue features in background
+- Relative positions compared to other attendees
 
 POSITION ASSIGNMENT:
 - Row 1 = closest to projector (front)
 - Higher row numbers = further back
-- Column 1 = leftmost from teacher's perspective
+- Column 1 = leftmost from presenter's perspective
 - Higher column numbers = further right
 
 CONFIDENCE LEVELS:
 - HIGH: Clear projector visibility, distinct viewing angle
-- MEDIUM: Some projector visibility or classroom features visible
-- LOW: No projector visible, limited classroom context
+- MEDIUM: Some projector visibility or venue features visible
+- LOW: No projector visible, limited venue context
 
 JSON FORMAT (return EXACTLY this structure):
 {
   "positions": [
     {
-      "studentId": "student@email.com",
+      "studentId": "attendee@email.com",
       "estimatedRow": 2,
       "estimatedColumn": 3,
       "confidence": "HIGH" | "MEDIUM" | "LOW",
       "reasoning": "Brief explanation of position estimate"
     }
   ],
-  "analysisNotes": "Overall observations about classroom layout"
+  "analysisNotes": "Overall observations about venue layout"
 }
 
 REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra text.`,
@@ -114,7 +114,7 @@ REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra tex
 
 const IMAGE_ANALYSIS_AGENT_CONFIG = {
   name: 'ImageAnalysisAgent',
-  instructions: `You are an image analysis AI that answers questions about student-submitted classroom photos.
+  instructions: `You are an image analysis AI that answers questions about attendee-submitted venue photos.
 
 CRITICAL RULES:
 1. DO NOT repeat or echo the user's message
@@ -122,7 +122,7 @@ CRITICAL RULES:
 3. ONLY return the JSON object, nothing else
 
 YOUR TASK:
-- Analyze each image based on the teacher's custom prompt/question
+- Analyze each image based on the organizer's custom prompt/question
 - Provide clear, concise, factual answers
 - Be specific about what you observe in each image
 - If you cannot determine something, say "Unable to determine" rather than guessing
@@ -131,12 +131,12 @@ JSON FORMAT (return EXACTLY this structure):
 [
   {
     "imageNumber": 1,
-    "studentId": "student@email.com",
-    "analysis": "Your clear, concise answer to the teacher's question based on this image"
+    "studentId": "attendee@email.com",
+    "analysis": "Your clear, concise answer to the organizer's question based on this image"
   },
   {
     "imageNumber": 2,
-    "studentId": "student2@email.com",
+    "studentId": "attendee2@email.com",
     "analysis": "Your answer for the second image"
   }
 ]

@@ -57,19 +57,19 @@ The following 50 functions were automatically migrated:
 - getRoles.ts
 - getSession.ts (manually updated)
 - getSnapshotTrace.ts
-- getStudentQuestions.ts
-- getStudentToken.ts
-- getTeacherSessions.ts (manually updated)
+- getAttendeeQuestions.ts
+- getAttendeeToken.ts
+- getOrganizerSessions.ts (manually updated)
 - getUserRoles.ts
 - initiateImageCapture.ts
 - joinSession.ts
 - listSnapshots.ts
 - manageExternalTeachers.ts
 - markExit.ts
-- markStudentExit.ts
+- markAttendeeExit.ts
 - negotiate.ts
 - negotiateDashboard.ts (manually updated)
-- negotiateStudent.ts
+- negotiateAttendee.ts
 - notifyImageUpload.ts
 - registerSession.ts
 - removeCoTeacher.ts
@@ -85,7 +85,7 @@ The following 50 functions were automatically migrated:
 - startExitChain.ts
 - stopEarlyLeave.ts
 - studentNegotiate.ts
-- studentOnline.ts
+- attendeeOnline.ts
 - submitQuizAnswer.ts
 - takeSnapshot.ts
 - updateSession.ts
@@ -143,7 +143,7 @@ These scripts can be archived after successful deployment.
 After deployment, verify authentication works by:
 
 1. Login at `/login` with email OTP
-2. Navigate to `/teacher` page
+2. Navigate to `/organizer` page
 3. Check browser console - should see successful API calls (200 status)
 4. Check that sessions load correctly
 5. Verify dashboard real-time updates work

@@ -1,9 +1,9 @@
 /**
- * End-to-End Integration Test for Student Image Capture Flow
+ * End-to-End Integration Test for Attendee Image Capture Flow
  * 
  * This test verifies the complete capture workflow:
- * 1. Teacher initiates capture → Students receive request
- * 2. Students upload photos → Teacher receives notifications
+ * 1. Organizer initiates capture → Students receive request
+ * 2. Students upload photos → Organizer receives notifications
  * 3. Timeout triggers → GPT analyzes → Results delivered
  * 
  * Requirements: 1.1, 2.1, 3.1, 5.1, 6.1, 6.3, 7.1, 7.2, 7.3
@@ -50,14 +50,14 @@ jest.mock('../../utils/gptPositionEstimation', () => ({
   estimateSeatingPositions: jest.fn(() => Promise.resolve({
     positions: [
       {
-        studentId: 'student1@test.com',
+        attendeeId: 'student1@test.com',
         estimatedRow: 1,
         estimatedColumn: 1,
         confidence: 'HIGH',
         reasoning: 'Clear projector visibility'
       },
       {
-        studentId: 'student2@test.com',
+        attendeeId: 'student2@test.com',
         estimatedRow: 1,
         estimatedColumn: 2,
         confidence: 'HIGH',
@@ -70,8 +70,8 @@ jest.mock('../../utils/gptPositionEstimation', () => ({
 
 // Mock blob storage operations
 jest.mock('../../utils/blobStorage', () => ({
-  generateStudentSasUrl: jest.fn((sessionId: string, captureRequestId: string, studentId: string) => {
-    return `https://test.blob.core.windows.net/${sessionId}/${captureRequestId}/${studentId}.jpg?sas=token`;
+  generateStudentSasUrl: jest.fn((sessionId: string, captureRequestId: string, attendeeId: string) => {
+    return `https://test.blob.core.windows.net/${sessionId}/${captureRequestId}/${attendeeId}.jpg?sas=token`;
   }),
   generateReadSasUrl: jest.fn((blobUrl: string) => {
     return `${blobUrl}?sas=read-token`;
@@ -134,7 +134,7 @@ function createMockPrincipal(userId: string, role: string) {
 
 describe('End-to-End Capture Flow Integration Test', () => {
   const sessionId = 'test-session-123';
-  const teacherId = 'teacher@test.com';
+  const organizerId = 'organizer@test.com';
   const studentIds = ['student1@test.com', 'student2@test.com', 'student3@test.com'];
   
   let captureRequestId: string;
@@ -163,16 +163,16 @@ describe('End-to-End Capture Flow Integration Test', () => {
     mockSignalREvents.length = 0;
 
     // ========================================================================
-    // STEP 1: Teacher initiates capture
+    // STEP 1: Organizer initiates capture
     // ========================================================================
-    console.log('\n=== STEP 1: Teacher initiates capture ===');
+    console.log('\n=== STEP 1: Organizer initiates capture ===');
     
     const initiateRequest = createMockRequest(
       'POST',
       `/api/sessions/${sessionId}/capture/initiate`,
       { sessionId },
       undefined,
-      { 'x-ms-client-principal': JSON.stringify(createMockPrincipal(teacherId, 'teacher')) }
+      { 'x-ms-client-principal': JSON.stringify(createMockPrincipal(organizerId, 'organizer')) }
     );
     
     const initiateContext = createMockContext();
@@ -213,15 +213,15 @@ describe('End-to-End Capture Flow Integration Test', () => {
     // Simulate 2 out of 3 students uploading
     const uploadingStudents = studentIds.slice(0, 2);
     
-    for (const studentId of uploadingStudents) {
-      const blobName = `${sessionId}/${captureRequestId}/${studentId}.jpg`;
+    for (const attendeeId of uploadingStudents) {
+      const blobName = `${sessionId}/${captureRequestId}/${attendeeId}.jpg`;
       
       const uploadRequest = createMockRequest(
         'POST',
         `/api/sessions/${sessionId}/capture/${captureRequestId}/upload`,
         { sessionId, captureRequestId },
         { blobName },
-        { 'x-ms-client-principal': JSON.stringify(createMockPrincipal(studentId, 'student')) }
+        { 'x-ms-client-principal': JSON.stringify(createMockPrincipal(attendeeId, 'attendee')) }
       );
       
       const uploadContext = createMockContext();
@@ -232,10 +232,10 @@ describe('End-to-End Capture Flow Integration Test', () => {
       expect(uploadData.success).toBe(true);
       expect(uploadData.uploadedAt).toBeDefined();
       
-      console.log(`Student ${studentId} uploaded successfully`);
+      console.log(`Attendee ${attendeeId} uploaded successfully`);
     }
     
-    // Verify uploadComplete events were sent to teacher
+    // Verify uploadComplete events were sent to organizer
     const uploadCompleteEvents = mockSignalREvents.filter(e => e.eventName === 'uploadComplete');
     expect(uploadCompleteEvents.length).toBe(uploadingStudents.length);
     console.log(`SignalR uploadComplete events sent: ${uploadCompleteEvents.length}`);
@@ -278,7 +278,7 @@ describe('End-to-End Capture Flow Integration Test', () => {
     // ========================================================================
     console.log('\n=== STEP 4: Verify analysis results ===');
     
-    // Verify captureResults event was sent to teacher
+    // Verify captureResults event was sent to organizer
     const captureResultsEvents = mockSignalREvents.filter(e => e.eventName === 'captureResults');
     expect(captureResultsEvents.length).toBeGreaterThan(0);
     console.log(`SignalR captureResults events sent: ${captureResultsEvents.length}`);
@@ -290,16 +290,16 @@ describe('End-to-End Capture Flow Integration Test', () => {
     expect(resultsEvent.payload.positions.length).toBe(uploadingStudents.length);
 
     // ========================================================================
-    // STEP 5: Teacher retrieves results via API
+    // STEP 5: Organizer retrieves results via API
     // ========================================================================
-    console.log('\n=== STEP 5: Teacher retrieves results ===');
+    console.log('\n=== STEP 5: Organizer retrieves results ===');
     
     const resultsRequest = createMockRequest(
       'GET',
       `/api/sessions/${sessionId}/capture/${captureRequestId}/results`,
       { sessionId, captureRequestId },
       undefined,
-      { 'x-ms-client-principal': JSON.stringify(createMockPrincipal(teacherId, 'teacher')) }
+      { 'x-ms-client-principal': JSON.stringify(createMockPrincipal(organizerId, 'organizer')) }
     );
     
     const resultsContext = createMockContext();
@@ -319,7 +319,7 @@ describe('End-to-End Capture Flow Integration Test', () => {
     
     // Verify position data structure
     resultsData.positions.forEach((position: any) => {
-      expect(position.studentId).toBeDefined();
+      expect(position.attendeeId).toBeDefined();
       expect(position.estimatedRow).toBeGreaterThan(0);
       expect(position.estimatedColumn).toBeGreaterThan(0);
       expect(['HIGH', 'MEDIUM', 'LOW']).toContain(position.confidence);

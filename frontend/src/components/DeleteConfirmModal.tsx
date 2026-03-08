@@ -2,7 +2,7 @@ import React from 'react';
 
 interface Session {
   sessionId: string;
-  classId: string;
+  eventId: string;
   status: string;
   isRecurring?: boolean;
   parentSessionId?: string;
@@ -60,7 +60,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
           fontSize: '1.5rem',
           textAlign: 'center'
         }}>
-          Delete "{session.classId}"?
+          Delete "{session.eventId}"?
         </h2>
         
         <div style={{ marginBottom: '1.5rem' }}>

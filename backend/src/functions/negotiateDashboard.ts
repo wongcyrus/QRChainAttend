@@ -1,5 +1,5 @@
 /**
- * SignalR Negotiate Function for Teacher Dashboard
+ * SignalR Negotiate Function for Organizer Dashboard
  * Provides SignalR connection information for real-time dashboard updates
  */
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
@@ -26,13 +26,13 @@ export async function negotiateDashboard(
       };
     }
 
-    if (!hasRole(principal, 'teacher')) {
+    if (!hasRole(principal, 'organizer')) {
       return {
         status: 403,
         jsonBody: {
           error: {
             code: 'FORBIDDEN',
-            message: 'Teacher role required',
+            message: 'Organizer role required',
             timestamp: Date.now()
           }
         }
@@ -95,7 +95,7 @@ export async function negotiateDashboard(
     // Generate access token for the client
     // Hub name must be alphanumeric only (no hyphens or special chars)
     const hubName = `dashboard${sessionId.replace(/-/g, '')}`; // Remove hyphens from session ID
-    const userId = principal.userId || principal.userDetails || 'teacher';
+    const userId = principal.userId || principal.userDetails || 'organizer';
     
     // Create JWT token for SignalR
     const crypto = require('crypto');

@@ -13,7 +13,7 @@ import {
   storeOtp 
 } from '../utils/otp';
 import { sendOtpEmail } from '../utils/email';
-import { isExternalTeacher } from '../utils/auth';
+import { isExternalOrganizer } from '../utils/auth';
 
 interface RequestOtpBody {
   email: string;
@@ -57,9 +57,9 @@ export async function requestOtp(
       };
     }
 
-    // Check if email is from allowed domain or is an external teacher
+    // Check if email is from allowed domain or is an external organizer
     const isAllowedDomain = isAllowedEmailDomain(email);
-    const isExternal = await isExternalTeacher(email);
+    const isExternal = await isExternalOrganizer(email);
 
     if (!isAllowedDomain && !isExternal) {
       return {

@@ -52,6 +52,10 @@ param otpFromName = readEnvironmentVariable('OTP_FROM_NAME', 'VTC Attendance')
 param otpEmailSubject = readEnvironmentVariable('OTP_EMAIL_SUBJECT', 'Your verification code')
 param otpAppName = readEnvironmentVariable('OTP_APP_NAME', 'ProvePresent')
 
+// Domain-based role assignment
+param organizerDomain = 'vtc.edu.hk'
+// param attendeeDomain = 'stu.vtc.edu.hk'  // Uncomment to restrict attendees to specific domain
+
 // Tags
 param tags = {
   Environment: 'Production'

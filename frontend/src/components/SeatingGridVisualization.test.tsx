@@ -20,21 +20,21 @@ import type { SeatingPosition } from '../../../backend/src/types/studentImageCap
 describe('SeatingGridVisualization', () => {
   const mockPositions: SeatingPosition[] = [
     {
-      studentId: 'student1@stu.vtc.edu.hk',
+      attendeeId: 'student1@stu.vtc.edu.hk',
       estimatedRow: 1,
       estimatedColumn: 1,
       confidence: 'HIGH',
       reasoning: 'Clear projector visibility, centered position'
     },
     {
-      studentId: 'student2@stu.vtc.edu.hk',
+      attendeeId: 'student2@stu.vtc.edu.hk',
       estimatedRow: 1,
       estimatedColumn: 2,
       confidence: 'MEDIUM',
       reasoning: 'Partial projector visibility'
     },
     {
-      studentId: 'student3@stu.vtc.edu.hk',
+      attendeeId: 'student3@stu.vtc.edu.hk',
       estimatedRow: 2,
       estimatedColumn: 1,
       confidence: 'LOW',
@@ -66,20 +66,20 @@ describe('SeatingGridVisualization', () => {
       expect(gridContainer).toBeInTheDocument();
     });
 
-    it('should display student count in header', () => {
+    it('should display attendee count in header', () => {
       render(<SeatingGridVisualization positions={mockPositions} />);
       expect(screen.getByText(/3 students/)).toBeInTheDocument();
     });
 
-    it('should display front of classroom indicator', () => {
+    it('should display front of venue indicator', () => {
       render(<SeatingGridVisualization positions={mockPositions} />);
-      expect(screen.getByText(/Front of Classroom \(Projector\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Front of Venue \(Projector\)/)).toBeInTheDocument();
     });
 
-    it('should render all student positions', () => {
+    it('should render all attendee positions', () => {
       render(<SeatingGridVisualization positions={mockPositions} />);
       
-      // Check that student IDs are displayed (shortened)
+      // Check that attendee IDs are displayed (shortened)
       expect(screen.getByText(/student1/)).toBeInTheDocument();
       expect(screen.getByText(/student2/)).toBeInTheDocument();
       expect(screen.getByText(/student3/)).toBeInTheDocument();
@@ -128,7 +128,7 @@ describe('SeatingGridVisualization', () => {
       const student1Cell = screen.getByText(/student1/).closest('div');
       fireEvent.click(student1Cell!);
       
-      // Check that detail popup appears with full student ID
+      // Check that detail popup appears with full attendee ID
       expect(screen.getByText('student1@stu.vtc.edu.hk')).toBeInTheDocument();
     });
 
@@ -223,14 +223,14 @@ describe('SeatingGridVisualization', () => {
     it('should handle single row layout', () => {
       const singleRowPositions: SeatingPosition[] = [
         {
-          studentId: 'student1@stu.vtc.edu.hk',
+          attendeeId: 'student1@stu.vtc.edu.hk',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
           reasoning: 'Test'
         },
         {
-          studentId: 'student2@stu.vtc.edu.hk',
+          attendeeId: 'student2@stu.vtc.edu.hk',
           estimatedRow: 1,
           estimatedColumn: 2,
           confidence: 'HIGH',
@@ -245,14 +245,14 @@ describe('SeatingGridVisualization', () => {
     it('should handle single column layout', () => {
       const singleColumnPositions: SeatingPosition[] = [
         {
-          studentId: 'student1@stu.vtc.edu.hk',
+          attendeeId: 'student1@stu.vtc.edu.hk',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
           reasoning: 'Test'
         },
         {
-          studentId: 'student2@stu.vtc.edu.hk',
+          attendeeId: 'student2@stu.vtc.edu.hk',
           estimatedRow: 2,
           estimatedColumn: 1,
           confidence: 'HIGH',
@@ -269,7 +269,7 @@ describe('SeatingGridVisualization', () => {
       for (let row = 1; row <= 5; row++) {
         for (let col = 1; col <= 5; col++) {
           largeGridPositions.push({
-            studentId: `student${row}${col}@stu.vtc.edu.hk`,
+            attendeeId: `attendee${row}${col}@stu.vtc.edu.hk`,
             estimatedRow: row,
             estimatedColumn: col,
             confidence: 'HIGH',
@@ -283,11 +283,11 @@ describe('SeatingGridVisualization', () => {
     });
   });
 
-  describe('Student ID Display', () => {
-    it('should truncate long student IDs in grid cells', () => {
+  describe('Attendee ID Display', () => {
+    it('should truncate long attendee IDs in grid cells', () => {
       const longIdPositions: SeatingPosition[] = [
         {
-          studentId: 'verylongstudentidentifier@stu.vtc.edu.hk',
+          attendeeId: 'verylongstudentidentifier@stu.vtc.edu.hk',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
@@ -301,10 +301,10 @@ describe('SeatingGridVisualization', () => {
       expect(screen.getByText(/verylongstudent\.\.\./)).toBeInTheDocument();
     });
 
-    it('should show full student ID in detail popup', () => {
+    it('should show full attendee ID in detail popup', () => {
       const longIdPositions: SeatingPosition[] = [
         {
-          studentId: 'verylongstudentidentifier@stu.vtc.edu.hk',
+          attendeeId: 'verylongstudentidentifier@stu.vtc.edu.hk',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',

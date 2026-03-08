@@ -7,7 +7,7 @@ import { InvocationContext } from '@azure/functions';
 export async function broadcastAttendanceUpdate(
   sessionId: string,
   update: {
-    studentId: string;
+    attendeeId: string;
     entryStatus?: string;
     exitVerified?: boolean;
     earlyLeaveAt?: number;
@@ -253,7 +253,7 @@ export async function broadcastQuizQuestion(
   question: {
     responseId: string;
     questionId: string;
-    studentId: string;
+    attendeeId: string;
     question: string;
     questionType: string;
     options: string[] | null;
@@ -335,7 +335,7 @@ export async function broadcastQuizResult(
   sessionId: string,
   result: {
     responseId: string;
-    studentId: string;
+    attendeeId: string;
     isCorrect: boolean;
     score: number;
     responseTime: number;

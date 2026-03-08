@@ -18,8 +18,8 @@ const nextConfig = {
     return {
       '/': { page: '/' },
       '/login': { page: '/login' },
-      '/teacher': { page: '/teacher' },
-      '/student': { page: '/student' },
+      '/organizer': { page: '/organizer' },
+      '/attendee': { page: '/attendee' },
       '/dev-config': { page: '/dev-config' }
     };
   },

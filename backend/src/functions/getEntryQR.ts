@@ -38,15 +38,15 @@ export async function getEntryQR(
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
     }    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher')) {
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
-    const teacherId = getUserId(principal);
+    const organizerId = getUserId(principal);
     const sessionId = request.params.sessionId;
     
     if (!sessionId) {
@@ -56,7 +56,7 @@ export async function getEntryQR(
       };
     }
 
-    // Verify session exists and teacher owns it
+    // Verify session exists and organizer owns it
     const sessionsTable = getTableClient(TableNames.SESSIONS);
     let session: any;
     
@@ -72,8 +72,8 @@ export async function getEntryQR(
       throw error;
     }
 
-    // Verify access (owner or co-teacher)
-    const access = checkSessionAccess(session, teacherId);
+    // Verify access (owner or co-organizer)
+    const access = checkSessionAccess(session, organizerId);
     if (!access.hasAccess) {
       return {
         status: 403,

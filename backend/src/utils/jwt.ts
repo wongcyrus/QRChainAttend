@@ -15,7 +15,7 @@ export interface JWTPayload {
   sub: string;          // User email (subject)
   userId: string;       // Unique user ID (email-based hash)
   email: string;        // User email
-  roles: string[];      // ['teacher'] or ['student']
+  roles: string[];      // ['organizer'] or ['attendee']
   iat: number;          // Issued at timestamp
   exp: number;          // Expiration timestamp
 }
@@ -36,20 +36,37 @@ export function generateUserId(email: string): string {
 
 /**
  * Get roles from email address
+ * Uses environment variables for domain-based assignment
  */
 export function getRolesFromEmail(email: string): string[] {
   const emailLower = email.toLowerCase();
   const roles: string[] = ['authenticated'];
   
-  // Teacher: @vtc.edu.hk (excluding @stu.vtc.edu.hk)
-  if (emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
-    roles.push('teacher');
-  }
-  // Student: @stu.vtc.edu.hk
-  else if (emailLower.endsWith('@stu.vtc.edu.hk')) {
-    roles.push('student');
+  // Check domain-based assignment (if configured)
+  const organizerDomain = process.env.ORGANIZER_DOMAIN?.toLowerCase().trim();
+  const attendeeDomain = process.env.ATTENDEE_DOMAIN?.toLowerCase().trim();
+  
+  // Check organizer domain (e.g., @vtc.edu.hk)
+  if (organizerDomain && emailLower.endsWith(`@${organizerDomain}`)) {
+    // Exclude attendee domain if specified (e.g., @stu.vtc.edu.hk)
+    if (!attendeeDomain || !emailLower.endsWith(`@${attendeeDomain}`)) {
+      roles.push('organizer');
+      return roles;
+    }
   }
   
+  // Check attendee domain restriction (if set)
+  if (attendeeDomain) {
+    // If attendee domain is set, ONLY that domain can be attendee
+    if (emailLower.endsWith(`@${attendeeDomain}`)) {
+      roles.push('attendee');
+    }
+    // Else: no role assigned (not organizer, not in allowed attendee domain)
+    return roles;
+  }
+  
+  // No attendee domain restriction - any email can be attendee
+  roles.push('attendee');
   return roles;
 }
 

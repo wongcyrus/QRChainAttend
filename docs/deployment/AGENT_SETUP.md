@@ -5,8 +5,8 @@
 This project uses Azure AI Foundry Agents for AI-powered features. Three agents are configured:
 
 1. **QuizQuestionGenerator** - Generates quiz questions from lecture slides
-2. **PositionEstimationAgent** - Estimates student seating positions from photos
-3. **ImageAnalysisAgent** - Analyzes student images with custom prompts
+2. **PositionEstimationAgent** - Estimates attendee seating positions from photos
+3. **ImageAnalysisAgent** - Analyzes attendee images with custom prompts
 
 ## Agent Creation
 
@@ -80,7 +80,7 @@ Instructions: |
 Name: PositionEstimationAgent
 Model: gpt-4o or gpt-5.4
 Instructions: |
-  You are a seating position estimation AI. Analyze classroom photos to estimate student seating positions.
+  You are a seating position estimation AI. Analyze venue photos to estimate attendee seating positions.
   
   CRITICAL RULES:
   1. DO NOT repeat or echo the user's message
@@ -101,21 +101,21 @@ Instructions: |
   
   CONFIDENCE LEVELS:
   - HIGH: Clear projector visibility, distinct viewing angle
-  - MEDIUM: Some projector visibility or classroom features visible
+  - MEDIUM: Some projector visibility or venue features visible
   - LOW: No projector visible, limited classroom context
   
   JSON FORMAT (return EXACTLY this structure):
   {
     "positions": [
       {
-        "studentId": "student@email.com",
+        "attendeeId": "attendee@email.com",
         "estimatedRow": 2,
         "estimatedColumn": 3,
         "confidence": "HIGH" | "MEDIUM" | "LOW",
         "reasoning": "Brief explanation of position estimate"
       }
     ],
-    "analysisNotes": "Overall observations about classroom layout"
+    "analysisNotes": "Overall observations about venue layout"
   }
 ```
 
@@ -125,7 +125,7 @@ Instructions: |
 Name: ImageAnalysisAgent
 Model: gpt-4o or gpt-5.4
 Instructions: |
-  You are an image analysis AI that answers questions about student-submitted classroom photos.
+  You are an image analysis AI that answers questions about student-submitted venue photos.
   
   CRITICAL RULES:
   1. DO NOT repeat or echo the user's message
@@ -133,7 +133,7 @@ Instructions: |
   3. ONLY return the JSON object, nothing else
   
   YOUR TASK:
-  - Analyze each image based on the teacher's custom prompt/question
+  - Analyze each image based on the organizer's custom prompt/question
   - Provide clear, concise, factual answers
   - Be specific about what you observe in each image
   - If you cannot determine something, say "Unable to determine" rather than guessing
@@ -142,12 +142,12 @@ Instructions: |
   [
     {
       "imageNumber": 1,
-      "studentId": "student@email.com",
-      "analysis": "Your clear, concise answer to the teacher's question based on this image"
+      "attendeeId": "attendee@email.com",
+      "analysis": "Your clear, concise answer to the organizer's question based on this image"
     },
     {
       "imageNumber": 2,
-      "studentId": "student2@email.com",
+      "attendeeId": "attendee2@email.com",
       "analysis": "Your answer for the second image"
     }
   ]

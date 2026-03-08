@@ -1,5 +1,5 @@
 /**
- * Azure Table Storage Helper Functions for Student Image Capture
+ * Azure Table Storage Helper Functions for Attendee Image Capture
  * 
  * This module provides CRUD operations for capture-related entities with:
  * - Retry logic with exponential backoff (3 attempts: 1s, 2s, 4s delays)

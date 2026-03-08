@@ -21,13 +21,13 @@ export async function reseedExit(request: HttpRequest, context: InvocationContex
         }
       }
     };
-  }  if (!hasRole(principal, 'teacher')) {
+  }  if (!hasRole(principal, 'organizer')) {
     return {
       status: 403,
       jsonBody: {
         error: {
           code: 'FORBIDDEN',
-          message: 'Teacher role required',
+          message: 'Organizer role required',
           function: 'reseedExit',
           timestamp: Date.now()
         }
@@ -50,7 +50,7 @@ export async function reseedExit(request: HttpRequest, context: InvocationContex
 
 app.http('reseedExit', {
   methods: ['GET', 'POST'],
-  route: 'reseedExit',
+  route: 'sessions/{sessionId}/reseed-exit',
   authLevel: 'anonymous',
   handler: reseedExit
 });

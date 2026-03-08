@@ -29,9 +29,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     mockUser = {
       clientPrincipal: {
         userId: 'local-dev-user-123',
-        userDetails: process.env.MOCK_USER_EMAIL || 'teacher@vtc.edu.hk',
+        userDetails: process.env.MOCK_USER_EMAIL || 'organizer@example.com',
         identityProvider: 'aad',
-        userRoles: ['authenticated', 'teacher']
+        userRoles: ['authenticated', 'organizer']
       }
     };
   }

@@ -59,7 +59,7 @@ function createMockContext(): InvocationContext {
 describe('Complete Durable Timeout Flow Integration Test', () => {
   const captureRequestId = 'integration-test-capture-123';
   const sessionId = 'integration-test-session-456';
-  const teacherId = 'teacher@test.com';
+  const organizerId = 'organizer@test.com';
   const studentIds = ['student1@test.com', 'student2@test.com', 'student3@test.com'];
 
   beforeEach(() => {
@@ -83,7 +83,7 @@ describe('Complete Durable Timeout Flow Integration Test', () => {
       partitionKey: captureRequestId,
       rowKey: 'REQUEST',
       sessionId,
-      teacherId,
+      organizerId,
       status: 'ACTIVE',
       onlineStudentCount: 3,
       uploadedCount: 2,
@@ -109,14 +109,14 @@ describe('Complete Durable Timeout Flow Integration Test', () => {
     const mockEstimationOutput = {
       positions: [
         {
-          studentId: 'student1@test.com',
+          attendeeId: 'student1@test.com',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
           reasoning: 'Clear projector visibility'
         },
         {
-          studentId: 'student2@test.com',
+          attendeeId: 'student2@test.com',
           estimatedRow: 1,
           estimatedColumn: 2,
           confidence: 'HIGH',
@@ -225,8 +225,8 @@ describe('Complete Durable Timeout Flow Integration Test', () => {
       {
         captureRequestId,
         imageUrls: [
-          { studentId: 'student1@test.com', blobUrl: mockUploads[0].blobUrl },
-          { studentId: 'student2@test.com', blobUrl: mockUploads[1].blobUrl }
+          { attendeeId: 'student1@test.com', blobUrl: mockUploads[0].blobUrl },
+          { attendeeId: 'student2@test.com', blobUrl: mockUploads[1].blobUrl }
         ]
       },
       activityContext
@@ -307,7 +307,7 @@ describe('Complete Durable Timeout Flow Integration Test', () => {
       partitionKey: captureRequestId,
       rowKey: 'REQUEST',
       sessionId,
-      teacherId,
+      organizerId,
       status: 'ACTIVE',
       onlineStudentCount: 3,
       uploadedCount: 0,
@@ -353,7 +353,7 @@ describe('Complete Durable Timeout Flow Integration Test', () => {
         captureRequestId,
         status: 'COMPLETED',
         positions: [],
-        analysisNotes: expect.stringContaining('No student photos')
+        analysisNotes: expect.stringContaining('No attendee photos')
       }),
       activityContext
     );
@@ -374,7 +374,7 @@ describe('Complete Durable Timeout Flow Integration Test', () => {
       partitionKey: captureRequestId,
       rowKey: 'REQUEST',
       sessionId,
-      teacherId,
+      organizerId,
       status: 'ACTIVE',
       onlineStudentCount: 5,
       uploadedCount: 2,
@@ -399,8 +399,8 @@ describe('Complete Durable Timeout Flow Integration Test', () => {
 
     const mockEstimationOutput = {
       positions: [
-        { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
-        { studentId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' }
+        { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
+        { attendeeId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' }
       ],
       analysisNotes: 'Partial upload analysis'
     };

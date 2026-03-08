@@ -21,13 +21,13 @@ export async function startEarlyLeave(request: HttpRequest, context: InvocationC
         }
       }
     };
-  }  if (!hasRole(principal, 'teacher')) {
+  }  if (!hasRole(principal, 'organizer')) {
     return {
       status: 403,
       jsonBody: {
         error: {
           code: 'FORBIDDEN',
-          message: 'Teacher role required',
+          message: 'Organizer role required',
           function: 'startEarlyLeave',
           timestamp: Date.now()
         }
@@ -50,7 +50,7 @@ export async function startEarlyLeave(request: HttpRequest, context: InvocationC
 
 app.http('startEarlyLeave', {
   methods: ['GET', 'POST'],
-  route: 'startEarlyLeave',
+  route: 'sessions/{sessionId}/start-early-leave',
   authLevel: 'anonymous',
   handler: startEarlyLeave
 });

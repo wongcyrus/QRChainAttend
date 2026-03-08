@@ -168,7 +168,7 @@ describe('Error Handling and Retry Integration Test', () => {
       }),
       attempt1Context
     );
-    console.log(`✓ Error broadcast to teacher`);
+    console.log(`✓ Error broadcast to organizer`);
 
     // ========================================================================
     // STEP 4: Simulate retry attempt 2 (after 2 second backoff)
@@ -251,7 +251,7 @@ describe('Error Handling and Retry Integration Test', () => {
     console.log(`✓ Activity function attempted 3 times`);
     console.log(`✓ Exponential backoff applied (2s, 4s)`);
     console.log(`✓ Status updated to FAILED on each attempt`);
-    console.log(`✓ Error broadcast to teacher on each attempt`);
+    console.log(`✓ Error broadcast to organizer on each attempt`);
     console.log(`✓ All verification checks passed!`);
     console.log('=====================================\n');
   }, 30000); // 30 second timeout for retry delays
@@ -282,7 +282,7 @@ describe('Error Handling and Retry Integration Test', () => {
     const mockEstimationOutput = {
       positions: [
         {
-          studentId: 'student1@test.com',
+          attendeeId: 'student1@test.com',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
@@ -394,7 +394,7 @@ describe('Error Handling and Retry Integration Test', () => {
       }),
       context
     );
-    console.log(`✓ Error broadcast to teacher`);
+    console.log(`✓ Error broadcast to organizer`);
 
     console.log('\nSTEP 2: Verifying retry behavior...');
     console.log(`  - Permanent errors would be retried 3 times`);

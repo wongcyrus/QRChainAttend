@@ -25,11 +25,11 @@ export async function takeSnapshot(
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Math.floor(Date.now() / 1000) } }
       };
     }    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher')) {
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Math.floor(Date.now() / 1000) } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Math.floor(Date.now() / 1000) } }
       };
     }
 
@@ -183,7 +183,7 @@ export async function takeSnapshot(
       };
       await tokensTable.createEntity(tokenEntity);
 
-      // Broadcast so student sees their QR code
+      // Broadcast so attendee sees their QR code
       await broadcastChainUpdate(sessionId, {
         chainId,
         phase: 'SNAPSHOT',

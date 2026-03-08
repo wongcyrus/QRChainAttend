@@ -23,11 +23,11 @@ export async function closeChain(
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
     }    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher')) {
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
@@ -111,7 +111,7 @@ export async function closeChain(
           
           // Broadcast attendance update
           await broadcastAttendanceUpdate(sessionId, {
-            studentId: lastHolder,
+            attendeeId: lastHolder,
             entryStatus: entryStatus,
           }, context);
         }
@@ -130,7 +130,7 @@ export async function closeChain(
           
           // Broadcast attendance update
           await broadcastAttendanceUpdate(sessionId, {
-            studentId: lastHolder,
+            attendeeId: lastHolder,
             exitVerified: true,
           }, context);
         }

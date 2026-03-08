@@ -8,27 +8,27 @@ import { useRouter } from 'next/router';
 
 export default function DevConfig() {
   const router = useRouter();
-  const [email, setEmail] = useState('teacher@vtc.edu.hk');
-  const [role, setRole] = useState<'teacher' | 'student'>('teacher');
+  const [email, setEmail] = useState('organizer@vtc.edu.hk');
+  const [role, setRole] = useState<'organizer' | 'attendee'>('organizer');
   const [isLocal, setIsLocal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Pre-configured test users
   const testUsers = [
-    { email: 'teacher1@vtc.edu.hk', role: 'teacher' as const, label: 'Teacher 1' },
-    { email: 'teacher2@vtc.edu.hk', role: 'teacher' as const, label: 'Teacher 2' },
-    { email: 'teacher3@vtc.edu.hk', role: 'teacher' as const, label: 'Teacher 3' },
-    { email: 'teacher4@vtc.edu.hk', role: 'teacher' as const, label: 'Teacher 4' },
-    { email: 'student1@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 1' },
-    { email: 'student2@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 2' },
-    { email: 'student3@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 3' },
-    { email: 'student4@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 4' },
-    { email: 'student5@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 5' },
-    { email: 'student6@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 6' },
-    { email: 'student7@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 7' },
-    { email: 'student8@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 8' },
-    { email: 'student9@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 9' },
-    { email: 'student10@stu.vtc.edu.hk', role: 'student' as const, label: 'Student 10' },
+    { email: 'teacher1@vtc.edu.hk', role: 'organizer' as const, label: 'Organizer 1' },
+    { email: 'teacher2@vtc.edu.hk', role: 'organizer' as const, label: 'Organizer 2' },
+    { email: 'teacher3@vtc.edu.hk', role: 'organizer' as const, label: 'Organizer 3' },
+    { email: 'teacher4@vtc.edu.hk', role: 'organizer' as const, label: 'Organizer 4' },
+    { email: 'student1@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 1' },
+    { email: 'student2@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 2' },
+    { email: 'student3@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 3' },
+    { email: 'student4@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 4' },
+    { email: 'student5@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 5' },
+    { email: 'student6@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 6' },
+    { email: 'student7@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 7' },
+    { email: 'student8@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 8' },
+    { email: 'student9@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 9' },
+    { email: 'student10@stu.vtc.edu.hk', role: 'attendee' as const, label: 'Attendee 10' },
   ];
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export default function DevConfig() {
     }
   }, [router]);
 
-  const handleSetUser = async (userEmail?: string, userRole?: 'teacher' | 'student') => {
+  const handleSetUser = async (userEmail?: string, userRole?: 'organizer' | 'attendee') => {
     setError(null);
     
     // Use provided values or fall back to state
@@ -115,7 +115,7 @@ export default function DevConfig() {
             👨‍🏫 Teachers
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-            {testUsers.filter(u => u.role === 'teacher').map(user => (
+            {testUsers.filter(u => u.role === 'organizer').map(user => (
               <button
                 key={user.email}
                 onClick={() => handleSetUser(user.email, user.role)}
@@ -149,7 +149,7 @@ export default function DevConfig() {
             👨‍🎓 Students
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
-            {testUsers.filter(u => u.role === 'student').map(user => (
+            {testUsers.filter(u => u.role === 'attendee').map(user => (
               <button
                 key={user.email}
                 onClick={() => handleSetUser(user.email, user.role)}
@@ -172,7 +172,7 @@ export default function DevConfig() {
                   e.currentTarget.style.color = 'black';
                 }}
               >
-                {user.label.replace('Student ', 'S')}
+                {user.label.replace('Attendee ', 'S')}
               </button>
             ))}
           </div>
@@ -215,22 +215,22 @@ export default function DevConfig() {
             <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
               <input
                 type="radio"
-                value="teacher"
-                checked={role === 'teacher'}
-                onChange={(e) => setRole(e.target.value as 'teacher')}
+                value="organizer"
+                checked={role === 'organizer'}
+                onChange={(e) => setRole(e.target.value as 'organizer')}
                 style={{ marginRight: '0.5rem' }}
               />
-              Teacher
+              Organizer
             </label>
             <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
               <input
                 type="radio"
-                value="student"
-                checked={role === 'student'}
-                onChange={(e) => setRole(e.target.value as 'student')}
+                value="attendee"
+                checked={role === 'attendee'}
+                onChange={(e) => setRole(e.target.value as 'attendee')}
                 style={{ marginRight: '0.5rem' }}
               />
-              Student
+              Attendee
             </label>
           </div>
         </div>

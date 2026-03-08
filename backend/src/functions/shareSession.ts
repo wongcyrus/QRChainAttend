@@ -4,7 +4,7 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseAuthFromRequest, hasRoleAsync, getUserId, isValidTeacherEmail } from '../utils/auth';
+import { parseAuthFromRequest, hasRoleAsync, getUserId, isValidOrganizerEmail } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 
 interface ShareSessionRequest {
@@ -35,11 +35,11 @@ export async function shareSession(
       };
     }    const userId = getUserId(principal);
 
-    // Require Teacher role
-    if (!await hasRoleAsync(principal, 'Teacher') && !await hasRoleAsync(principal, 'teacher')) {
+    // Require Organizer role
+    if (!await hasRoleAsync(principal, 'Organizer') && !await hasRoleAsync(principal, 'organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
@@ -54,11 +54,11 @@ export async function shareSession(
 
     const coTeacherEmail = body.coTeacherEmail.toLowerCase();
 
-    // Validate co-teacher email is a teacher (VTC domain or external teacher)
-    if (!await isValidTeacherEmail(coTeacherEmail)) {
+    // Validate co-organizer email is a organizer (VTC domain or external organizer)
+    if (!await isValidOrganizerEmail(coTeacherEmail)) {
       return {
         status: 400,
-        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Co-teacher must have a valid teacher email', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Co-organizer must have a valid organizer email', timestamp: Date.now() } }
       };
     }
 
@@ -87,7 +87,7 @@ export async function shareSession(
     }
 
     // Only session owner can share
-    if (session.teacherId !== userId) {
+    if (session.organizerId !== userId) {
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'Only session owner can share the session', timestamp: Date.now() } }
@@ -108,11 +108,11 @@ export async function shareSession(
     if (coTeachers.includes(coTeacherEmail)) {
       return {
         status: 400,
-        jsonBody: { error: { code: 'ALREADY_SHARED', message: 'Session already shared with this teacher', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'ALREADY_SHARED', message: 'Session already shared with this organizer', timestamp: Date.now() } }
       };
     }
 
-    // Add co-teacher
+    // Add co-organizer
     coTeachers.push(coTeacherEmail);
 
     // Update session

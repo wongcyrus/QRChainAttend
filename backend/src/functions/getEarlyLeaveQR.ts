@@ -28,15 +28,15 @@ async function getEarlyLeaveQR(request: HttpRequest, context: InvocationContext)
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
-    }    if (!hasRole(principal, 'teacher')) {
+    }    if (!hasRole(principal, 'organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
     const sessionId = request.params.sessionId;
-    const teacherId = getUserId(principal);
+    const organizerId = getUserId(principal);
     
     if (!sessionId) {
       return {
@@ -45,13 +45,13 @@ async function getEarlyLeaveQR(request: HttpRequest, context: InvocationContext)
       };
     }
 
-    // Verify session exists and teacher has access
+    // Verify session exists and organizer has access
     const sessionsTable = getTableClient(TableNames.SESSIONS);
     let session: any;
     try {
       session = await sessionsTable.getEntity('SESSION', sessionId);
       
-      const access = checkSessionAccess(session, teacherId);
+      const access = checkSessionAccess(session, organizerId);
       if (!access.hasAccess) {
         return {
           status: 403,

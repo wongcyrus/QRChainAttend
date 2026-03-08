@@ -54,8 +54,8 @@ export async function deleteSession(
     const teacherEmail = principal.userDetails || '';
     const roles = getRolesFromEmail(teacherEmail);
 
-    // Verify teacher role
-    if (!roles.includes('teacher')) {
+    // Verify organizer role
+    if (!roles.includes('organizer')) {
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'Only teachers can delete sessions', timestamp: Date.now() } }
@@ -64,14 +64,14 @@ export async function deleteSession(
 
     const sessionsTable = getTableClient(TableNames.SESSIONS);
     
-    // Verify session exists and belongs to this teacher
+    // Verify session exists and belongs to this organizer
     let session: any;
     try {
       const entity = await sessionsTable.getEntity('SESSION', sessionId);
       session = entity as any;
       
-      // Check if teacher owns this session
-      if (session.teacherId !== userId) {
+      // Check if organizer owns this session
+      if (session.organizerId !== userId) {
         return {
           status: 403,
           jsonBody: { error: { code: 'FORBIDDEN', message: 'You can only delete your own sessions', timestamp: Date.now() } }
@@ -229,8 +229,8 @@ export async function deleteSession(
         partitionKey: new Date().toISOString().split('T')[0],  // Date partition
         rowKey: `${sessionId}_${Date.now()}`,  // Unique row
         sessionId,
-        teacherId: userId,
-        sessionName: session.classId,
+        organizerId: userId,
+        sessionName: session.eventId,
         deletedAt: new Date().toISOString(),
         deletedSessionCount: totalSessions,
         deleteScope: isRecurringSession ? deleteScope : undefined,
@@ -254,7 +254,7 @@ export async function deleteSession(
         message: `${totalSessions} session${totalSessions > 1 ? 's' : ''} deleted successfully`,
         details: {
           sessionId,
-          sessionName: session.classId,
+          sessionName: session.eventId,
           sessionsDeleted: totalSessions,
           deleteScope: isRecurringSession ? deleteScope : undefined,
           isRecurring: isRecurringSession,

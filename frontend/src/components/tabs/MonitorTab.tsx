@@ -3,10 +3,11 @@
  */
 
 import React from 'react';
+import { formatAttendeeId } from '../../utils/formatAttendeeId';
 
 interface AttendanceRecord {
   sessionId: string;
-  studentId: string;
+  attendeeId: string;
   entryStatus?: 'PRESENT_ENTRY' | 'LATE_ENTRY';
   entryMethod?: 'DIRECT_QR' | 'CHAIN';
   entryAt?: number;
@@ -47,9 +48,9 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
     return new Date(timestamp * 1000).toLocaleTimeString();
   };
 
-  const formatStudentId = (studentId: string): string => {
-    if (!studentId) return 'Unknown';
-    return studentId.replace('@stu.vtc.edu.hk', '');
+  const formatStudentId = (attendeeId: string): string => {
+    if (!attendeeId) return 'Unknown';
+    return attendeeId.replace('@stu.vtc.edu.hk', '');
   };
 
   const getStatusText = (record: AttendanceRecord): string => {
@@ -142,7 +143,7 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
         </div>
       </div>
 
-      {/* Student Attendance Table */}
+      {/* Attendee Attendance Table */}
       <div style={{
         backgroundColor: 'white',
         padding: '2rem',
@@ -156,7 +157,7 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
             margin: 0,
             fontWeight: '700'
           }}>
-            👥 Student Attendance ({filteredAttendance.length}{showGpsMissingOnly ? ` / ${attendance.length}` : ''})
+            👥 Attendee Attendance ({filteredAttendance.length}{showGpsMissingOnly ? ` / ${attendance.length}` : ''})
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {gpsMissingCount > 0 && (
@@ -217,7 +218,7 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
                     fontWeight: '600',
                     color: '#4a5568',
                     borderBottom: '2px solid #e2e8f0'
-                  }}>Student ID</th>
+                  }}>Attendee ID</th>
                   <th style={{ 
                     padding: '1rem',
                     textAlign: 'center',
@@ -264,7 +265,7 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
               </thead>
               <tbody>
                 {filteredAttendance.map(record => (
-                  <tr key={record.studentId} style={{
+                  <tr key={record.attendeeId} style={{
                     borderBottom: '1px solid #e2e8f0',
                     transition: 'background-color 0.2s'
                   }}
@@ -272,7 +273,7 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     <td style={{ padding: '1rem', color: '#2d3748', fontWeight: '500' }}>
-                      {formatStudentId(record.studentId)}
+                      {formatAttendeeId(record.attendeeId)}
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                       <span style={{

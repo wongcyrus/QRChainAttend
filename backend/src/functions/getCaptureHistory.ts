@@ -68,7 +68,7 @@ export async function getCaptureHistory(
     
     // TODO: Add authentication check
     // - Verify user is authenticated
-    // - Verify user is a teacher
+    // - Verify user is a organizer
     // - Verify user owns the session
     // For now, we'll proceed without auth (to be added in production)
 

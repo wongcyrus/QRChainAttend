@@ -42,7 +42,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -70,7 +70,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -119,7 +119,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -141,7 +141,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -160,7 +160,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -168,7 +168,7 @@ describe('QRDisplay Component', () => {
 
       await waitFor(() => {
         expect(screen.getByText('You are the current holder')).toBeInTheDocument();
-        expect(screen.getByText('Show this QR code to another student to scan')).toBeInTheDocument();
+        expect(screen.getByText('Show this QR code to another attendee to scan')).toBeInTheDocument();
       });
     });
 
@@ -178,7 +178,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -213,7 +213,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -231,7 +231,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -282,7 +282,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 10,
       };
 
@@ -299,7 +299,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 5,
       };
 
@@ -317,7 +317,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 15,
       };
 
@@ -336,7 +336,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 3,
       };
 
@@ -365,7 +365,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 2,
       };
 
@@ -394,7 +394,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) - 10, // Already expired
       };
 
@@ -416,7 +416,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 2,
       };
 
@@ -450,7 +450,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -473,7 +473,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -495,7 +495,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -510,7 +510,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-456',
         etag: 'etag-456',
-        holderId: 'student-2',
+        holderId: 'attendee-2',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -533,7 +533,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -552,7 +552,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -582,7 +582,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -609,7 +609,7 @@ describe('QRDisplay Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 

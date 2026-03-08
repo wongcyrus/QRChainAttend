@@ -23,11 +23,11 @@ export async function listSnapshots(
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
     }    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher')) {
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
@@ -55,7 +55,7 @@ export async function listSnapshots(
       capturedAt: snap.capturedAt,
       capturedAtFormatted: new Date(snap.capturedAt * 1000).toLocaleString(),
       chainsCreated: snap.chainsCreated,
-      studentsCaptured: snap.studentsCaptured,
+      attendeesCaptured: snap.attendeesCaptured,
       notes: snap.notes,
       createdAt: snap.createdAt
     }));

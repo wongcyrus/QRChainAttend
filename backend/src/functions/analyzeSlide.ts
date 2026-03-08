@@ -1,12 +1,12 @@
 /**
  * Analyze Slide API Endpoint
- * Uses Azure OpenAI Vision to analyze lecture slides
+ * Uses QuizQuestionGenerator agent to analyze presentation slides
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole } from '../utils/auth';
 import { BlobServiceClient } from '@azure/storage-blob';
-import { DefaultAzureCredential } from '@azure/identity';
+import { getAgentClient } from '../utils/agentService';
 import { randomUUID } from 'crypto';
 
 export async function analyzeSlide(
@@ -24,11 +24,11 @@ export async function analyzeSlide(
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
     }    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer') && !hasRole(principal, 'organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
@@ -98,43 +98,10 @@ export async function analyzeSlide(
       imageDataForAI = imageUrl;
     }
 
-    // Call Azure OpenAI vision-capable chat API
-    const openaiEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
-    const openaiKey = process.env.AZURE_OPENAI_KEY;
-    const openaiDeployment = process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-5.4';
-
-    if (!openaiEndpoint) {
-      throw new Error('Azure OpenAI endpoint not configured');
-    }
-
-    const apiUrl = `${openaiEndpoint.replace(/\/$/, '')}/openai/deployments/${openaiDeployment}/chat/completions?api-version=2024-10-21`;
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-
-    if (openaiKey) {
-      headers['api-key'] = openaiKey;
-    } else {
-      context.log('AZURE_OPENAI_KEY not set, using managed identity token for Azure OpenAI');
-      const credential = new DefaultAzureCredential();
-      const token = await credential.getToken('https://cognitiveservices.azure.com/.default');
-
-      if (!token?.token) {
-        throw new Error('Failed to acquire managed identity token for Azure OpenAI');
-      }
-
-      headers['Authorization'] = `Bearer ${token.token}`;
-    }
-
-    const requestBody = {
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Analyze this lecture slide and extract the following information in JSON format:
+    // Use QuizQuestionGenerator agent to analyze slide
+    const agentClient = getAgentClient();
+    
+    const prompt = `Analyze this presentation slide image and extract the following information in JSON format:
 {
   "topic": "Main topic or concept (1-2 words)",
   "title": "Slide title if visible",
@@ -146,92 +113,33 @@ export async function analyzeSlide(
   "summary": "Brief 1-2 sentence summary of the slide content"
 }
 
-Be concise and accurate. Extract only what's clearly visible.`
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: imageDataForAI
-              }
-            }
-          ]
-        }
-      ],
-      max_completion_tokens: 1000
-      // temperature not set - uses default (1) for model compatibility
-    };
+Image: ${imageDataForAI}
 
-    // Retry logic with exponential backoff for rate limits
-    let response;
-    let lastError;
-    const maxRetries = 3;
+Return ONLY valid JSON (no markdown, no code blocks).`;
+
+    context.log('Calling QuizQuestionGenerator agent to analyze slide...');
     
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        response = await fetch(apiUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(requestBody)
-        });
+    const response = await agentClient.runSingleInteraction({
+      agentName: 'QuizQuestionGenerator',
+      userMessage: prompt
+    });
 
-        if (response.ok) {
-          break; // Success, exit retry loop
-        }
-
-        const errorText = await response.text();
-        
-        // Handle rate limit errors with retry
-        if (response.status === 429) {
-          let retryAfter = 20;
-          try {
-            const errorData = JSON.parse(errorText);
-            const match = errorData.error?.message?.match(/retry after (\d+) seconds/i);
-            if (match) {
-              retryAfter = parseInt(match[1]);
-            }
-          } catch (e) {
-            // Use default retry time
-          }
-          
-          if (attempt < maxRetries - 1) {
-            context.log(`Rate limit hit, retrying after ${retryAfter} seconds (attempt ${attempt + 1}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-            continue;
-          }
-        }
-        
-        // Non-rate-limit error or final attempt
-        context.error('OpenAI API error:', errorText);
-        throw new Error(`OpenAI API error: ${response.status}`);
-        
-      } catch (error: any) {
-        lastError = error;
-        if (attempt === maxRetries - 1) {
-          throw error;
-        }
-      }
-    }
-
-    if (!response || !response.ok) {
-      throw lastError || new Error('Failed to get response from OpenAI');
-    }
-
-    const aiResponse = await response.json();
-    const content = aiResponse.choices[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No content in OpenAI response');
+    if (!response.content) {
+      throw new Error('No content in agent response');
     }
 
     // Parse JSON from response
     let analysis;
     try {
-      // Extract JSON from markdown code blocks if present
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : content;
+      const cleanContent = response.content.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
+      const firstBrace = cleanContent.indexOf('{');
+      const lastBrace = cleanContent.lastIndexOf('}');
+      const jsonStr = (firstBrace !== -1 && lastBrace !== -1) 
+        ? cleanContent.substring(firstBrace, lastBrace + 1)
+        : cleanContent;
       analysis = JSON.parse(jsonStr);
     } catch (parseError) {
-      context.error('Failed to parse AI response:', content);
+      context.error('Failed to parse agent response:', response.content);
       throw new Error('Failed to parse AI analysis');
     }
 

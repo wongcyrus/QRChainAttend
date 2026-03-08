@@ -30,7 +30,7 @@ interface CaptureTimeoutInput {
 /**
  * Capture Timeout Orchestrator Function
  * 
- * This orchestrator manages the timeout lifecycle for a student image capture request.
+ * This orchestrator manages the timeout lifecycle for a attendee image capture request.
  * It creates a durable timer that fires at the exact expiration time and also listens
  * for an external event that signals early termination (when all students have uploaded).
  * 

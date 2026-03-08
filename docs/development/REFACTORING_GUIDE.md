@@ -137,7 +137,7 @@ These functions have been updated to use the new utilities:
 1. **scanChain.ts** - Chain scanning logic
 2. **sendQuizQuestion.ts** - Quiz question distribution
 3. **submitQuizAnswer.ts** - Quiz answer submission
-4. **getStudentQuestions.ts** - Get pending questions
+4. **getAttendeeQuestions.ts** - Get pending questions
 
 **Use these as templates for refactoring other functions!**
 
@@ -154,7 +154,7 @@ These functions have been updated to use the new utilities:
 5. **startExitChain.ts** - Start exit chains
 6. **closeChain.ts** - Close chains
 7. **markExit.ts** - Mark student exit
-8. **getTeacherSessions.ts** - List teacher sessions
+8. **getOrganizerSessions.ts** - List teacher sessions
 
 ### Medium Priority
 
@@ -183,12 +183,12 @@ These functions have been updated to use the new utilities:
 28. **getSnapshotTrace.ts**
 29. **getChainHistory.ts**
 30. **compareSnapshots.ts**
-31. **markStudentExit.ts**
-32. **getStudentToken.ts**
+31. **markAttendeeExit.ts**
+32. **getAttendeeToken.ts**
 33. **negotiate.ts**
 34. **negotiateDashboard.ts**
-35. **negotiateStudent.ts**
-36. **studentOnline.ts**
+35. **negotiateAttendee.ts**
+36. **attendeeOnline.ts**
 37. **analyzeSlide.ts**
 38. **generateQuestions.ts**
 39. **getRoles.ts**
@@ -259,7 +259,7 @@ function hasRole(principal: any, role: string): boolean {
   const email = principal.userDetails || '';
   const emailLower = email.toLowerCase();
   
-  if (role.toLowerCase() === 'teacher' && 
+  if (role.toLowerCase() === 'organizer' && 
       emailLower.endsWith('@vtc.edu.hk') && 
       !emailLower.endsWith('@stu.vtc.edu.hk')) {
     return true;
@@ -323,7 +323,7 @@ export async function createSession(
 - scanChain.ts
 - sendQuizQuestion.ts
 - submitQuizAnswer.ts
-- getStudentQuestions.ts
+- getAttendeeQuestions.ts
 
 ### Phase 2: High-Traffic Functions (Next)
 - createSession.ts

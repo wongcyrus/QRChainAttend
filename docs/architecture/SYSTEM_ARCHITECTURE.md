@@ -15,8 +15,8 @@ ProvePresent is a real-time attendance verification system built on Azure servic
 ┌─────────────────────────────────────────────────────────────┐
 │                         Frontend                             │
 │  Next.js 15 + React 18 + TypeScript (Azure Static Web Apps) │
-│  - Teacher Dashboard (Real-time monitoring)                  │
-│  - Student View (QR scanning & display)                      │
+│  - Organizer Dashboard (Real-time monitoring)                  │
+│  - Attendee View (QR scanning & display)                      │
 │  - Session Management (CRUD with recurring)                  │
 │  - Live Quiz (AI-powered question generation)                │
 └─────────────────┬───────────────────────────────────────────┘
@@ -63,8 +63,8 @@ ProvePresent is a real-time attendance verification system built on Azure servic
 
 **Pages**:
 - `/` - Home page with role selection
-- `/teacher` - Teacher dashboard
-- `/student` - Student view
+- `/organizer` - Organizer dashboard
+- `/attendee` - Attendee view
 - `/session/[id]` - Session details
 
 **Components** (22+):
@@ -93,11 +93,11 @@ ProvePresent is a real-time attendance verification system built on Azure servic
 **Session Management** (8):
 - `createSession` - Create single/recurring sessions
 - `getSession` - Get session details with attendance
-- `getTeacherSessions` - List teacher's sessions
+- `getOrganizerSessions` - List organizer's sessions
 - `deleteSession` - Delete session with cascade
 - `endSession` - End active session
 - `checkSession` - Verify session status
-- `registerSession` - Register student to session
+- `registerSession` - Register attendee to session
 - `clearSession` - Clear session data
 - `updateSession` - Update session details
 
@@ -119,10 +119,10 @@ ProvePresent is a real-time attendance verification system built on Azure servic
 
 **Attendance** (5):
 - `getAttendance` - Get attendance records
-- `joinSession` - Student joins session
-- `markExit` - Mark student exit via direct QR
-- `markStudentExit` - Mark specific student exit
-- `getStudentToken` - Get student's current token
+- `joinSession` - Attendee joins session
+- `markExit` - Mark attendee exit via direct QR
+- `markAttendeeExit` - Mark specific attendee exit
+- `getAttendeeToken` - Get attendee's current token
 
 **Snapshots** (5):
 - `takeSnapshot` - Create on-demand snapshot
@@ -133,15 +133,15 @@ ProvePresent is a real-time attendance verification system built on Azure servic
 
 **SignalR** (4):
 - `negotiate` - SignalR connection negotiation
-- `negotiateDashboard` - Teacher dashboard connection
-- `negotiateStudent` - Student view connection
-- `studentOnline` - Report student online status
+- `negotiateDashboard` - Organizer dashboard connection
+- `negotiateAttendee` - Attendee view connection
+- `attendeeOnline` - Report attendee online status
 
 **Quiz** (5):
 - `analyzeSlide` - AI slide analysis with GPT-4o Vision
 - `generateQuestions` - Generate quiz questions with GPT-4o
 - `sendQuizQuestion` - Send question to all present students
-- `getStudentQuestions` - Get pending questions for student
+- `getAttendeeQuestions` - Get pending questions for attendee
 - `submitQuizAnswer` - Submit and evaluate answer
 
 **Utilities** (integrated in functions):
@@ -149,14 +149,14 @@ ProvePresent is a real-time attendance verification system built on Azure servic
 - SignalR broadcasting (JWT token generation)
 - Token encryption/decryption
 
-**Note**: `rotateTokens` function has been removed - tokens are now created on-demand by `getStudentToken` when clients poll.
+**Note**: `rotateTokens` function has been removed - tokens are now created on-demand by `getAttendeeToken` when clients poll.
 
 ### 3. Database (Azure Table Storage)
 
 **16 Tables** (managed by Bicep):
 
 1. **Sessions** - Session metadata
-2. **Attendance** - Student attendance records
+2. **Attendance** - Attendee attendance records
 3. **Chains** - QR chain state
 4. **Tokens** - Chain tokens (25s TTL)
 5. **UserSessions** - User-session mapping
@@ -165,7 +165,7 @@ ProvePresent is a real-time attendance verification system built on Azure servic
 8. **ScanLogs** - QR scan audit
 9. **DeletionLog** - Deletion audit trail
 10. **QuizQuestions** - AI-generated quiz questions
-11. **QuizResponses** - Student quiz answers
+11. **QuizResponses** - Attendee quiz answers
 12. **QuizMetrics** - Quiz performance metrics
 13. **CaptureRequests** - Image capture requests
 14. **CaptureUploads** - Image uploads
@@ -173,7 +173,7 @@ ProvePresent is a real-time attendance verification system built on Azure servic
 
 **Blob Containers**:
 - `quiz-slides` - Slide images for quiz generation
-- `student-captures` - Student image captures
+- `attendee-captures` - Student image captures
 
 See [DATABASE_TABLES.md](DATABASE_TABLES.md) for detailed schemas.
 
@@ -184,14 +184,14 @@ See [DATABASE_TABLES.md](DATABASE_TABLES.md) for detailed schemas.
 - Development: Free tier (20 connections)
 
 **Connections**:
-- Teacher Dashboard: Real-time attendance updates
-- Student View: Real-time token updates and quiz questions
+- Organizer Dashboard: Real-time attendance updates
+- Attendee View: Real-time token updates and quiz questions
 
 **Events**:
-- `attendanceUpdate` - Student attendance changed
+- `attendanceUpdate` - Attendee attendance changed
 - `chainUpdate` - Chain state changed
 - `stallAlert` - Chain stalled warning
-- `quizQuestion` - New quiz question for student
+- `quizQuestion` - New quiz question for attendee
 - `quizResult` - Quiz answer evaluation result
 
 **Fallback Behavior**:
@@ -215,7 +215,7 @@ See [DATABASE_TABLES.md](DATABASE_TABLES.md) for detailed schemas.
 
 **Agents** (via Foundry Agent Service):
 - Quiz Question Generator - Creates questions from slides
-- Seating Position Analyzer - Analyzes classroom photos
+- Seating Position Analyzer - Analyzes venue photos
 
 ### 6. Authentication (Azure AD External ID)
 
@@ -223,7 +223,7 @@ See [DATABASE_TABLES.md](DATABASE_TABLES.md) for detailed schemas.
 
 **Role Assignment**:
 - Email domain-based automatic role assignment
-- `@vtc.edu.hk` (excluding `@stu.vtc.edu.hk`) → Teacher
+- `@vtc.edu.hk` (excluding `@staff.example.com → Organizer
 - `@stu.vtc.edu.hk` → Student
 
 **Authentication Flow**:
@@ -268,16 +268,16 @@ Frontend ← Backend ← Success response
    → Creates tokens with 10s expiry
    → Broadcasts updates via SignalR
 
-2. Student A (holder) displays QR code
+2. Attendee A (holder) displays QR code
    → QR contains: sessionId, chainId, tokenId
 
-3. Student B scans Student A's QR
+3. Attendee B scans Attendee A's QR
    → Backend validates token
-   → **Checks if Student B was already a holder in this chain** (NEW)
+   → **Checks if Attendee B was already a holder in this chain** (NEW)
    → If already holder: Returns error "Already been a holder in this chain"
-   → If not: Marks Student A as present (entryMethod: 'CHAIN')
-   → Creates new token for Student B
-   → Student B becomes new holder
+   → If not: Marks Attendee A as present (entryMethod: 'CHAIN')
+   → Creates new token for Attendee B
+   → Attendee B becomes new holder
    → Records transfer in ChainHistory
    → Broadcasts updates
 
@@ -335,20 +335,20 @@ When student scans a QR code:
 **Behavior**:
 - ✅ Student can be holder once per chain
 - ✅ Student can be holder in entry chain AND exit chain AND snapshot chains
-- ❌ Student CANNOT be holder multiple times in the SAME chain
+- ❌ Attendee CANNOT be holder multiple times in the SAME chain
 - ✅ Ensures fair distribution within each chain
 - ✅ Prevents manipulation by becoming holder repeatedly
 
 **Example**:
 ```
 Entry Chain:
-- Student A is holder at seq 1
-- Student B scans → becomes holder at seq 2 ✅
-- Student C scans → becomes holder at seq 3 ✅
-- Student A scans → BLOCKED (already was holder at seq 1) ❌
+- Attendee A is holder at seq 1
+- Attendee B scans → becomes holder at seq 2 ✅
+- Attendee C scans → becomes holder at seq 3 ✅
+- Attendee A scans → BLOCKED (already was holder at seq 1) ❌
 
 Exit Chain (different chain):
-- Student A can be holder ✅ (different chain instance)
+- Attendee A can be holder ✅ (different chain instance)
 ```
 
 **Error Response**:
@@ -417,7 +417,7 @@ Exit Chain (different chain):
 
 **Rationale**:
 - Fast rotation prevents cheating
-- Forces students to be physically present
+- Forces attendees to be physically present
 - Short enough to prevent sharing
 - Long enough for legitimate scans
 
@@ -460,8 +460,8 @@ Exit Chain (different chain):
 - Simpler architecture
 
 **Implementation**:
-- Client polls `getStudentToken` every 3-5 seconds
-- If token expired, `getStudentToken` creates new one on-demand
+- Client polls `getAttendeeToken` every 3-5 seconds
+- If token expired, `getAttendeeToken` creates new one on-demand
 - No background timer needed
 - `rotateTokens` function removed (file deleted)
 
@@ -479,7 +479,7 @@ Exit Chain (different chain):
 
 **Quiz Questions** (when SignalR unavailable):
 - Interval: 5 seconds
-- Endpoint: `GET /api/sessions/{sessionId}/student-questions`
+- Endpoint: `GET /api/sessions/{sessionId}/attendee-questions`
 - Purpose: Check for new quiz questions
 - Only active when SignalR disconnected
 
@@ -491,7 +491,7 @@ Exit Chain (different chain):
 
 **Token Refresh** (when holder):
 - Interval: 5 seconds
-- Endpoint: `GET /api/sessions/{sessionId}/tokens/{studentId}`
+- Endpoint: `GET /api/sessions/{sessionId}/tokens/{attendeeId}`
 - Purpose: Get fresh QR token
 - Active only for chain holders
 
@@ -507,13 +507,13 @@ Exit Chain (different chain):
 - Quiz delivery: <1 second latency
 - Status updates: <1 second latency
 - Concurrent students: Up to 1,000
-- API calls: ~12/student/hour
+- API calls: ~12/attendee/hour
 
 **Fallback Mode** (When SignalR unavailable):
 - Quiz delivery: 0-5 seconds (avg 2.5s)
 - Status updates: 0-15 seconds (avg 7.5s)
 - Concurrent students: Unlimited
-- API calls: ~360/student/hour
+- API calls: ~360/attendee/hour
 
 **Automatic Detection**:
 - Frontend detects SignalR availability

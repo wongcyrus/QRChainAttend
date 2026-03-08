@@ -11,6 +11,7 @@
 
 import React, { useState } from 'react';
 import { getAuthHeaders } from '../utils/authHeaders';
+import { formatAttendeeId } from '../utils/formatAttendeeId';
 
 // Type definitions
 enum EntryStatus {
@@ -33,7 +34,7 @@ enum SessionStatus {
 
 interface AttendanceRecord {
   sessionId: string;
-  studentId: string;
+  attendeeId: string;
   entryStatus?: EntryStatus;
   entryMethod?: 'DIRECT_QR' | 'CHAIN';
   entryAt?: number;
@@ -103,7 +104,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
       
       setFinalAttendance(data.finalAttendance);
       setSuccessMessage(
-        `Session ended successfully. Final attendance computed for ${data.finalAttendance.length} student(s).`
+        `Session ended successfully. Final attendance computed for ${data.finalAttendance.length} attendee(s).`
       );
 
       // Notify parent component
@@ -163,7 +164,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
       URL.revokeObjectURL(url);
 
       setSuccessMessage(
-        `Attendance data exported successfully for ${data.attendance.length} student(s).`
+        `Attendance data exported successfully for ${data.attendance.length} attendee(s).`
       );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to export attendance';
@@ -201,15 +202,15 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
 
       const data: AttendanceResponse = await response.json();
 
-      // Helper function to format student ID
-      const formatStudentId = (studentId: string): string => {
-        if (!studentId) return '';
-        return studentId.replace('@stu.vtc.edu.hk', '');
+      // Helper function to format attendee ID
+      const formatStudentId = (attendeeId: string): string => {
+        if (!attendeeId) return '';
+        return attendeeId.replace('@stu.vtc.edu.hk', '');
       };
 
       // Convert to CSV format
       const csvHeaders = [
-        'Student ID',
+        'Attendee ID',
         'Join Time',
         'Entry Status',
         'Entry Time',
@@ -223,7 +224,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
       ];
 
       const rows = data.attendance.map(record => [
-        formatStudentId(record.studentId),
+        formatAttendeeId(record.attendeeId),
         record.joinedAt ? new Date(record.joinedAt * 1000).toLocaleString() : '',
         record.entryStatus || '',
         record.entryAt ? new Date(record.entryAt * 1000).toLocaleString() : '',
@@ -258,7 +259,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
       URL.revokeObjectURL(url);
 
       setSuccessMessage(
-        `Attendance CSV exported successfully for ${data.attendance.length} student(s).`
+        `Attendance CSV exported successfully for ${data.attendance.length} attendee(s).`
       );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to export CSV';
@@ -428,7 +429,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
             <table className="attendance-table">
               <thead>
                 <tr>
-                  <th>Student ID</th>
+                  <th>Attendee ID</th>
                   <th>Join Time</th>
                   <th>Final Status</th>
                   <th>Entry Status</th>
@@ -440,8 +441,8 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
               </thead>
               <tbody>
                 {finalAttendance.map(record => (
-                  <tr key={record.studentId}>
-                    <td className="student-id">{record.studentId.replace('@stu.vtc.edu.hk', '')}</td>
+                  <tr key={record.attendeeId}>
+                    <td className="attendee-id">{record.attendeeId.replace('@stu.vtc.edu.hk', '')}</td>
                     <td>{formatTimestamp(record.joinedAt)}</td>
                     <td>
                       <span className={`status-badge ${getStatusBadgeClass(record.finalStatus)}`}>
@@ -698,7 +699,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
           background: #f9f9f9;
         }
 
-        .student-id {
+        .attendee-id {
           font-family: monospace;
           font-weight: 500;
         }

@@ -1,6 +1,6 @@
 /**
  * Scan Chain API Endpoint
- * Handles when a student scans another student's QR code to pass the chain
+ * Handles when a attendee scans another attendee's QR code to pass the chain
  */
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { randomUUID } from 'crypto';
@@ -35,7 +35,7 @@ export async function scanChain(
     const chainId = request.params.chainId;
     const body = await request.json() as any;
     const tokenId = body.tokenId;
-    const scannerLocation = body.location || body.metadata?.gps; // Student's GPS location
+    const scannerLocation = body.location || body.metadata?.gps; // Attendee's GPS location
     context.log(`[scanChain] request: sessionId=${sessionId || 'missing'}, chainId=${chainId || 'missing'}, tokenId=${tokenId || 'missing'}, scannerId=${studentEmail}`);
     
     if (!sessionId || !chainId || !tokenId) {
@@ -52,7 +52,7 @@ export async function scanChain(
     const sessionsTable = getTableClient(TableNames.SESSIONS);
     const chainHistoryTable = getTableClient(TableNames.CHAIN_HISTORY);
 
-    const hasStudentRole = hasRole(principal, 'Student') || hasRole(principal, 'student');
+    const hasStudentRole = hasRole(principal, 'Attendee') || hasRole(principal, 'attendee');
     context.log(`[scanChain] auth: hasStudentRole=${hasStudentRole}, scannerId=${studentEmail}`);
     if (!hasStudentRole) {
       try {
@@ -60,10 +60,10 @@ export async function scanChain(
         context.log(`[scanChain] role fallback: scanner found in attendance for session ${sessionId}`);
       } catch (error: any) {
         if (error.statusCode === 404) {
-          context.warn(`[scanChain] forbidden: scanner not in attendance and no student role. session=${sessionId}, scannerId=${studentEmail}`);
+          context.warn(`[scanChain] forbidden: scanner not in attendance and no attendee role. session=${sessionId}, scannerId=${studentEmail}`);
           return {
             status: 403,
-            jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
+            jsonBody: { error: { code: 'FORBIDDEN', message: 'Attendee role required', timestamp: Date.now() } }
           };
         }
         throw error;
@@ -114,11 +114,11 @@ export async function scanChain(
 
     const missingLocationWarning = !scannerLocation ? 'Location not provided' : undefined;
     if (missingLocationWarning) {
-      context.warn(`Scan without location: student=${studentEmail}, session=${sessionId}, chain=${chainId}`);
+      context.warn(`Scan without location: attendee=${studentEmail}, session=${sessionId}, chain=${chainId}`);
     }
     const locationWarning = geoCheck.warning || missingLocationWarning;
 
-    // Block scan if geofence is enforced and student is out of bounds
+    // Block scan if geofence is enforced and attendee is out of bounds
     if (geoCheck.shouldBlock) {
       context.warn(`[scanChain] geofence blocked: session=${sessionId}, chain=${chainId}, scannerId=${studentEmail}, distance=${geoCheck.distance ?? 'n/a'}`);
       return {
@@ -239,7 +239,7 @@ export async function scanChain(
         
         // Broadcast attendance update for previous holder
         await broadcastAttendanceUpdate(sessionId, {
-          studentId: previousHolder,
+          attendeeId: previousHolder,
           entryStatus: entryStatus,
         }, context);
       }
@@ -265,7 +265,7 @@ export async function scanChain(
 
         if (locationWarning) {
           await broadcastAttendanceUpdate(sessionId, {
-            studentId: scannerId,
+            attendeeId: scannerId,
             locationWarning
           }, context);
         }

@@ -21,13 +21,13 @@ export async function reseedEntry(request: HttpRequest, context: InvocationConte
         }
       }
     };
-  }  if (!hasRole(principal, 'teacher')) {
+  }  if (!hasRole(principal, 'organizer')) {
     return {
       status: 403,
       jsonBody: {
         error: {
           code: 'FORBIDDEN',
-          message: 'Teacher role required',
+          message: 'Organizer role required',
           function: 'reseedEntry',
           timestamp: Date.now()
         }
@@ -50,7 +50,7 @@ export async function reseedEntry(request: HttpRequest, context: InvocationConte
 
 app.http('reseedEntry', {
   methods: ['GET', 'POST'],
-  route: 'reseedEntry',
+  route: 'sessions/{sessionId}/reseed-entry',
   authLevel: 'anonymous',
   handler: reseedEntry
 });

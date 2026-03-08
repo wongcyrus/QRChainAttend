@@ -62,14 +62,14 @@ export async function seedEntry(
       throw error;
     }
 
-    const hasTeacherRole = hasRole(principal, 'Teacher') || hasRole(principal, 'teacher');
-    const isSessionOwner = !!principalId && session.teacherId === principalId;
-    context.log(`[seedEntry][${traceId}] auth: hasTeacherRole=${hasTeacherRole}, isSessionOwner=${isSessionOwner}, sessionTeacherId=${session.teacherId || 'missing'}`);
+    const hasTeacherRole = hasRole(principal, 'Organizer') || hasRole(principal, 'organizer');
+    const isSessionOwner = !!principalId && session.organizerId === principalId;
+    context.log(`[seedEntry][${traceId}] auth: hasTeacherRole=${hasTeacherRole}, isSessionOwner=${isSessionOwner}, sessionTeacherId=${session.organizerId || 'missing'}`);
     if (!hasTeacherRole && !isSessionOwner) {
-      context.warn(`[seedEntry][${traceId}] forbidden: principalId=${principalId || 'missing'} is not teacher/owner for session ${sessionId}`);
+      context.warn(`[seedEntry][${traceId}] forbidden: principalId=${principalId || 'missing'} is not organizer/owner for session ${sessionId}`);
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', traceId, details: { principalId, sessionTeacherId: session.teacherId }, timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', traceId, details: { principalId, sessionTeacherId: session.organizerId }, timestamp: Date.now() } }
       };
     }
 
@@ -173,7 +173,7 @@ export async function seedEntry(
           sessionId,
           chainId,
           sequence: 0,
-          fromHolder: 'TEACHER',  // Initial seed
+          fromHolder: 'ORGANIZER',  // Initial seed
           toHolder: holderId,
           scannedAt: now,
           phase: 'ENTRY'
@@ -196,7 +196,7 @@ export async function seedEntry(
 
       context.log(`[seedEntry][${traceId}] created chain ${chainId} holder=${holderId}`);
       
-      // Broadcast chain update so student knows they're a holder
+      // Broadcast chain update so attendee knows they're a holder
       await broadcastChainUpdate(sessionId, {
         chainId,
         phase: 'ENTRY',

@@ -12,9 +12,9 @@ let cacheTimestamp = 0;
 const CACHE_TTL_MS = 60000; // 1 minute cache
 
 /**
- * Get external teachers table client
+ * Get external organizers table client
  */
-function getExternalTeachersTable(): TableClient {
+function getExternalOrganizersTable(): TableClient {
   const connectionString = process.env.AzureWebJobsStorage;
   if (!connectionString) {
     throw new Error('AzureWebJobsStorage not configured');
@@ -22,16 +22,16 @@ function getExternalTeachersTable(): TableClient {
   const isLocal = connectionString.includes("127.0.0.1") || 
                   connectionString.includes("localhost") ||
                   connectionString.includes("UseDevelopmentStorage=true");
-  return TableClient.fromConnectionString(connectionString, 'ExternalTeachers', { allowInsecureConnection: isLocal });
+  return TableClient.fromConnectionString(connectionString, 'ExternalOrganizers', { allowInsecureConnection: isLocal });
 }
 
 /**
- * Check if an email is in the external teachers table
+ * Check if an email is in the external organizers table
  * Uses caching to minimize database lookups
  * @param email - Email to check
- * @returns True if email is an approved external teacher
+ * @returns True if email is an approved external organizer
  */
-export async function isExternalTeacher(email: string): Promise<boolean> {
+export async function isExternalOrganizer(email: string): Promise<boolean> {
   const emailLower = email.toLowerCase();
   
   // Check cache first
@@ -42,7 +42,7 @@ export async function isExternalTeacher(email: string): Promise<boolean> {
   
   // Refresh cache
   try {
-    const table = getExternalTeachersTable();
+    const table = getExternalOrganizersTable();
     const newCache = new Set<string>();
     
     for await (const entity of table.listEntities()) {
@@ -67,10 +67,10 @@ export async function isExternalTeacher(email: string): Promise<boolean> {
 }
 
 /**
- * Synchronous check for external teacher (uses cached data only)
- * Returns false if cache is stale or empty - use isExternalTeacher() for authoritative check
+ * Synchronous check for external organizer (uses cached data only)
+ * Returns false if cache is stale or empty - use isExternalOrganizer() for authoritative check
  */
-export function isExternalTeacherSync(email: string): boolean {
+export function isExternalOrganizerSync(email: string): boolean {
   if (!externalTeachersCache || (Date.now() - cacheTimestamp) >= CACHE_TTL_MS) {
     return false;
   }
@@ -78,9 +78,9 @@ export function isExternalTeacherSync(email: string): boolean {
 }
 
 /**
- * Clear the external teachers cache (call after adding/removing external teachers)
+ * Clear the external organizers cache (call after adding/removing external organizers)
  */
-export function clearExternalTeachersCache(): void {
+export function clearExternalOrganizersCache(): void {
   externalTeachersCache = null;
   cacheTimestamp = 0;
 }
@@ -172,30 +172,18 @@ export function getUserId(principal: any): string {
 
 /**
  * Check if user has a specific role (synchronous version)
- * Uses email domain-based role assignment for VTC users
- * For external teacher check, use hasRoleAsync() instead
+ * Checks against ExternalOrganizers table for organizer role
+ * For external organizer check, use hasRoleAsync() instead
  * @param principal - Parsed principal object
- * @param role - Role to check ('teacher' or 'student')
+ * @param role - Role to check ('organizer' or 'attendee')
  * @returns True if user has the role
  */
 export function hasRole(principal: any, role: string): boolean {
   const email = principal.userDetails || principal.userId || '';
   const emailLower = email.toLowerCase();
   
-  // VTC domain-based role assignment
-  if (role.toLowerCase() === 'teacher') {
-    // Check VTC teacher domain
-    if (emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
-      return true;
-    }
-    // Check external teachers cache (sync)
-    if (isExternalTeacherSync(emailLower)) {
-      return true;
-    }
-  }
-  
-  if (role.toLowerCase() === 'student' && 
-      emailLower.endsWith('@stu.vtc.edu.hk')) {
+  // Check external organizers cache (sync)
+  if (role.toLowerCase() === 'organizer' && isExternalOrganizerSync(emailLower)) {
     return true;
   }
   
@@ -205,29 +193,41 @@ export function hasRole(principal: any, role: string): boolean {
 }
 
 /**
- * Check if user has a specific role (async version with external teacher lookup)
+ * Check if user has a specific role (async version with external organizer lookup)
  * @param principal - Parsed principal object
- * @param role - Role to check ('teacher' or 'student')
+ * @param role - Role to check ('organizer' or 'attendee')
  * @returns True if user has the role
  */
 export async function hasRoleAsync(principal: any, role: string): Promise<boolean> {
   const email = principal.userDetails || principal.userId || '';
   const emailLower = email.toLowerCase();
   
-  // VTC domain-based role assignment
-  if (role.toLowerCase() === 'teacher') {
-    // Check VTC teacher domain
-    if (emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
-      return true;
+  // Check domain-based assignment (if configured)
+  const organizerDomain = process.env.ORGANIZER_DOMAIN?.toLowerCase().trim();
+  const attendeeDomain = process.env.ATTENDEE_DOMAIN?.toLowerCase().trim();
+  
+  if (role.toLowerCase() === 'organizer') {
+    // Check organizer domain
+    if (organizerDomain && emailLower.endsWith(`@${organizerDomain}`)) {
+      // Exclude attendee domain if specified
+      if (!attendeeDomain || !emailLower.endsWith(`@${attendeeDomain}`)) {
+        return true;
+      }
     }
-    // Check external teachers table
-    if (await isExternalTeacher(emailLower)) {
+    
+    // Check external organizers table
+    if (await isExternalOrganizer(emailLower)) {
       return true;
     }
   }
   
-  if (role.toLowerCase() === 'student' && 
-      emailLower.endsWith('@stu.vtc.edu.hk')) {
+  if (role.toLowerCase() === 'attendee') {
+    // Check attendee domain restriction (if set)
+    if (attendeeDomain) {
+      // If attendee domain is set, ONLY that domain can be attendee
+      return emailLower.endsWith(`@${attendeeDomain}`);
+    }
+    // No restriction - any non-organizer can be attendee
     return true;
   }
   
@@ -244,63 +244,81 @@ export async function hasRoleAsync(principal: any, role: string): Promise<boolea
 export function getRolesFromEmail(email: string): string[] {
   const emailLower = email.toLowerCase();
   
-  // Teacher: @vtc.edu.hk (excluding @stu.vtc.edu.hk)
-  if (emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
-    return ['teacher'];
+  // Check domain-based assignment (if configured)
+  const organizerDomain = process.env.ORGANIZER_DOMAIN?.toLowerCase().trim();
+  const attendeeDomain = process.env.ATTENDEE_DOMAIN?.toLowerCase().trim();
+  
+  // Check organizer domain (e.g., @vtc.edu.hk)
+  if (organizerDomain && emailLower.endsWith(`@${organizerDomain}`)) {
+    // Exclude attendee domain if specified (e.g., @stu.vtc.edu.hk)
+    if (!attendeeDomain || !emailLower.endsWith(`@${attendeeDomain}`)) {
+      return ['organizer'];
+    }
   }
   
-  // Student: @stu.vtc.edu.hk
-  if (emailLower.endsWith('@stu.vtc.edu.hk')) {
-    return ['student'];
+  // Check external organizers cache (sync)
+  if (isExternalOrganizerSync(emailLower)) {
+    return ['organizer'];
   }
   
-  // Check external teachers cache (sync)
-  if (isExternalTeacherSync(emailLower)) {
-    return ['teacher'];
+  // Check attendee domain restriction (if set)
+  if (attendeeDomain) {
+    // If attendee domain is set, ONLY that domain can be attendee
+    if (emailLower.endsWith(`@${attendeeDomain}`)) {
+      return ['attendee'];
+    }
+    // Email doesn't match any allowed domain
+    return [];
   }
   
-  return [];
+  // No attendee domain restriction - any email can be attendee
+  return ['attendee'];
 }
 
 /**
- * Get roles from email address (async version with external teacher lookup)
+ * Get roles from email address (async version with external organizer lookup)
  * @param email - User email address
  * @returns Array of role names
  */
 export async function getRolesFromEmailAsync(email: string): Promise<string[]> {
   const emailLower = email.toLowerCase();
   
-  // Teacher: @vtc.edu.hk (excluding @stu.vtc.edu.hk)
-  if (emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
-    return ['teacher'];
+  // Check domain-based assignment (if configured)
+  const organizerDomain = process.env.ORGANIZER_DOMAIN?.toLowerCase().trim();
+  const attendeeDomain = process.env.ATTENDEE_DOMAIN?.toLowerCase().trim();
+  
+  // Check organizer domain (e.g., @vtc.edu.hk)
+  if (organizerDomain && emailLower.endsWith(`@${organizerDomain}`)) {
+    // Exclude attendee domain if specified (e.g., @stu.vtc.edu.hk)
+    if (!attendeeDomain || !emailLower.endsWith(`@${attendeeDomain}`)) {
+      return ['organizer'];
+    }
   }
   
-  // Student: @stu.vtc.edu.hk
-  if (emailLower.endsWith('@stu.vtc.edu.hk')) {
-    return ['student'];
+  // Check external organizers table
+  if (await isExternalOrganizer(emailLower)) {
+    return ['organizer'];
   }
   
-  // Check external teachers table
-  if (await isExternalTeacher(emailLower)) {
-    return ['teacher'];
+  // Check attendee domain restriction (if set)
+  if (attendeeDomain) {
+    // If attendee domain is set, ONLY that domain can be attendee
+    if (emailLower.endsWith(`@${attendeeDomain}`)) {
+      return ['attendee'];
+    }
+    // Email doesn't match any allowed domain
+    return [];
   }
   
-  return [];
+  // No attendee domain restriction - any email can be attendee
+  return ['attendee'];
 }
 
 /**
- * Check if an email is a valid teacher email (VTC domain or external teacher)
+ * Check if an email is a valid organizer email
  * @param email - Email to check
- * @returns True if email belongs to a teacher
+ * @returns True if email belongs to an organizer
  */
-export async function isValidTeacherEmail(email: string): Promise<boolean> {
-  const emailLower = email.toLowerCase();
-  
-  // VTC teacher domain
-  if (emailLower.endsWith('@vtc.edu.hk') && !emailLower.endsWith('@stu.vtc.edu.hk')) {
-    return true;
-  }
-  
-  // External teacher
-  return await isExternalTeacher(emailLower);
+export async function isValidOrganizerEmail(email: string): Promise<boolean> {
+  return await isExternalOrganizer(email.toLowerCase());
 }

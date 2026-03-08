@@ -139,10 +139,10 @@ export default function Login() {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Redirect based on role
-      if (user.userRoles.includes('teacher')) {
-        await router.push('/teacher');
-      } else if (user.userRoles.includes('student')) {
-        await router.push('/student');
+      if (user.userRoles.includes('organizer')) {
+        await router.push('/organizer');
+      } else if (user.userRoles.includes('attendee')) {
+        await router.push('/attendee');
       } else {
         await router.push('/');
       }

@@ -95,7 +95,7 @@ After deployment, verify:
 3. ✅ OTP email is received
 4. ✅ Login succeeds with valid OTP
 5. ✅ API calls return 200 (not 401)
-6. ✅ Teacher/student features work
+6. ✅ Teacher/attendee features work
 
 ## Configuration Files
 

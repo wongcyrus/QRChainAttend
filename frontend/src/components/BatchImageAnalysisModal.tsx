@@ -16,7 +16,7 @@ interface BatchImageAnalysisModalProps {
 }
 
 interface ImageAnalysisResult {
-  studentId: string;
+  attendeeId: string;
   imageUrl: string;
   analysis: string;
   timestamp: string;
@@ -84,9 +84,9 @@ export function BatchImageAnalysisModal({
     if (!results) return;
 
     // Generate CSV content
-    const headers = ['Student ID', 'Analysis', 'Timestamp'];
+    const headers = ['Attendee ID', 'Analysis', 'Timestamp'];
     const rows = results.results.map(result => [
-      result.studentId,
+      result.attendeeId,
       `"${result.analysis.replace(/"/g, '""')}"`, // Escape quotes
       new Date(result.timestamp).toLocaleString()
     ]);
@@ -111,9 +111,9 @@ export function BatchImageAnalysisModal({
   const examplePrompts = [
     'Are students wearing masks?',
     'Is the projector screen visible in the image?',
-    'What objects are on the student\'s desk?',
-    'Is the student looking at the camera?',
-    'Describe the classroom environment visible in the image'
+    'What objects are on the attendee\'s desk?',
+    'Is the attendee looking at the camera?',
+    'Describe the venue environment visible in the image'
   ];
 
   return (
@@ -330,7 +330,7 @@ export function BatchImageAnalysisModal({
                       fontWeight: '600',
                       color: '#2d3748'
                     }}>
-                      Student ID
+                      Attendee ID
                     </th>
                     <th style={{
                       padding: '0.75rem',
@@ -352,7 +352,7 @@ export function BatchImageAnalysisModal({
                         color: '#4a5568',
                         verticalAlign: 'top'
                       }}>
-                        {result.studentId}
+                        {result.attendeeId}
                       </td>
                       <td style={{
                         padding: '0.75rem',

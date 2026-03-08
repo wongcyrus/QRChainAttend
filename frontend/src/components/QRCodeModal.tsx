@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 interface QRCodeModalProps {
   sessionId: string;
-  classId: string;
+  eventId: string;
   type: 'ENTRY' | 'EXIT';
   qrDataUrl: string;
   studentUrl?: string; // URL to copy
@@ -11,7 +11,7 @@ interface QRCodeModalProps {
 
 export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   sessionId,
-  classId,
+  eventId,
   type,
   qrDataUrl,
   studentUrl,
@@ -26,7 +26,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
     
     if (!studentUrl) {
       console.error('QRCodeModal: Cannot copy - studentUrl is missing');
-      alert('Cannot copy URL - missing student URL data');
+      alert('Cannot copy URL - missing attendee URL data');
       return;
     }
     
@@ -111,7 +111,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
           marginBottom: '1rem',
           fontSize: '1.25rem'
         }}>
-          {classId}
+          {eventId}
         </h3>
         
         <div style={{
@@ -163,7 +163,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
                   e.currentTarget.style.color = '#2d3748';
                 }
               }}
-              title={copied ? 'Copied to clipboard!' : 'Copy student URL to clipboard'}
+              title={copied ? 'Copied to clipboard!' : 'Copy attendee URL to clipboard'}
             >
               {copied ? '✓ Copied' : '📋 Copy URL'}
             </button>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 interface Session {
   sessionId: string;
-  classId: string;
+  eventId: string;
   startAt: string;
   endAt?: string;
   status: string;
@@ -277,7 +277,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
                   color: '#2d3748',
                   fontWeight: '700'
                 }}>
-                  {session.classId}
+                  {session.eventId}
                 </h3>
                 
                 {/* Session Details */}

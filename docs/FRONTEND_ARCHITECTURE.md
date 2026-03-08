@@ -39,8 +39,8 @@ Components:
 
 ## Components
 
-### Teacher Dashboard
-Main interface for teachers to manage sessions and view attendance.
+### Organizer Dashboard
+Main interface for organizers to manage sessions and view attendance.
 
 Features:
 - Session creation
@@ -52,7 +52,7 @@ Features:
 Component: `TeacherDashboard.tsx`
 
 ### Student Session View
-Interface for students to join sessions and scan QR codes.
+Interface for attendees to join sessions and scan QR codes.
 
 Features:
 - Session enrollment
@@ -96,8 +96,8 @@ Connection established via `/api/negotiate` endpoint.
 ## Routing
 
 - `/` - Home page with role selection
-- `/teacher` - Teacher dashboard
-- `/student` - Student session view
+- `/organizer` - Teacher dashboard
+- `/attendee` - Student session view
 
 ## Static Web App Configuration
 

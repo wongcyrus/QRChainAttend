@@ -6,8 +6,8 @@
 // Session types
 export interface Session {
   sessionId: string;
-  classId: string;
-  teacherId: string;
+  eventId: string;
+  organizerId: string;
   startAt: string;
   endAt: string;
   lateCutoffMinutes: number;
@@ -58,7 +58,7 @@ export interface RotatingQRData {
 export interface JoinSessionResponse {
   success: boolean;
   sessionId: string;
-  studentId: string;
+  attendeeId: string;
   message: string;
   locationWarning?: string;
 }
@@ -109,7 +109,7 @@ export interface Snapshot {
   snapshotIndex: number;
   capturedAt: number;
   chainsCreated: number;
-  studentsCaptured: number;
+  attendeesCaptured: number;
   notes?: string;
   createdAt: number;
 }
@@ -141,17 +141,17 @@ export interface SnapshotComparison {
     snapshotId: string;
     capturedAt: number;
     totalScans: number;
-    studentsAppeared: string[];
+    attendeesAppeared: string[];
   };
   snapshot2: {
     snapshotId: string;
     capturedAt: number;
     totalScans: number;
-    studentsAppeared: string[];
+    attendeesAppeared: string[];
   };
   differences: {
-    newStudents: string[];
-    absentStudents: string[];
+    newAttendees: string[];
+    absentAttendees: string[];
     duplicateScans: string[];
     timeDifference: number;
   };

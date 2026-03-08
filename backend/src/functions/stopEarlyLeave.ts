@@ -9,7 +9,7 @@ export async function stopEarlyLeave(request: HttpRequest, context: InvocationCo
     const principal = parseAuthFromRequest(request);
     if (!principal) {
       return { status: 401, jsonBody: { error: 'Unauthorized' } };
-    }    if (!hasRole(principal, 'Teacher')) {
+    }    if (!hasRole(principal, 'Organizer')) {
       return { status: 403, jsonBody: { error: 'Forbidden' } };
     }
 

@@ -21,13 +21,13 @@ export async function getLateQR(request: HttpRequest, context: InvocationContext
         }
       }
     };
-  }  if (!hasRole(principal, 'teacher')) {
+  }  if (!hasRole(principal, 'organizer')) {
     return {
       status: 403,
       jsonBody: {
         error: {
           code: 'FORBIDDEN',
-          message: 'Teacher role required',
+          message: 'Organizer role required',
           function: 'getLateQR',
           timestamp: Date.now()
         }
@@ -50,7 +50,7 @@ export async function getLateQR(request: HttpRequest, context: InvocationContext
 
 app.http('getLateQR', {
   methods: ['GET', 'POST'],
-  route: 'getLateQR',
+  route: 'sessions/{sessionId}/late-qr',
   authLevel: 'anonymous',
   handler: getLateQR
 });

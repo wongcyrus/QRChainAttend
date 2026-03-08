@@ -178,7 +178,7 @@ export function generateOTP(): { code: string; expiresAt: number } {
 # Frontend calls
 POST /api/auth/request-otp
 {
-  "email": "teacher@vtc.edu.hk"
+  "email": "organizer@example.com"
 }
 
 # Backend generates 6-digit OTP
@@ -192,7 +192,7 @@ POST /api/auth/request-otp
 # Frontend calls
 POST /api/auth/verify-otp
 {
-  "email": "teacher@vtc.edu.hk",
+  "email": "organizer@example.com",
   "code": "123456"
 }
 

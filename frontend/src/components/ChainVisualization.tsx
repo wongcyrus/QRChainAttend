@@ -181,7 +181,7 @@ export const ChainVisualization: React.FC<ChainVisualizationProps> = ({
                   fontFamily: 'monospace',
                   fontSize: '0.875rem'
                 }}>
-                  {item.fromHolder === 'TEACHER' ? '🎯 Initial Seed' : item.fromHolder}
+                  {item.fromHolder === 'ORGANIZER' ? '🎯 Initial Seed' : item.fromHolder}
                 </div>
                 <div style={{ 
                   color: '#718096',

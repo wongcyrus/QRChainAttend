@@ -8,7 +8,7 @@ import { parseAuthFromRequest, hasRole, getUserId, getRolesFromEmail } from '../
 import { getTableClient, TableNames } from '../utils/database';
 import { checkSessionAccess } from '../utils/sessionAccess';
 interface UpdateSessionRequest {
-  classId?: string;
+  eventId?: string;
   startAt?: string;
   endAt?: string;
   lateCutoffMinutes?: number;
@@ -52,8 +52,8 @@ export async function updateSession(
     const teacherEmail = principal.userDetails || '';
     const roles = getRolesFromEmail(teacherEmail);
 
-    // Verify teacher role
-    if (!roles.includes('teacher')) {
+    // Verify organizer role
+    if (!roles.includes('organizer')) {
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'Only teachers can update sessions', timestamp: Date.now() } }
@@ -72,7 +72,7 @@ export async function updateSession(
 
     const sessionsTable = getTableClient(TableNames.SESSIONS);
     
-    // Verify session exists and teacher has access (owner or co-teacher)
+    // Verify session exists and organizer has access (owner or co-organizer)
     let session: any;
     try {
       const entity = await sessionsTable.getEntity('SESSION', sessionId);
@@ -167,7 +167,7 @@ export async function updateSession(
           ...existingSession,
           partitionKey: 'SESSION',
           rowKey: sid,
-          ...(updates.classId && { classId: updates.classId }),
+          ...(updates.eventId && { eventId: updates.eventId }),
           ...(updatedStartAt && { startAt: updatedStartAt }),
           ...(updatedEndAt && { endAt: updatedEndAt }),
           ...(updates.lateCutoffMinutes !== undefined && { lateCutoffMinutes: updates.lateCutoffMinutes }),

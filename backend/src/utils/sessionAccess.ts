@@ -1,20 +1,20 @@
 /**
  * Session Access Utilities
- * Helper functions for checking teacher access to sessions (owner or co-teacher)
+ * Helper functions for checking organizer access to sessions (owner or co-organizer)
  */
 
 /**
- * Check if a teacher has access to a session (owner or co-teacher)
+ * Check if a organizer has access to a session (owner or co-organizer)
  * @param session - Session entity from database
- * @param teacherId - Teacher's user ID (email)
+ * @param organizerId - Organizer's user ID (email)
  * @returns Object with access info
  */
 export function checkSessionAccess(
   session: any,
-  teacherId: string
+  organizerId: string
 ): { hasAccess: boolean; isOwner: boolean; isCoTeacher: boolean } {
-  const teacherIdLower = teacherId.toLowerCase();
-  const isOwner = session.teacherId?.toLowerCase() === teacherIdLower;
+  const teacherIdLower = organizerId.toLowerCase();
+  const isOwner = session.organizerId?.toLowerCase() === teacherIdLower;
   
   let isCoTeacher = false;
   if (session.coTeachers) {
@@ -36,7 +36,7 @@ export function checkSessionAccess(
 /**
  * Parse co-teachers from session entity
  * @param session - Session entity from database
- * @returns Array of co-teacher emails
+ * @returns Array of co-organizer emails
  */
 export function getCoTeachers(session: any): string[] {
   if (!session.coTeachers) return [];

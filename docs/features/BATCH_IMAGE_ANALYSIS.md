@@ -2,22 +2,22 @@
 
 ## Overview
 
-This feature allows teachers to analyze captured student images with custom prompts. The analysis is performed on-demand using Azure AI Agent Service and results are provided as downloadable CSV reports without storing them in the database.
+This feature allows organizers to analyze captured attendee images with custom prompts. The analysis is performed on-demand using Azure AI Agent Service and results are provided as downloadable CSV reports without storing them in the database.
 
 ## User Flow
 
-1. Teacher navigates to Capture History section
+1. Organizer navigates to Capture History section
 2. For any capture with uploaded images, an "Analyze" button appears
 3. Clicking "Analyze" opens a modal with:
    - Prompt input field
    - Example prompts for quick selection
    - Image count display
-4. Teacher enters a custom prompt (e.g., "Are students wearing masks?")
+4. Organizer enters a custom prompt (e.g., "Are students wearing masks?")
 5. System processes images in batches of 10 using Azure AI Agent
 6. Results are displayed in a table showing:
-   - Student ID
+   - Attendee ID
    - Analysis result for each image
-7. Teacher can download results as CSV file
+7. Organizer can download results as CSV file
 
 ## Recent Fixes (March 7, 2026)
 
@@ -42,7 +42,7 @@ This feature allows teachers to analyze captured student images with custom prom
 
 #### 1. API Endpoint: `analyzeCaptureImages.ts`
 - **Route**: `POST /api/sessions/{sessionId}/capture/{captureRequestId}/analyze`
-- **Authentication**: Teacher role required
+- **Authentication**: Organizer role required
 - **Request Body**: `{ prompt: string }`
 - **Response**: Analysis results with student IDs and analysis text
 
@@ -73,7 +73,7 @@ This feature allows teachers to analyze captured student images with custom prom
 
 **CSV Format**:
 ```csv
-Student ID,Analysis,Timestamp
+Attendee ID,Analysis,Timestamp
 student1@example.com,"Yes, wearing mask",2024-03-07 10:30:00
 student2@example.com,"No mask visible",2024-03-07 10:30:05
 ```
@@ -117,7 +117,7 @@ The system uses the Azure AI Foundry Agent Service with vision capabilities. You
 
 ## Security Considerations
 
-1. **Authentication**: Teacher role required
+1. **Authentication**: Organizer role required
 2. **Session Ownership**: Validates teacher owns the session (TODO: implement)
 3. **SAS URLs**: Read-only, time-limited (5 minutes)
 4. **No Storage**: Results not persisted in database
@@ -129,8 +129,8 @@ The system uses the Azure AI Foundry Agent Service with vision capabilities. You
 
 1. "Are students wearing masks?"
 2. "Is the projector screen visible in the image?"
-3. "What objects are on the student's desk?"
-4. "Is the student looking at the camera?"
+3. "What objects are on the attendee's desk?"
+4. "Is the attendee looking at the camera?"
 5. "Describe the classroom environment visible in the image"
 
 ### API Request Example
@@ -152,13 +152,13 @@ curl -X POST \
   "prompt": "Are students wearing masks?",
   "results": [
     {
-      "studentId": "student1@example.com",
+      "attendeeId": "student1@example.com",
       "imageUrl": "https://...",
-      "analysis": "Yes, the student is wearing a blue surgical mask",
+      "analysis": "Yes, the attendee is wearing a blue surgical mask",
       "timestamp": "2024-03-07T10:30:00Z"
     },
     {
-      "studentId": "student2@example.com",
+      "attendeeId": "student2@example.com",
       "imageUrl": "https://...",
       "analysis": "No mask is visible in the image",
       "timestamp": "2024-03-07T10:30:05Z"
@@ -173,7 +173,7 @@ curl -X POST \
 
 1. **Parallel Batch Processing**: Process multiple batches concurrently
 2. **Progress Updates**: Real-time progress via SignalR
-3. **Custom Agent Selection**: Allow teachers to choose different analysis agents
+3. **Custom Agent Selection**: Allow organizers to choose different analysis agents
 4. **Result Caching**: Optional caching of analysis results
 5. **Bulk Export**: Export multiple capture analyses at once
 6. **Advanced Filtering**: Filter results by analysis content
@@ -196,7 +196,7 @@ curl -X POST \
 
 - Simple: "Is there a person in the image?"
 - Complex: "Describe the lighting conditions and visible objects"
-- Boolean: "Is the student wearing glasses?"
+- Boolean: "Is the attendee wearing glasses?"
 - Counting: "How many books are visible on the desk?"
 
 ## Troubleshooting

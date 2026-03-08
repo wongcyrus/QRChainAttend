@@ -4,7 +4,7 @@
  * POST /api/sessions/{sessionId}/capture/{captureRequestId}/analyze
  * 
  * This function allows teachers to analyze captured images with a custom prompt:
- * 1. Validates teacher authentication and session ownership
+ * 1. Validates organizer authentication and session ownership
  * 2. Retrieves all uploaded images for the capture request
  * 3. Processes images in batches of 10 using Azure AI Agent
  * 4. Returns analysis results as CSV-ready data (not stored in DB)
@@ -24,7 +24,7 @@ interface AnalyzeImagesRequest {
 }
 
 interface ImageAnalysisResult {
-  studentId: string;
+  attendeeId: string;
   imageUrl: string;
   analysis: string;
   timestamp: string;
@@ -52,7 +52,7 @@ export async function analyzeCaptureImages(
 
   try {
     // ========================================================================
-    // Step 1: Validate teacher authentication
+    // Step 1: Validate organizer authentication
     // ========================================================================
     
     const principal = parseAuthFromRequest(request);
@@ -70,20 +70,20 @@ export async function analyzeCaptureImages(
       };
     }
     
-    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
+    if (!hasRole(principal, 'Organizer') && !hasRole(principal, 'organizer')) {
       return {
         status: 403,
         jsonBody: {
           error: {
             code: CaptureErrorCode.FORBIDDEN,
-            message: 'Teacher role required',
+            message: 'Organizer role required',
             timestamp: Date.now()
           }
         }
       };
     }
 
-    const teacherId = getUserId(principal);
+    const organizerId = getUserId(principal);
     const sessionId = request.params.sessionId;
     const captureRequestId = request.params.captureRequestId;
     
@@ -116,10 +116,10 @@ export async function analyzeCaptureImages(
       };
     }
 
-    context.log(`Teacher ${teacherId} analyzing capture ${captureRequestId} with prompt: ${body.prompt}`);
+    context.log(`Organizer ${organizerId} analyzing capture ${captureRequestId} with prompt: ${body.prompt}`);
 
     // ========================================================================
-    // Step 2: Verify capture request exists and belongs to teacher's session
+    // Step 2: Verify capture request exists and belongs to organizer's session
     // ========================================================================
     
     const captureRequest = await getCaptureRequest(captureRequestId);
@@ -137,7 +137,7 @@ export async function analyzeCaptureImages(
       };
     }
 
-    // TODO: Verify session ownership by teacherId
+    // TODO: Verify session ownership by organizerId
 
     // ========================================================================
     // Step 3: Retrieve all uploaded images
@@ -165,7 +165,7 @@ export async function analyzeCaptureImages(
     // ========================================================================
     
     const imageData = uploads.map(upload => ({
-      studentId: upload.rowKey, // studentId is the rowKey
+      attendeeId: upload.rowKey, // attendeeId is the rowKey
       blobName: upload.blobName,
       uploadedAt: upload.uploadedAt,
       url: generateReadSasUrl(upload.blobUrl) // Use blobUrl, not blobName
@@ -211,7 +211,7 @@ export async function analyzeCaptureImages(
         // Add error results for this batch
         batch.forEach(img => {
           results.push({
-            studentId: img.studentId,
+            attendeeId: img.attendeeId,
             imageUrl: img.url,
             analysis: `Error: ${error.message || 'Analysis failed'}`,
             timestamp: img.uploadedAt
@@ -258,10 +258,10 @@ export async function analyzeCaptureImages(
 /**
  * Generate prompt for batch analysis
  */
-function generateBatchPrompt(userPrompt: string, batch: Array<{ studentId: string; url: string }>): string {
-  const imageList = batch.map((img, i) => `Image ${i + 1}: Student ${img.studentId}`).join('\n');
+function generateBatchPrompt(userPrompt: string, batch: Array<{ attendeeId: string; url: string }>): string {
+  const imageList = batch.map((img, i) => `Image ${i + 1}: Attendee ${img.attendeeId}`).join('\n');
   
-  return `Analyze the following ${batch.length} student images based on this question/prompt:
+  return `Analyze the following ${batch.length} attendee images based on this question/prompt:
 
 "${userPrompt}"
 
@@ -272,7 +272,7 @@ For each image, provide a clear, concise answer. Format your response as a JSON 
 [
   {
     "imageNumber": 1,
-    "studentId": "${batch[0].studentId}",
+    "attendeeId": "${batch[0].attendeeId}",
     "analysis": "Your analysis here"
   },
   ...
@@ -286,7 +286,7 @@ Be specific and factual in your analysis.`;
  */
 function parseBatchAnalysisResponse(
   content: string,
-  batch: Array<{ studentId: string; url: string; uploadedAt: string }>
+  batch: Array<{ attendeeId: string; url: string; uploadedAt: string }>
 ): ImageAnalysisResult[] {
   try {
     // Try to extract JSON from response
@@ -307,7 +307,7 @@ function parseBatchAnalysisResponse(
       const imageData = batch[imageIndex] || batch[0];
       
       return {
-        studentId: item.studentId || imageData.studentId,
+        attendeeId: item.attendeeId || imageData.attendeeId,
         imageUrl: imageData.url,
         analysis: item.analysis || 'No analysis provided',
         timestamp: imageData.uploadedAt
@@ -317,7 +317,7 @@ function parseBatchAnalysisResponse(
   } catch (error) {
     // If parsing fails, return generic results
     return batch.map(img => ({
-      studentId: img.studentId,
+      attendeeId: img.attendeeId,
       imageUrl: img.url,
       analysis: content.substring(0, 500), // Use first 500 chars as fallback
       timestamp: img.uploadedAt

@@ -14,7 +14,7 @@ export interface SnapshotEntity {
   snapshotIndex: number;
   capturedAt: number;
   chainsCreated: number;
-  studentsCaptured: number;
+  attendeesCaptured: number;
   notes?: string;
   createdAt: number;
 }
@@ -46,17 +46,17 @@ export interface SnapshotComparison {
     snapshotId: string;
     capturedAt: number;
     totalScans: number;
-    studentsAppeared: string[];
+    attendeesAppeared: string[];
   };
   snapshot2: {
     snapshotId: string;
     capturedAt: number;
     totalScans: number;
-    studentsAppeared: string[];
+    attendeesAppeared: string[];
   };
   differences: {
-    newStudents: string[];
-    absentStudents: string[];
+    newAttendees: string[];
+    absentAttendees: string[];
     duplicateScans: string[];
     timeDifference: number; // seconds
   };
@@ -70,7 +70,7 @@ export async function createSnapshot(
   snapshotType: 'ENTRY' | 'EXIT',
   snapshotIndex: number,
   chainsCreated: number,
-  studentsCaptured: number,
+  attendeesCaptured: number,
   snapshotsTable: TableClient,
   notes?: string
 ): Promise<SnapshotEntity> {
@@ -84,7 +84,7 @@ export async function createSnapshot(
     snapshotIndex,
     capturedAt: now,
     chainsCreated,
-    studentsCaptured,
+    attendeesCaptured,
     notes,
     createdAt: now
   };
@@ -239,9 +239,9 @@ export async function compareSnapshots(
       }
     })) {
       const log = entity as any;
-      const student = log.scannerId || log.holderId;
-      students1.add(student);
-      scans1.set(student, (scans1.get(student) || 0) + 1);
+      const attendee = log.scannerId || log.holderId;
+      students1.add(attendee);
+      scans1.set(attendee, (scans1.get(attendee) || 0) + 1);
     }
   } catch (error) {
     context.warn(`Error reading snapshot 1: ${error}`);
@@ -260,9 +260,9 @@ export async function compareSnapshots(
       }
     })) {
       const log = entity as any;
-      const student = log.scannerId || log.holderId;
-      students2.add(student);
-      scans2.set(student, (scans2.get(student) || 0) + 1);
+      const attendee = log.scannerId || log.holderId;
+      students2.add(attendee);
+      scans2.set(attendee, (scans2.get(attendee) || 0) + 1);
       if (log.scannedAt > capturedAt2) {
         capturedAt2 = log.scannedAt;
       }
@@ -272,8 +272,8 @@ export async function compareSnapshots(
   }
 
   // Find differences
-  const newStudents = Array.from(students2).filter(s => !students1.has(s));
-  const absentStudents = Array.from(students1).filter(s => !students2.has(s));
+  const newAttendees = Array.from(students2).filter(s => !students1.has(s));
+  const absentAttendees = Array.from(students1).filter(s => !students2.has(s));
   const duplicates = Array.from(students1).filter(s => students2.has(s));
 
   return {
@@ -281,17 +281,17 @@ export async function compareSnapshots(
       snapshotId: snapshotId1,
       capturedAt: capturedAt1,
       totalScans: scans1.size,
-      studentsAppeared: Array.from(students1)
+      attendeesAppeared: Array.from(students1)
     },
     snapshot2: {
       snapshotId: snapshotId2,
       capturedAt: capturedAt2,
       totalScans: scans2.size,
-      studentsAppeared: Array.from(students2)
+      attendeesAppeared: Array.from(students2)
     },
     differences: {
-      newStudents,
-      absentStudents,
+      newAttendees,
+      absentAttendees,
       duplicateScans: duplicates,
       timeDifference: capturedAt2 - capturedAt1
     }

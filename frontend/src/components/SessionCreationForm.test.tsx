@@ -66,10 +66,10 @@ describe('SessionCreationForm', () => {
   });
 
   describe('Form Validation', () => {
-    test('should show error when classId is empty', async () => {
+    test('should show error when eventId is empty', async () => {
       render(<SessionCreationForm />);
 
-      // Fill other required fields but leave classId empty
+      // Fill other required fields but leave eventId empty
       const startAtInput = screen.getByLabelText(/Start Time/i);
       fireEvent.change(startAtInput, { target: { value: '2024-01-01T10:00' } });
 
@@ -220,7 +220,7 @@ describe('SessionCreationForm', () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            classId: 'CS101',
+            eventId: 'CS101',
             startAt: '2024-01-01T10:00',
             endAt: '2024-01-01T11:00',
             lateCutoffMinutes: 15,
@@ -315,7 +315,7 @@ describe('SessionCreationForm', () => {
       fireEvent.click(wifiCheckbox);
 
       const wifiInput = screen.getByLabelText(/Allowed Wi-Fi Networks/i);
-      fireEvent.change(wifiInput, { target: { value: 'ClassroomWiFi, SchoolNet' } });
+      fireEvent.change(wifiInput, { target: { value: 'EventWiFi, VenueNet' } });
 
       // Submit form
       const submitButton = screen.getByRole('button', { name: /Create Session/i });
@@ -325,7 +325,7 @@ describe('SessionCreationForm', () => {
       await waitFor(() => {
         const callArgs = (global.fetch as jest.Mock).mock.calls[0];
         const body = JSON.parse(callArgs[1].body);
-        expect(body.constraints.wifiAllowlist).toEqual(['ClassroomWiFi', 'SchoolNet']);
+        expect(body.constraints.wifiAllowlist).toEqual(['EventWiFi', 'VenueNet']);
       });
     });
 

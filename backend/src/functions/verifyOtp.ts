@@ -7,7 +7,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { verifyOtp, isValidEmail } from '../utils/otp';
 import { signToken, getRolesFromEmail } from '../utils/jwt';
-import { isExternalTeacher } from '../utils/auth';
+import { isExternalOrganizer } from '../utils/auth';
 
 interface VerifyOtpBody {
   email: string;
@@ -93,10 +93,10 @@ export async function verifyOtpHandler(
     // Get user roles (check external teachers for non-VTC domains)
     let roles = getRolesFromEmail(email);
     if (roles.length === 1 && roles[0] === 'authenticated') {
-      // Not a VTC domain, check if external teacher
-      const isExternal = await isExternalTeacher(email);
+      // Not a VTC domain, check if external organizer
+      const isExternal = await isExternalOrganizer(email);
       if (isExternal) {
-        roles = ['authenticated', 'teacher'];
+        roles = ['authenticated', 'organizer'];
       }
     }
 

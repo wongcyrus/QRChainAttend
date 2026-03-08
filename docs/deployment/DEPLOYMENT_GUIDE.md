@@ -406,13 +406,13 @@ az signalr show \
 - Quiz delivery: <1 second
 - Status updates: <1 second
 - Concurrent students: Up to 1,000
-- API calls: ~12/student/hour
+- API calls: ~12/attendee/hour
 
 ### Fallback Mode (If SignalR Unavailable)
 - Quiz delivery: 0-5 seconds (avg 2.5s)
 - Status updates: 0-15 seconds (avg 7.5s)
 - Concurrent students: Unlimited
-- API calls: ~360/student/hour
+- API calls: ~360/attendee/hour
 
 ---
 

@@ -102,14 +102,14 @@ describe('Timer Cancellation Integration Test', () => {
     const mockEstimationOutput = {
       positions: [
         {
-          studentId: 'student1@test.com',
+          attendeeId: 'student1@test.com',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
           reasoning: 'Test'
         },
         {
-          studentId: 'student2@test.com',
+          attendeeId: 'student2@test.com',
           estimatedRow: 1,
           estimatedColumn: 2,
           confidence: 'HIGH',
@@ -290,7 +290,7 @@ describe('Timer Cancellation Integration Test', () => {
 
     const mockEstimationOutput = {
       positions: [
-        { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
+        { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
       ],
       analysisNotes: 'Short timer test'
     };
@@ -351,8 +351,8 @@ describe('Timer Cancellation Integration Test', () => {
 
     const mockEstimationOutput = {
       positions: [
-        { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
-        { studentId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' }
+        { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
+        { attendeeId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' }
       ],
       analysisNotes: 'Race condition test'
     };
@@ -422,7 +422,7 @@ describe('Timer Cancellation Integration Test', () => {
 
     const mockEstimationOutput = {
       positions: [
-        { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
+        { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
       ],
       analysisNotes: 'Timer wins test'
     };

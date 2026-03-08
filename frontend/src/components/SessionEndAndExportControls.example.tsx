@@ -129,7 +129,7 @@ export function CustomErrorHandlingExample() {
 }
 
 /**
- * Example 4: Integration with teacher dashboard
+ * Example 4: Integration with organizer dashboard
  */
 export function DashboardIntegrationExample() {
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>(SessionStatus.ACTIVE);
@@ -147,7 +147,7 @@ export function DashboardIntegrationExample() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>Teacher Dashboard - Session Management</h1>
+      <h1>Organizer Dashboard - Session Management</h1>
 
       {/* Dashboard header */}
       <div style={{ 

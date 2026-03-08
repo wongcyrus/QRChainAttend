@@ -99,6 +99,12 @@ param otpSmtpHost string = 'smtp.gmail.com'
 @description('OTP SMTP port for custom email OTP delivery')
 param otpSmtpPort string = '465'
 
+@description('Email domain for automatic organizer role assignment (e.g., vtc.edu.hk). Leave empty to disable domain-based assignment.')
+param organizerDomain string = 'vtc.edu.hk'
+
+@description('Email domain restriction for attendee role (e.g., stu.vtc.edu.hk). If set, ONLY this domain can be attendee. Leave empty to allow any email as attendee.')
+param attendeeDomain string = ''
+
 @description('OTP SMTP secure flag for custom email OTP delivery')
 param otpSmtpSecure string = 'true'
 
@@ -224,10 +230,7 @@ module functions 'modules/functions.bicep' = {
     storageAccountUri: storage.outputs.tableEndpoint
     signalRConnectionString: signalr.outputs.connectionString
     appInsightsConnectionString: appInsights.outputs.connectionString
-    azureOpenAIEndpoint: deployAzureOpenAI ? openai.outputs.endpoint : ''
-    azureOpenAIKey: deployAzureOpenAI ? openai.outputs.primaryKey : ''
-    azureOpenAIDeployment: deployAzureOpenAI ? (deployGpt54Model ? openai.outputs.gpt54DeploymentName : (deployGpt4Model ? openai.outputs.gpt4DeploymentName : (deployGpt52ChatModel ? openai.outputs.gpt52ChatDeploymentName : ''))) : ''
-    azureOpenAIVisionDeployment: deployAzureOpenAI ? (deployGpt54Model ? openai.outputs.gpt54DeploymentName : (deployVisionModel ? openai.outputs.gpt4VisionDeploymentName : (deployGpt4Model ? openai.outputs.gpt4DeploymentName : 'gpt-4.1'))) : ''
+    azureAIProjectEndpoint: deployAzureOpenAI ? openai.outputs.projectEndpoint : ''
     otpSmtpHost: otpSmtpHost
     otpSmtpPort: otpSmtpPort
     otpSmtpSecure: otpSmtpSecure
@@ -237,6 +240,8 @@ module functions 'modules/functions.bicep' = {
     otpFromName: otpFromName
     otpEmailSubject: otpEmailSubject
     otpAppName: otpAppName
+    organizerDomain: organizerDomain
+    attendeeDomain: attendeeDomain
     frontendUrls: corsUrls
     tags: tags
   }

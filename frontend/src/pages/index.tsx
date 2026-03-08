@@ -13,23 +13,6 @@ interface UserInfo {
   userRoles: string[];
 }
 
-// Assign roles based on email domain
-function getRolesFromEmail(email: string): string[] {
-  const roles: string[] = ['authenticated'];
-  
-  if (!email) return roles;
-  
-  const emailLower = email.toLowerCase();
-  
-  if (emailLower.endsWith('@stu.vtc.edu.hk')) {
-    roles.push('student');
-  } else if (emailLower.endsWith('@vtc.edu.hk')) {
-    roles.push('teacher');
-  }
-  
-  return roles;
-}
-
 export default function Home() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,8 +33,8 @@ export default function Home() {
       .then(data => {
         if (data.clientPrincipal) {
           const email = data.clientPrincipal.userDetails || '';
-          // Always compute roles from email, ignore Azure AD roles
-          const roles = getRolesFromEmail(email);
+          // Use roles from backend API response
+          const roles = data.clientPrincipal.userRoles || ['authenticated'];
           
           setUser({
             userId: data.clientPrincipal.userId,
@@ -83,8 +66,8 @@ export default function Home() {
           .then(data => {
             if (data.clientPrincipal) {
               const email = data.clientPrincipal.userDetails || '';
-              // Always compute roles from email, ignore Azure AD roles
-              const roles = getRolesFromEmail(email);
+              // Use roles from backend API response
+              const roles = data.clientPrincipal.userRoles || ['authenticated'];
               
               setUser({
                 userId: data.clientPrincipal.userId,
@@ -227,16 +210,16 @@ export default function Home() {
         </div>
       )}
 
-      <p>Welcome to ProvePresent.</p>
+      <p>Welcome to ProvePresent - Peer-Verified Event Attendance</p>
       
       <div style={{ marginTop: '2rem' }}>
         <h2>Getting Started</h2>
         <ul>
           <li>
-            <strong>Students:</strong> Scan the session QR code to join a class
+            <strong>Attendees:</strong> Scan the session QR code to join an event
           </li>
           <li>
-            <strong>Teachers:</strong> Create and manage attendance sessions
+            <strong>Organizers:</strong> Create and manage attendance sessions
           </li>
         </ul>
       </div>
@@ -244,10 +227,10 @@ export default function Home() {
       {user && (
         <div style={{ marginTop: '2rem' }}>
           <h2>Quick Actions</h2>
-          {user.userRoles.includes('teacher') && (
+          {user.userRoles.includes('organizer') && (
             <div style={{ marginBottom: '1rem' }}>
               <Link 
-                href="/teacher" 
+                href="/organizer" 
                 style={{
                   display: 'inline-block',
                   padding: '0.75rem 1.5rem',
@@ -258,14 +241,14 @@ export default function Home() {
                   marginRight: '1rem'
                 }}
               >
-                Teacher Dashboard
+                Organizer Dashboard
               </Link>
             </div>
           )}
-          {user.userRoles.includes('student') && (
+          {user.userRoles.includes('attendee') && (
             <div style={{ marginBottom: '1rem' }}>
               <Link 
-                href="/student" 
+                href="/attendee" 
                 style={{
                   display: 'inline-block',
                   padding: '0.75rem 1.5rem',
@@ -275,7 +258,7 @@ export default function Home() {
                   borderRadius: '4px'
                 }}
               >
-                Student View
+                Attendee View
               </Link>
             </div>
           )}
@@ -287,7 +270,7 @@ export default function Home() {
               borderRadius: '4px'
             }}>
               <p style={{ margin: 0 }}>
-                ⚠️ No roles assigned. Please contact your administrator to assign you a "teacher" or "student" role.
+                ⚠️ No roles assigned. Please contact your administrator to assign you a "organizer" or "attendee" role.
               </p>
             </div>
           )}

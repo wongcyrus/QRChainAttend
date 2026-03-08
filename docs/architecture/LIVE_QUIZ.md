@@ -1,6 +1,6 @@
 # Live Quiz - AI-Powered Attention Tracking
 
-Interactive quiz system using AI to analyze lecture slides in real-time and quiz students automatically.
+Interactive quiz system using AI to analyze lecture slides in real-time and quiz attendees automatically.
 
 ---
 
@@ -10,7 +10,7 @@ Interactive quiz system using AI to analyze lecture slides in real-time and quiz
 
 1. **Start Screen Share** → Click "🖥️ Start Screen Share" button
 2. **Set Frequency** → Choose capture interval (15s - 5min)
-3. **AI Takes Over** → System automatically captures, analyzes, generates questions, and sends to students
+3. **AI Takes Over** → System automatically captures, analyzes, generates questions, and sends to attendees
 
 That's it! The system runs automatically while you teach.
 
@@ -24,7 +24,7 @@ Teachers share their screen during a session. The system continuously captures s
 
 ## Features
 
-### For Teachers
+### For Organizers
 - 🖥️ One-click screen sharing
 - ⏱️ Configurable capture frequency (15s - 5min)
 - 🤖 Fully automated AI workflow
@@ -32,7 +32,7 @@ Teachers share their screen during a session. The system continuously captures s
 - 🎯 Zero manual intervention needed
 - 📈 Continuous engagement tracking
 
-### For Students
+### For Attendees
 - 🔔 Real-time question notifications
 - 🖼️ Slide context shown with question
 - ⏰ Countdown timer
@@ -43,7 +43,7 @@ Teachers share their screen during a session. The system continuously captures s
 
 ## How It Works
 
-### Automated Teacher Flow
+### Automated Organizer Flow
 
 1. **Start Session** - Open session dashboard
 2. **Click "Start Screen Share"** - Browser requests screen permission
@@ -53,12 +53,12 @@ Teachers share their screen during a session. The system continuously captures s
    - Captures screenshot every N seconds
    - AI analyzes slide content (2-3s)
    - AI generates 1 question per capture
-   - AI selects student fairly
+   - AI selects attendee fairly
    - Question sent automatically via SignalR
 6. **Monitor Stats** - View captures, questions, and sends in real-time
 7. **Stop When Done** - Click "Stop Screen Share"
 
-### Student Flow (Same as Before)
+### Attendee Flow (Same as Before)
 
 1. **In Session** - Viewing session dashboard
 2. **Receive Question** - Pop-up notification
@@ -91,13 +91,13 @@ Teachers share their screen during a session. The system continuously captures s
 
 **How Questions Are Sent**:
 - ✅ Questions sent to ALL present students simultaneously
-- ✅ Every student gets every question
+- ✅ Every attendee gets every question
 - ✅ Real-time delivery via SignalR (or 5-second polling fallback)
-- ✅ Each student has their own response record
+- ✅ Each attendee has their own response record
 
 **Benefits**:
 - Maximum engagement - no one is left out
-- Fair opportunity for all students to participate
+- Fair opportunity for all attendees to participate
 - Better assessment of class understanding
 - No complex selection algorithm needed
 
@@ -105,8 +105,8 @@ Teachers share their screen during a session. The system continuously captures s
 ```
 Session with 30 students, 10 questions:
 - All 30 students receive all 10 questions
-- Each student can answer at their own pace
-- Teacher sees aggregate results
+- Each attendee can answer at their own pace
+- Organizer sees aggregate results
 ```
 
 ---
@@ -200,7 +200,7 @@ az cognitiveservices account keys list \
 1. `analyzeSlide.ts` - Azure OpenAI Vision API integration
 2. `generateQuestions.ts` - Question generation logic
 3. `sendQuizQuestion.ts` - Send question to all present students
-4. `getStudentQuestions.ts` - Get pending questions (polling endpoint)
+4. `getAttendeeQuestions.ts` - Get pending questions (polling endpoint)
 5. `submitQuizAnswer.ts` - Process and evaluate answer
 
 ### Database Tables
@@ -217,14 +217,14 @@ Fields: slideImageUrl, slideContent, question, questionType,
 ```
 PartitionKey: sessionId
 RowKey: responseId
-Fields: questionId, studentId, answer, isCorrect, responseTime,
+Fields: questionId, attendeeId, answer, isCorrect, responseTime,
         submittedAt, aiEvaluation, score
 ```
 
 **QuizMetrics**:
 ```
 PartitionKey: sessionId
-RowKey: studentId
+RowKey: attendeeId
 Fields: totalQuestions, correctAnswers, averageResponseTime,
         engagementScore, lastAskedAt
 ```
@@ -263,7 +263,7 @@ Body: { questionId, timeLimit }
 Response: { responseIds: [...], students: [...], sentAt, expiresAt }
 
 # Get pending questions for student (polling endpoint)
-GET /api/sessions/{sessionId}/student-questions
+GET /api/sessions/{sessionId}/attendee-questions
 Response: { questions: [{ questionId, responseId, question, options, ... }] }
 ```
 
@@ -282,14 +282,14 @@ Response: { isCorrect, score, feedback, correctAnswer }
 
 ### Best Practices
 
-**For Teachers**:
+**For Organizers**:
 - Use clear, readable slides
 - Ask 1-2 questions per 10 minutes
 - Mix difficulty levels
 - Review engagement metrics regularly
 - Provide encouragement for all answers
 
-**For Students**:
+**For Attendees**:
 - Stay attentive during lecture
 - Read questions carefully
 - Answer within time limit

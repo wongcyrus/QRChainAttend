@@ -162,7 +162,7 @@ function parseQRData(data: string): QRData | null {
     // Validate based on type
     switch (parsed.type) {
       case 'SESSION':
-        if (parsed.sessionId && parsed.classId) {
+        if (parsed.sessionId && parsed.eventId) {
           return parsed as SessionQRData;
         }
         break;
@@ -244,13 +244,13 @@ function getErrorMessage(error: string, errorCode?: string): string {
     return 'Too many scan attempts. Please wait a moment and try again.';
   }
   if (errorCode === 'LOCATION_VIOLATION' || error.includes('LOCATION_VIOLATION')) {
-    return 'Location verification failed. Please ensure you are in the classroom and connected to the correct Wi-Fi network.';
+    return 'Location verification failed. Please ensure you are in the venue and connected to the correct Wi-Fi network.';
   }
   if (errorCode === 'GEOFENCE_VIOLATION' || error.includes('GEOFENCE_VIOLATION')) {
-    return 'You must be physically present in the classroom to scan.';
+    return 'You must be physically present in the venue to scan.';
   }
   if (errorCode === 'WIFI_VIOLATION' || error.includes('WIFI_VIOLATION')) {
-    return 'Please connect to the classroom Wi-Fi network.';
+    return 'Please connect to the venue Wi-Fi network.';
   }
   if (errorCode === 'UNAUTHORIZED' || error.includes('UNAUTHORIZED')) {
     return 'You are not authorized to perform this action. Please sign in.';

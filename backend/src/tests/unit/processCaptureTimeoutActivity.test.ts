@@ -227,7 +227,7 @@ describe('processCaptureTimeoutActivity', () => {
       (updateCaptureRequest as jest.Mock).mockResolvedValue(undefined);
       (broadcastToHub as jest.Mock).mockResolvedValue(undefined);
       (estimateSeatingPositions as jest.Mock).mockResolvedValue({
-        positions: [{ studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1 }],
+        positions: [{ attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1 }],
         analysisNotes: 'Success'
       });
       (createCaptureResult as jest.Mock).mockResolvedValue(undefined);
@@ -368,8 +368,8 @@ describe('processCaptureTimeoutActivity', () => {
         {
           captureRequestId,
           imageUrls: [
-            { studentId: 'student1@test.com', blobUrl: 'https://test.blob/image1.jpg' },
-            { studentId: 'student2@test.com', blobUrl: 'https://test.blob/image2.jpg' }
+            { attendeeId: 'student1@test.com', blobUrl: 'https://test.blob/image1.jpg' },
+            { attendeeId: 'student2@test.com', blobUrl: 'https://test.blob/image2.jpg' }
           ]
         },
         context
@@ -393,7 +393,7 @@ describe('processCaptureTimeoutActivity', () => {
       const mockEstimationOutput = {
         positions: [
           {
-            studentId: 'student1@test.com',
+            attendeeId: 'student1@test.com',
             estimatedRow: 1,
             estimatedColumn: 1,
             confidence: 'HIGH',
@@ -483,7 +483,7 @@ describe('processCaptureTimeoutActivity', () => {
 
       const mockPositions = [
         {
-          studentId: 'student1@test.com',
+          attendeeId: 'student1@test.com',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
@@ -542,7 +542,7 @@ describe('processCaptureTimeoutActivity', () => {
           captureRequestId,
           status: 'COMPLETED',
           positions: [],
-          analysisNotes: 'No student photos were uploaded during the capture window'
+          analysisNotes: 'No attendee photos were uploaded during the capture window'
         },
         context
       );

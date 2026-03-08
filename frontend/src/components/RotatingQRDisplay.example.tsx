@@ -88,7 +88,7 @@ export function EarlyLeaveWithControlsExample() {
   return (
     <div className="example-container">
       <h2>Example 2: Early Leave with Controls</h2>
-      <p>Teacher-controlled early leave window with activity logging.</p>
+      <p>Organizer-controlled early leave window with activity logging.</p>
 
       <RotatingQRDisplay
         sessionId={sessionId}
@@ -488,10 +488,10 @@ export function CustomErrorHandlingExample() {
 }
 
 /**
- * Example 6: Complete Teacher Dashboard Integration
+ * Example 6: Complete Organizer Dashboard Integration
  * 
  * Full integration example showing how to use RotatingQRDisplay
- * within a complete teacher dashboard.
+ * within a complete organizer dashboard.
  */
 export function CompleteDashboardExample() {
   const sessionId = 'session-123';
@@ -506,7 +506,7 @@ export function CompleteDashboardExample() {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <h1>Teacher Dashboard</h1>
+        <h1>Organizer Dashboard</h1>
         <div className="session-info">
           <span>Session: CS101-A</span>
           <span className="status-badge active">Active</span>
