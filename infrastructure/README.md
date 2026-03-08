@@ -2,6 +2,8 @@
 
 This directory contains Bicep templates and deployment scripts for provisioning all Azure resources required by ProvePresent.
 
+**Bicep-only policy**: ARM JSON output files (for example `main.json`) are intentionally not tracked. Deployments use `main.bicep` and `*.bicepparam` files directly.
+
 ## Overview
 
 The infrastructure is defined using Azure Bicep (Infrastructure as Code) and includes:

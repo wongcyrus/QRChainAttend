@@ -33,42 +33,6 @@ param deployAzureOpenAI bool = false
 @description('Deploy SignalR Service (optional, system works with polling fallback)')
 param deploySignalR bool = false
 
-@description('GPT-4 model deployment name')
-param gpt4DeploymentName string = 'gpt-4'
-
-@description('GPT-4 model name')
-param gpt4ModelName string = 'gpt-4'
-
-@description('GPT-4 model version')
-param gpt4ModelVersion string = '0613'
-
-@description('GPT-4 Vision model deployment name')
-param gpt4VisionDeploymentName string = 'gpt-4-vision'
-
-@description('GPT-4 Vision model name')
-param gpt4VisionModelName string = 'gpt-4'
-
-@description('GPT-4 Vision model version')
-param gpt4VisionModelVersion string = 'vision-preview'
-
-@description('Deploy GPT-4 Vision model (required for Live Quiz feature)')
-param deployVisionModel bool = true
-
-@description('Deploy GPT-4 base model')
-param deployGpt4Model bool = true
-
-@description('GPT-5.2-chat model deployment name')
-param gpt52ChatDeploymentName string = 'gpt-5.2-chat'
-
-@description('GPT-5.2-chat model name')
-param gpt52ChatModelName string = 'gpt-5.2-chat'
-
-@description('GPT-5.2-chat model version')
-param gpt52ChatModelVersion string = '2026-02-10'
-
-@description('Deploy GPT-5.2-chat model (preview - most advanced model)')
-param deployGpt52ChatModel bool = false
-
 @description('GPT-5.4 model deployment name')
 param gpt54DeploymentName string = 'gpt-5.4'
 
@@ -80,15 +44,6 @@ param gpt54ModelVersion string = '2026-03-05'
 
 @description('Deploy GPT-5.4 model (latest model with highest capabilities)')
 param deployGpt54Model bool = true
-
-@description('GPT-4 deployment capacity (TPM in thousands)')
-param gpt4Capacity int = 10
-
-@description('GPT-4 Vision deployment capacity (TPM in thousands)')
-param gpt4VisionCapacity int = 10
-
-@description('GPT-5.2-chat deployment capacity (TPM in thousands)')
-param gpt52ChatCapacity int = 250
 
 @description('GPT-5.4 deployment capacity (TPM in thousands)')
 param gpt54Capacity int = 200
@@ -195,25 +150,10 @@ module openai 'modules/openai.bicep' = if (deployAzureOpenAI) {
   params: {
     openAIName: openAIName
     location: location
-    gpt4DeploymentName: gpt4DeploymentName
-    gpt4ModelName: gpt4ModelName
-    gpt4ModelVersion: gpt4ModelVersion
-    gpt4VisionDeploymentName: gpt4VisionDeploymentName
-    gpt4VisionModelName: gpt4VisionModelName
-    gpt4VisionModelVersion: gpt4VisionModelVersion
-    deployVisionModel: deployVisionModel
-    deployGpt4Model: deployGpt4Model
-    gpt52ChatDeploymentName: gpt52ChatDeploymentName
-    gpt52ChatModelName: gpt52ChatModelName
-    gpt52ChatModelVersion: gpt52ChatModelVersion
-    deployGpt52ChatModel: deployGpt52ChatModel
     gpt54DeploymentName: gpt54DeploymentName
     gpt54ModelName: gpt54ModelName
     gpt54ModelVersion: gpt54ModelVersion
     deployGpt54Model: deployGpt54Model
-    gpt4Capacity: gpt4Capacity
-    gpt4VisionCapacity: gpt4VisionCapacity
-    gpt52ChatCapacity: gpt52ChatCapacity
     gpt54Capacity: gpt54Capacity
     tags: tags
   }
@@ -299,15 +239,6 @@ output openAIName string = deployAzureOpenAI ? openai.outputs.openAIName : ''
 
 @description('Azure OpenAI endpoint (if deployed)')
 output openAIEndpoint string = deployAzureOpenAI ? openai.outputs.endpoint : ''
-
-@description('GPT-4 deployment name (if deployed)')
-output gpt4DeploymentName string = deployAzureOpenAI ? openai.outputs.gpt4DeploymentName : ''
-
-@description('GPT-4 Vision deployment name (if deployed)')
-output gpt4VisionDeploymentName string = deployAzureOpenAI ? openai.outputs.gpt4VisionDeploymentName : ''
-
-@description('GPT-5.2-chat deployment name (if deployed)')
-output gpt52ChatDeploymentName string = deployAzureOpenAI ? openai.outputs.gpt52ChatDeploymentName : ''
 
 @description('GPT-5.4 deployment name (if deployed)')
 output gpt54DeploymentName string = deployAzureOpenAI ? openai.outputs.gpt54DeploymentName : ''

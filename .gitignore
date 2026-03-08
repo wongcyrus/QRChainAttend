@@ -51,6 +51,7 @@ azurite/
 __blobstorage__/
 __queuestorage__/
 __azurite_db*__.json
+infrastructure/main.json
 
 # Temporary files
 *.tmp
