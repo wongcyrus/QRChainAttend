@@ -72,6 +72,14 @@ Used by HTTP function route `/api/auth/on-otp-send-email`.
 
 For Google Workspace, use an App Password (not your normal account password).
 
+#### Email Domain Restrictions (Optional)
+```json
+"ALLOWED_EMAIL_DOMAINS": "example.edu,students.example.edu",
+"ORGANIZATION_NAME": "Your Organization"
+```
+
+Leave `ALLOWED_EMAIL_DOMAINS` empty or omit it to allow any email domain.
+
 ## Environment-Specific Configurations
 
 ### Local Development (Azurite)

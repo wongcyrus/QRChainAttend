@@ -684,7 +684,7 @@ export default function TeacherPage() {
       {/* Header */}
       <TeacherHeader 
         userDetails={user?.userDetails || ''}
-        onHome={() => {
+        onResetView={() => {
           setShowCreateForm(false);
           setShowEditForm(false);
           setSelectedSessionForEdit(null);

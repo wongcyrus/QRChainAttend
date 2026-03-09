@@ -660,21 +660,6 @@ export default function AttendeePage() {
           )}
         </div>
       </div>
-
-      <button 
-        onClick={() => router.push('/')}
-        style={{
-          padding: '0.5rem 1rem',
-          backgroundColor: '#666',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '0.875rem'
-        }}
-      >
-        Back to Home
-      </button>
     </div>
   );
 }

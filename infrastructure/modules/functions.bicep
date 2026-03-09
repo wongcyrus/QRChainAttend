@@ -56,6 +56,12 @@ param otpEmailSubject string = 'Your verification code'
 @description('OTP app name used in email body')
 param otpAppName string = 'ProvePresent'
 
+@description('Allowed email domains for authentication (comma-separated). Leave empty for no restriction.')
+param allowedEmailDomains string = ''
+
+@description('Organization name for display in UI')
+param organizationName string = ''
+
 @description('Email domain for automatic organizer role assignment (e.g., vtc.edu.hk)')
 param organizerDomain string = 'vtc.edu.hk'
 
@@ -234,6 +240,14 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'OTP_APP_NAME'
           value: otpAppName
+        }
+        {
+          name: 'ALLOWED_EMAIL_DOMAINS'
+          value: allowedEmailDomains
+        }
+        {
+          name: 'ORGANIZATION_NAME'
+          value: organizationName
         }
         {
           name: 'ORGANIZER_DOMAIN'

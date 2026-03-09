@@ -24,6 +24,8 @@ Set in Azure Function App settings:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `ALLOWED_EMAIL_DOMAINS` | `` (empty) | Comma-separated domains for authentication. Empty = no restriction |
+| `ORGANIZATION_NAME` | `` (empty) | Organization name for UI display |
 | `ORGANIZER_DOMAIN` | `vtc.edu.hk` | Email domain for auto organizer role |
 | `ATTENDEE_DOMAIN` | `` (empty) | **Restriction**: If set, ONLY this domain can be attendee |
 

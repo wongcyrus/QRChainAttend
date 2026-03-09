@@ -3,10 +3,10 @@ import { clearAuthCache } from '../utils/authHeaders';
 
 interface TeacherHeaderProps {
   userDetails: string;
-  onHome: () => void;
+  onResetView: () => void;
 }
 
-export const TeacherHeader: React.FC<TeacherHeaderProps> = ({ userDetails, onHome }) => {
+export const TeacherHeader: React.FC<TeacherHeaderProps> = ({ userDetails, onResetView }) => {
   const handleLogout = async () => {
     const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
     clearAuthCache();
@@ -63,7 +63,7 @@ export const TeacherHeader: React.FC<TeacherHeaderProps> = ({ userDetails, onHom
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button 
-            onClick={onHome}
+            onClick={onResetView}
             style={{
               padding: '0.75rem 1.5rem',
               backgroundColor: 'white',
@@ -85,7 +85,7 @@ export const TeacherHeader: React.FC<TeacherHeaderProps> = ({ userDetails, onHom
               e.currentTarget.style.color = '#667eea';
             }}
           >
-            🏠 Home
+            📋 Sessions List
           </button>
           <button 
             onClick={handleLogout}

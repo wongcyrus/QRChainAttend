@@ -158,13 +158,19 @@ az functionapp config appsettings set \
 
 ### Role-Based Access
 
-**Teacher Role**:
-- Email domain: `@vtc.edu.hk` (excluding `@stu.vtc.edu.hk`)
+**Organizer Role**:
+- Configurable via `ORGANIZER_DOMAIN` environment variable
 - Can create sessions, view attendance, export data
+- External organizers can be added via ExternalOrganizers table
 
-**Student Role**:
-- Email domain: `@stu.vtc.edu.hk`
+**Attendee Role**:
+- Configurable via `ATTENDEE_DOMAIN` environment variable (optional restriction)
 - Can join sessions, scan QR codes
+- If no domain restriction set, any authenticated user can be attendee
+
+**Email Domain Restriction**:
+- Optional `ALLOWED_EMAIL_DOMAINS` setting restricts who can authenticate
+- Leave empty for no restriction
 
 ---
 

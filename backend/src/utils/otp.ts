@@ -48,11 +48,20 @@ export function isValidEmail(email: string): boolean {
 
 /**
  * Check if email is from allowed domains
- * Returns true for VTC domains and external teachers (checked separately)
+ * Returns true if no domains configured (no restriction) or email matches allowed domains
  */
 export function isAllowedEmailDomain(email: string): boolean {
+  const allowedDomains = process.env.ALLOWED_EMAIL_DOMAINS || '';
+  
+  // No restriction if not configured
+  if (!allowedDomains.trim()) {
+    return true;
+  }
+  
   const emailLower = email.toLowerCase();
-  return emailLower.endsWith('@vtc.edu.hk') || emailLower.endsWith('@stu.vtc.edu.hk');
+  const domains = allowedDomains.split(',').map(d => d.trim()).filter(d => d);
+  
+  return domains.some(domain => emailLower.endsWith(`@${domain}`));
 }
 
 /**

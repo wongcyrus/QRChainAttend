@@ -128,10 +128,10 @@ Choose your development environment:
 
 ### Required Tools
 ```bash
-# Node.js 20+
+# Node.js 22+
 node --version
 
-# Azure Functions Core Tools
+# Azure Functions Core Tools v4
 npm install -g azure-functions-core-tools@4
 
 # Azure CLI (for production connections)

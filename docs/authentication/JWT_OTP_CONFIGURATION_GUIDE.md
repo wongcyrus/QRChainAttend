@@ -197,9 +197,13 @@ OTP_SMTP_SECURE=true
 OTP_SMTP_USERNAME=your-smtp-username
 OTP_SMTP_PASSWORD=your-smtp-password
 OTP_FROM_EMAIL=noreply@example.com
-OTP_FROM_NAME=VTC Attendance
+OTP_FROM_NAME=Your Organization Attendance
 OTP_EMAIL_SUBJECT=Your verification code
 OTP_APP_NAME=ProvePresent
+
+# Optional: Restrict authentication to specific email domains
+ALLOWED_EMAIL_DOMAINS=example.edu,students.example.edu
+ORGANIZATION_NAME=Your Organization
 ```
 
 This file is automatically loaded by the deployment script.
@@ -298,7 +302,7 @@ cd backend
 node -e "
 const jwt = require('jsonwebtoken');
 const secret = process.env.JWT_SECRET || 'test-secret';
-const token = jwt.sign({ userId: 'test@vtc.edu.hk' }, secret, { expiresIn: '24h' });
+const token = jwt.sign({ userId: 'test@example.com' }, secret, { expiresIn: '24h' });
 console.log('JWT Token generated successfully');
 console.log('Token length:', token.length);
 "

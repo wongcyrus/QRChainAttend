@@ -47,8 +47,14 @@ export default function Login() {
         
         const data = await response.json();
         if (data.clientPrincipal) {
-          // Already authenticated, redirect to home
-          router.push('/');
+          // Already authenticated, redirect based on role
+          const roles = data.clientPrincipal.userRoles || [];
+          if (roles.includes('organizer')) {
+            router.push('/organizer');
+          } else if (roles.includes('attendee')) {
+            router.push('/attendee');
+          }
+          // If no role, stay on login page
         }
       } catch (error) {
         // Not authenticated, stay on login page
@@ -80,7 +86,7 @@ export default function Login() {
           const retryAfter = data.error?.retryAfter || 900;
           setError(`Too many requests. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`);
         } else if (response.status === 403) {
-          setError('This email domain is not authorized. Please use a VTC email address.');
+          setError('This email domain is not authorized. Please contact your administrator.');
         } else {
           setError(data.error?.message || 'Failed to send verification code');
         }
@@ -151,7 +157,8 @@ export default function Login() {
       } else if (user.userRoles.includes('attendee')) {
         await router.push('/attendee');
       } else {
-        await router.push('/');
+        // No role assigned - show error
+        setError('Your account has no assigned role. Please contact your administrator.');
       }
     } catch (error) {
       setError('Network error. Please check your connection and try again.');
@@ -184,46 +191,116 @@ export default function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-        padding: '1rem'
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '2rem 1rem'
       }}>
         <div style={{
-          backgroundColor: 'white',
-          padding: '2rem',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          display: 'flex',
+          gap: '2rem',
+          maxWidth: '1000px',
           width: '100%',
-          maxWidth: '400px'
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          justifyContent: 'center'
         }}>
-          {/* App Branding */}
-          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>✓</div>
+          {/* Left Side - Branding & Info */}
+          <div style={{
+            flex: '1 1 400px',
+            color: 'white',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '5rem', marginBottom: '1rem' }}>🔗✓</div>
             <h1 style={{ 
-              fontSize: '1.75rem', 
+              fontSize: '3rem', 
               fontWeight: 'bold', 
-              marginBottom: '0.25rem',
-              color: '#0078d4'
+              marginBottom: '1rem',
+              textShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}>
               ProvePresent
             </h1>
             <p style={{ 
-              fontSize: '0.875rem', 
-              color: '#6b7280',
-              margin: 0
+              fontSize: '1.25rem', 
+              marginBottom: '2rem',
+              opacity: 0.95
             }}>
               Peer-Verified Event Attendance
             </p>
+            
+            {/* Feature Highlights */}
+            <div style={{
+              textAlign: 'left',
+              maxWidth: '400px',
+              margin: '0 auto'
+            }}>
+              <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1.5rem' }}>🔗</span>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Chain Verification</strong>
+                  <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                    Pass tokens peer-to-peer to prove physical presence
+                  </span>
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1.5rem' }}>📊</span>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Real-time Dashboard</strong>
+                  <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                    Track attendance as verification chains progress
+                  </span>
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1.5rem' }}>🧠</span>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '0.25rem' }}>AI-Powered Quizzes</strong>
+                  <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                    Generate questions from presentation slides
+                  </span>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1.5rem' }}>📍</span>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Location Validation</strong>
+                  <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                    Optional geofencing with configurable radius
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <h2 style={{ 
-            fontSize: '1.25rem', 
-            fontWeight: '600', 
-            marginBottom: '1.5rem',
-            textAlign: 'center',
-            color: '#2d3748'
+          {/* Right Side - Login Form */}
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2.5rem',
+            borderRadius: '16px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            width: '100%',
+            maxWidth: '420px',
+            flex: '0 0 auto'
           }}>
-            Sign In
-          </h2>
+            <h2 style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: '600', 
+              marginBottom: '0.5rem',
+              textAlign: 'center',
+              color: '#2d3748'
+            }}>
+              Welcome Back
+            </h2>
+            <p style={{
+              textAlign: 'center',
+              color: '#6b7280',
+              fontSize: '0.875rem',
+              marginBottom: '2rem'
+            }}>
+              Sign in to manage or join events
+            </p>
 
           {error && (
             <div style={{
@@ -254,7 +331,7 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.email@vtc.edu.hk"
+                  placeholder="your.email@example.com"
                   required
                   disabled={loading}
                   style={{
@@ -286,12 +363,12 @@ export default function Login() {
               </button>
 
               <p style={{
-                marginTop: '1rem',
+                marginTop: '1.5rem',
                 fontSize: '0.875rem',
                 color: '#6b7280',
                 textAlign: 'center'
               }}>
-                Use your VTC email address to sign in
+                A verification code will be sent to your email address
               </p>
             </form>
           ) : (
@@ -386,6 +463,7 @@ export default function Login() {
               </button>
             </form>
           )}
+          </div>
         </div>
       </div>
     </>

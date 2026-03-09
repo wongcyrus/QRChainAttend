@@ -27,6 +27,8 @@ param otpFromEmail = readEnvironmentVariable('OTP_FROM_EMAIL', '')
 param otpFromName = readEnvironmentVariable('OTP_FROM_NAME', 'VTC Attendance')
 param otpEmailSubject = readEnvironmentVariable('OTP_EMAIL_SUBJECT', 'Your verification code')
 param otpAppName = readEnvironmentVariable('OTP_APP_NAME', 'ProvePresent')
+param allowedEmailDomains = readEnvironmentVariable('ALLOWED_EMAIL_DOMAINS', '')
+param organizationName = readEnvironmentVariable('ORGANIZATION_NAME', '')
 
 // Domain-based role assignment
 param organizerDomain = 'vtc.edu.hk'

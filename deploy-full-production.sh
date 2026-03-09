@@ -93,9 +93,12 @@ load_otp_email_credentials() {
     OTP_EMAIL_SUBJECT="${OTP_EMAIL_SUBJECT:-Your verification code}"
     OTP_APP_NAME="${OTP_APP_NAME:-ProvePresent}"
     OTP_FROM_EMAIL="${OTP_FROM_EMAIL:-${OTP_SMTP_USERNAME:-}}"
+    ALLOWED_EMAIL_DOMAINS="${ALLOWED_EMAIL_DOMAINS:-}"
+    ORGANIZATION_NAME="${ORGANIZATION_NAME:-}"
 
     export OTP_SMTP_HOST OTP_SMTP_PORT OTP_SMTP_SECURE OTP_SMTP_USERNAME OTP_SMTP_PASSWORD
     export OTP_FROM_EMAIL OTP_FROM_NAME OTP_EMAIL_SUBJECT OTP_APP_NAME
+    export ALLOWED_EMAIL_DOMAINS ORGANIZATION_NAME
 
     if [ -n "${OTP_SMTP_USERNAME:-}" ] && [ -n "${OTP_SMTP_PASSWORD:-}" ]; then
         echo -e "${GREEN}✓ OTP email settings detected (Bicep will apply them)${NC}"

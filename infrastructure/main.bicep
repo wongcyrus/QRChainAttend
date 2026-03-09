@@ -83,6 +83,12 @@ param otpEmailSubject string = 'Your verification code'
 @description('OTP app name used in email body')
 param otpAppName string = 'ProvePresent'
 
+@description('Allowed email domains for authentication (comma-separated). Leave empty for no restriction.')
+param allowedEmailDomains string = ''
+
+@description('Organization name for display in UI')
+param organizationName string = ''
+
 @description('Tags to apply to all resources')
 param tags object = {
   Environment: environment
@@ -180,6 +186,8 @@ module functions 'modules/functions.bicep' = {
     otpFromName: otpFromName
     otpEmailSubject: otpEmailSubject
     otpAppName: otpAppName
+    allowedEmailDomains: allowedEmailDomains
+    organizationName: organizationName
     organizerDomain: organizerDomain
     attendeeDomain: attendeeDomain
     frontendUrls: corsUrls

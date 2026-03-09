@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-**Last Updated**: March 6, 2026  
+**Last Updated**: March 9, 2026  
 **Status**: ✅ Live and Running
 
 > **Note**: Azure resources use the naming convention `qrattendance-*` for historical reasons. The project has been renamed to ProvePresent but existing Azure deployments retain the original resource names.
@@ -11,27 +11,18 @@
 
 ### First Time Setup
 
-**1. Set up Azure AD External ID** (Manual - Azure Portal)
-
-Azure AD External ID requires manual configuration through the Azure Portal:
-- Create External ID tenant
-- Create app registration  
-- Configure user flows
-- See **[Azure AD Config Guide](AZURE_AD_CONFIG.md)** for detailed steps
-
-**2. Create credentials file**
+**1. Setup JWT configuration**
 ```bash
-cp .external-id-credentials.template .external-id-credentials
-# Edit with your Azure AD app credentials
+./setup-jwt-config.sh
 ```
 
-**3. (Optional) Configure OTP Email**
+**2. Configure OTP Email (Required)**
 ```bash
 cp .otp-email-credentials.example .otp-email-credentials
-# Edit with your SMTP settings
+# Edit with your SMTP settings and optional domain restrictions
 ```
 
-**4. Deploy to Production**
+**3. Deploy to Production**
 ```bash
 ./deploy-full-production.sh
 ```
@@ -47,16 +38,6 @@ cp .otp-email-credentials.example .otp-email-credentials
 **Delete Azure resources:**
 ```bash
 ./cleanup-production.sh
-```
-
-**Delete Azure AD app:**
-```bash
-./cleanup-azure-ad-app.sh
-```
-
-Or delete both at once:
-```bash
-./cleanup-production.sh && ./cleanup-azure-ad-app.sh
 ```
 
 ### Verify Deployment
@@ -115,17 +96,17 @@ See [INFRASTRUCTURE_BICEP.md](../architecture/INFRASTRUCTURE_BICEP.md) for detai
 
 ### Authentication SKU Requirement
 
-For Microsoft Entra External ID / Azure AD B2C custom authentication in Static Web Apps, **Standard SKU is required**. Free SKU can fall back to default auth behavior and ignore custom provider registration settings.
+Static Web Apps Standard SKU is recommended for production use with custom domains and enhanced features. The Free SKU is sufficient for basic deployments.
 
-- Official reference: https://learn.microsoft.com/azure/static-web-apps/authentication-custom
-- Deployment scripts automatically upgrade to Standard when External ID is configured.
+- Deployment scripts default to Standard SKU for production
+- Can be changed in Bicep parameters if needed
 
 ### Prerequisites
 ```bash
 # Check required tools
 az --version          # Azure CLI
-func --version        # Azure Functions Core Tools
-npm --version         # Node.js
+func --version        # Azure Functions Core Tools v4
+npm --version         # Node.js 22+
 jq --version          # JSON processor
 
 # Login to Azure
@@ -134,17 +115,15 @@ az login
 
 ### Complete Deployment Workflow
 
-**Step 1: Create Azure AD App (First Time Only)**
+**Step 1: Setup JWT and Email Configuration (First Time Only)**
 ```bash
-./setup-azure-ad-app.sh
-```
+# Generate JWT secret
+./setup-jwt-config.sh
 
-This script will:
-- Check for existing "ProvePresent" app
-- Create new app or reuse existing one
-- Configure redirect URIs for Static Web App
-- Create client secret (2-year expiry)
-- Save credentials to `.external-id-credentials` (preferred)
+# Configure SMTP for OTP emails
+cp .otp-email-credentials.example .otp-email-credentials
+# Edit with your SMTP credentials
+```
 
 **Step 2: Deploy Infrastructure and Application**
 ```bash
@@ -169,9 +148,8 @@ This script will:
    - Creates AI agents (quiz generator, position analyzer)
 5. Deploys backend functions (44+ functions)
 6. Builds and deploys frontend:
-   - Upgrades SWA to Standard SKU
+   - Upgrades SWA to Standard SKU (if configured)
    - Links Function App backend
-   - Configures Azure AD settings
 7. Configures SignalR CORS
 8. Verifies deployment health
 
@@ -186,19 +164,18 @@ This script will:
 - ✅ Azure OpenAI (AIServices kind)
 - ✅ Foundry Project created
 - ✅ AI Agents deployed
-- ✅ Static Web App deployed (Standard SKU)
+- ✅ Static Web App deployed
 - ✅ Backend linked to SWA
 - ✅ All 16 tables created
-- ✅ Azure AD External ID configured
-- ✅ Login redirect validation
+- ✅ JWT and OTP configuration
 
 **Step 4: Test Production**
-1. Wait 2-3 minutes for Azure AD settings to propagate
-2. Open the Static Web App URL from deployment output
-3. You should be redirected to Azure AD External ID login
-4. Login with VTC credentials
+1. Open the Static Web App URL from deployment output
+2. Click "Login" and enter your email address
+3. Check email for 6-digit OTP code
+4. Enter OTP to complete login
 5. Check browser console for "SignalR connected"
-6. Create a session and test quiz feature
+6. Create a session and test features
 
 ### Clean Up Production
 
@@ -207,17 +184,7 @@ This script will:
 ./cleanup-production.sh
 ```
 
-**Delete Azure AD app registration:**
-```bash
-./cleanup-azure-ad-app.sh
-```
-
-**Delete everything:**
-```bash
-./cleanup-production.sh && ./cleanup-azure-ad-app.sh
-```
-
-This ensures complete cleanup with no lingering resources or AD apps.
+This removes all Azure resources from the resource group.
 
 ---
 

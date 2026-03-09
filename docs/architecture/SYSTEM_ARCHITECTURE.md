@@ -217,27 +217,31 @@ See [DATABASE_TABLES.md](DATABASE_TABLES.md) for detailed schemas.
 - Quiz Question Generator - Creates questions from slides
 - Seating Position Analyzer - Analyzes venue photos
 
-### 6. Authentication (Azure AD External ID)
+### 6. Authentication (Email OTP)
 
-**Provider**: Azure AD External ID via Static Web Apps (Standard SKU)
+**Provider**: Self-managed JWT with Email OTP verification
 
 **Role Assignment**:
-- Email domain-based automatic role assignment
-- `@vtc.edu.hk` (excluding `@staff.example.com → Organizer
-- `@stu.vtc.edu.hk` → Student
+- Configurable domain-based automatic role assignment via environment variables
+- `ORGANIZER_DOMAIN` - Email domain for organizer role (e.g., `company.com`)
+- `ATTENDEE_DOMAIN` - Optional restriction for attendee role
+- `ALLOWED_EMAIL_DOMAINS` - Optional comma-separated list to restrict authentication
+- External organizers can be added via ExternalOrganizers table
 
 **Authentication Flow**:
-1. User clicks "Login"
-2. Redirected to Azure AD External ID (ciamlogin.com)
-3. Authenticates with Microsoft account
-4. Redirected back with auth token
-5. Static Web App validates token
-6. Backend receives `x-ms-client-principal` header via SWA proxy
+1. User enters email address
+2. System sends 6-digit OTP via SMTP
+3. User enters OTP code
+4. Backend validates OTP and issues JWT token
+5. JWT stored in HTTP-only cookie
+6. Role assigned based on email domain or table lookup
 
 **Security**:
-- Standard SKU required for custom auth providers
-- Function App auth disabled (SWA handles auth)
-- Backend linked to SWA for seamless proxy
+- JWT tokens with configurable expiration
+- HTTP-only cookies prevent XSS
+- Rate limiting on OTP requests
+- OTP expires after 5 minutes
+- Maximum 3 verification attempts per OTP
 
 ---
 
