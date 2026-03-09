@@ -184,6 +184,13 @@ export default function Login() {
     <>
       <Head>
         <title>Login - ProvePresent</title>
+        <style>{`
+          @media (max-width: 768px) {
+            .feature-highlights {
+              display: none !important;
+            }
+          }
+        `}</style>
       </Head>
 
       <div style={{
@@ -210,7 +217,7 @@ export default function Login() {
             textAlign: 'center'
           }}>
             <img 
-              src="/logo.png" 
+              src="/logo_no_text.png" 
               alt="ProvePresent Logo" 
               style={{ 
                 width: '150px', 
@@ -236,7 +243,7 @@ export default function Login() {
             </p>
             
             {/* Feature Highlights */}
-            <div style={{
+            <div className="feature-highlights" style={{
               textAlign: 'left',
               maxWidth: '400px',
               margin: '0 auto'
