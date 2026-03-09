@@ -20,6 +20,13 @@ export default function Login() {
   const [countdown, setCountdown] = useState(0);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | undefined>();
 
+  // Show error message if redirected with error parameter
+  useEffect(() => {
+    if (router.query.error === 'no_role') {
+      setError('Your account has no assigned role. Please contact your administrator to assign you an "organizer" or "attendee" role.');
+    }
+  }, [router.query.error]);
+
   // Countdown timer for OTP expiry
   useEffect(() => {
     if (countdown > 0) {
@@ -188,14 +195,35 @@ export default function Login() {
           width: '100%',
           maxWidth: '400px'
         }}>
-          <h1 style={{ 
-            fontSize: '1.5rem', 
-            fontWeight: 'bold', 
+          {/* App Branding */}
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>✓</div>
+            <h1 style={{ 
+              fontSize: '1.75rem', 
+              fontWeight: 'bold', 
+              marginBottom: '0.25rem',
+              color: '#0078d4'
+            }}>
+              ProvePresent
+            </h1>
+            <p style={{ 
+              fontSize: '0.875rem', 
+              color: '#6b7280',
+              margin: 0
+            }}>
+              Peer-Verified Event Attendance
+            </p>
+          </div>
+
+          <h2 style={{ 
+            fontSize: '1.25rem', 
+            fontWeight: '600', 
             marginBottom: '1.5rem',
-            textAlign: 'center'
+            textAlign: 'center',
+            color: '#2d3748'
           }}>
             Sign In
-          </h1>
+          </h2>
 
           {error && (
             <div style={{

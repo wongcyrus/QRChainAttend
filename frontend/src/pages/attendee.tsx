@@ -131,7 +131,7 @@ export default function AttendeePage() {
 
           // Check if user has attendee role
           if (!roles.includes('attendee')) {
-            router.push('/');
+            router.replace('/login?error=no_role');
           } else {
             // If no sessionId in URL, check localStorage for active session
             if (!sessionId && typeof window !== 'undefined') {
@@ -149,7 +149,7 @@ export default function AttendeePage() {
       })
       .catch(() => {
         setLoading(false);
-        router.push('/');
+        router.replace('/login');
       });
   }, [router, sessionId, mounted]);
 
@@ -403,9 +403,59 @@ export default function AttendeePage() {
       maxWidth: '600px',
       margin: '0 auto'
     }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ margin: '0 0 0.5rem 0' }}>Attendee View</h1>
-        <p style={{ margin: 0, color: '#666' }}>Welcome, {user.userDetails}</p>
+      <div style={{ 
+        marginBottom: '2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <h1 style={{ margin: '0 0 0.5rem 0' }}>Attendee View</h1>
+          <p style={{ margin: 0, color: '#666' }}>Welcome, {user.userDetails}</p>
+        </div>
+        <button 
+          onClick={async () => {
+            const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+            const { clearAuthCache } = await import('../utils/authHeaders');
+            clearAuthCache();
+            
+            if (isLocal) {
+              await fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+              });
+              window.location.href = '/login';
+            } else {
+              const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+              await fetch(`${apiUrl}/auth/logout`, {
+                method: 'POST',
+                credentials: 'include'
+              });
+              window.location.href = '/login';
+            }
+          }}
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: 'white',
+            color: '#d13438',
+            border: '2px solid #d13438',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = '#d13438';
+            e.currentTarget.style.color = 'white';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = 'white';
+            e.currentTarget.style.color = '#d13438';
+          }}
+        >
+          🚪 Logout
+        </button>
       </div>
 
       {locationWarning && (

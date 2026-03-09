@@ -93,7 +93,7 @@ export default function TeacherPage() {
 
           // Check if user has organizer role
           if (!roles.includes('organizer')) {
-            router.push('/');
+            router.replace('/login?error=no_role');
           } else {
             // Restore selected session from localStorage if available
             const storedSessionId = localStorage.getItem('teacherActiveSessionId');
@@ -108,7 +108,7 @@ export default function TeacherPage() {
       })
       .catch(() => {
         setLoading(false);
-        router.push('/');
+        router.replace('/login');
       });
   }, [router]);
 
@@ -794,6 +794,7 @@ export default function TeacherPage() {
           qrDataUrl={qrCodeData.qrDataUrl}
           studentUrl={qrCodeData.studentUrl}
           expiresAt={qrCodeData.expiresAt}
+          refreshIntervalMs={qrCodeData.refreshIntervalMs}
           onClose={handleCloseQRModal}
         />
       )}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { clearAuthCache } from '../utils/authHeaders';
 
 interface TeacherHeaderProps {
   userDetails: string;
@@ -6,6 +7,26 @@ interface TeacherHeaderProps {
 }
 
 export const TeacherHeader: React.FC<TeacherHeaderProps> = ({ userDetails, onHome }) => {
+  const handleLogout = async () => {
+    const isLocal = process.env.NEXT_PUBLIC_ENVIRONMENT === 'local';
+    clearAuthCache();
+    
+    if (isLocal) {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      window.location.href = '/login';
+    } else {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      await fetch(`${apiUrl}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      window.location.href = '/login';
+    }
+  };
+
   return (
     <div style={{
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -40,31 +61,58 @@ export const TeacherHeader: React.FC<TeacherHeaderProps> = ({ userDetails, onHom
             Welcome back, <strong>{userDetails}</strong>
           </p>
         </div>
-        <button 
-          onClick={onHome}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: 'white',
-            color: '#667eea',
-            border: '2px solid #667eea',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '0.95rem',
-            fontWeight: '600',
-            transition: 'all 0.2s',
-            boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = '#667eea';
-            e.currentTarget.style.color = 'white';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = 'white';
-            e.currentTarget.style.color = '#667eea';
-          }}
-        >
-          🏠 Home
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            onClick={onHome}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: 'white',
+              color: '#667eea',
+              border: '2px solid #667eea',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: '600',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#667eea';
+              e.currentTarget.style.color = 'white';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'white';
+              e.currentTarget.style.color = '#667eea';
+            }}
+          >
+            🏠 Home
+          </button>
+          <button 
+            onClick={handleLogout}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: 'white',
+              color: '#d13438',
+              border: '2px solid #d13438',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: '600',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(209, 52, 56, 0.2)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#d13438';
+              e.currentTarget.style.color = 'white';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'white';
+              e.currentTarget.style.color = '#d13438';
+            }}
+          >
+            🚪 Logout
+          </button>
+        </div>
       </div>
     </div>
   );
