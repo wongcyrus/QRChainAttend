@@ -97,6 +97,7 @@ production-token.txt
 *.secret
 .otp-email-credentials
 backend/.otp-email-credentials
+.jwt-otp-config
 
 # Agent configuration (contains sensitive data)
 .agent-config.env
