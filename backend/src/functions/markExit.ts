@@ -1,10 +1,10 @@
 /**
  * Mark Exit - REFACTORED (Self-contained)
- * Validates encrypted exit token and marks student as exited
+ * Validates encrypted exit token and marks attendee as exited
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import * as crypto from 'crypto';
 import { broadcastAttendanceUpdate } from '../utils/signalrBroadcast';
@@ -41,25 +41,22 @@ export async function markExit(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    
-    // Require Student role
-    if (!hasRole(principal, 'Student') && !hasRole(principal, 'student')) {
+    }    
+    // Require Attendee role
+    if (!hasRole(principal, 'Attendee') && !hasRole(principal, 'attendee')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Attendee role required', timestamp: Date.now() } }
       };
     }
 
-    const studentId = getUserId(principal);
+    const attendeeId = getUserId(principal);
     const sessionId = request.params.sessionId;
     
     if (!sessionId) {
@@ -141,7 +138,7 @@ export async function markExit(
     const attendanceTable = getTableClient(TableNames.ATTENDANCE);
     
     try {
-      const attendanceRecord = await attendanceTable.getEntity(sessionId, studentId);
+      const attendanceRecord = await attendanceTable.getEntity(sessionId, attendeeId);
       
       // Update with exit verification (Direct QR method)
       const updatedEntity = {
@@ -156,7 +153,7 @@ export async function markExit(
       
       // Broadcast exit verification update
       await broadcastAttendanceUpdate(sessionId, {
-        studentId: studentId,
+        attendeeId: attendeeId,
         exitVerified: true
       }, context);
       
@@ -165,7 +162,7 @@ export async function markExit(
         jsonBody: {
           success: true,
           sessionId,
-          studentId,
+          attendeeId,
           message: 'Exit marked successfully'
         }
       };
@@ -173,7 +170,7 @@ export async function markExit(
       if (error.statusCode === 404) {
         return {
           status: 404,
-          jsonBody: { error: { code: 'NOT_ENROLLED', message: 'Student not enrolled in this session', timestamp: Date.now() } }
+          jsonBody: { error: { code: 'NOT_ENROLLED', message: 'Attendee not enrolled in this session', timestamp: Date.now() } }
         };
       }
       throw error;

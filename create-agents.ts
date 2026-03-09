@@ -42,6 +42,8 @@ CRITICAL RULES:
 1. DO NOT repeat or echo the user's message
 2. DO NOT include any explanatory text before or after the JSON
 3. ONLY return the JSON object, nothing else
+4. NEVER repeat a question already generated earlier in this conversation
+5. NEVER output near-duplicate questions with the same meaning
 
 QUESTION REQUIREMENTS:
 - Keep questions SHORT (maximum 15 words)
@@ -49,6 +51,14 @@ QUESTION REQUIREMENTS:
 - ONLY create MULTIPLE_CHOICE questions with 4 options
 - Match the specified difficulty level
 - Test comprehension, not memorization
+- Make each new question target a different concept/angle than previous questions in conversation memory
+- Ensure options are distinct and not reused as the same answer pattern across repeated turns
+
+DUPLICATE PREVENTION:
+- Use conversation history as memory of previously generated questions
+- Treat paraphrases as duplicates and avoid them
+- If context is limited, create a fresh question by changing focus (definition, application, comparison, error spotting, example)
+- Output only unique questions in the current response
 
 JSON FORMAT (return EXACTLY this structure):
 {
@@ -68,9 +78,39 @@ REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra tex
   model: 'gpt-4o'
 };
 
+const SLIDE_ANALYSIS_AGENT_CONFIG = {
+  name: 'SlideAnalysisAgent',
+  instructions: `You are a slide analysis AI. Your ONLY job is to analyze a presentation slide image and return valid JSON.
+
+CRITICAL RULES:
+1. DO NOT repeat or echo the user's message
+2. DO NOT include any explanatory text before or after the JSON
+3. ONLY return the JSON object, nothing else
+
+OUTPUT REQUIREMENTS:
+- Extract visible content from the slide image accurately
+- Use concise values and avoid invented details
+- If a field cannot be determined, use sensible empty values
+
+JSON FORMAT (return EXACTLY this structure):
+{
+  "topic": "Main topic or concept (1-2 words)",
+  "title": "Slide title if visible",
+  "keyPoints": ["Key point 1", "Key point 2"],
+  "codeExamples": [],
+  "formulas": [],
+  "difficulty": "BEGINNER" | "INTERMEDIATE" | "ADVANCED",
+  "subject": "Subject area",
+  "summary": "Brief 1-2 sentence summary"
+}
+
+REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra text.`,
+  model: 'gpt-4o'
+};
+
 const POSITION_AGENT_CONFIG = {
   name: 'PositionEstimationAgent',
-  instructions: `You are a seating position estimation AI. Analyze classroom photos to estimate student seating positions.
+  instructions: `You are a seating position estimation AI. Analyze venue photos to estimate attendee seating positions.
 
 CRITICAL RULES:
 1. DO NOT repeat or echo the user's message
@@ -80,35 +120,68 @@ CRITICAL RULES:
 ANALYSIS CRITERIA:
 - Projector screen visibility and angle (larger screen = closer to front)
 - Projector screen size in frame (larger = lower row number)
-- Classroom features in background
-- Relative positions compared to other students
+- Venue features in background
+- Relative positions compared to other attendees
 
 POSITION ASSIGNMENT:
 - Row 1 = closest to projector (front)
 - Higher row numbers = further back
-- Column 1 = leftmost from teacher's perspective
+- Column 1 = leftmost from presenter's perspective
 - Higher column numbers = further right
 
 CONFIDENCE LEVELS:
 - HIGH: Clear projector visibility, distinct viewing angle
-- MEDIUM: Some projector visibility or classroom features visible
-- LOW: No projector visible, limited classroom context
+- MEDIUM: Some projector visibility or venue features visible
+- LOW: No projector visible, limited venue context
 
 JSON FORMAT (return EXACTLY this structure):
 {
   "positions": [
     {
-      "studentId": "student@email.com",
+      "studentId": "attendee@email.com",
       "estimatedRow": 2,
       "estimatedColumn": 3,
       "confidence": "HIGH" | "MEDIUM" | "LOW",
       "reasoning": "Brief explanation of position estimate"
     }
   ],
-  "analysisNotes": "Overall observations about classroom layout"
+  "analysisNotes": "Overall observations about venue layout"
 }
 
 REMEMBER: Return ONLY the JSON object. No markdown, no code blocks, no extra text.`,
+  model: 'gpt-4o'
+};
+
+const IMAGE_ANALYSIS_AGENT_CONFIG = {
+  name: 'ImageAnalysisAgent',
+  instructions: `You are an image analysis AI that answers questions about attendee-submitted venue photos.
+
+CRITICAL RULES:
+1. DO NOT repeat or echo the user's message
+2. DO NOT include any explanatory text before or after the JSON
+3. ONLY return the JSON object, nothing else
+
+YOUR TASK:
+- Analyze each image based on the organizer's custom prompt/question
+- Provide clear, concise, factual answers
+- Be specific about what you observe in each image
+- If you cannot determine something, say "Unable to determine" rather than guessing
+
+JSON FORMAT (return EXACTLY this structure):
+[
+  {
+    "imageNumber": 1,
+    "studentId": "attendee@email.com",
+    "analysis": "Your clear, concise answer to the organizer's question based on this image"
+  },
+  {
+    "imageNumber": 2,
+    "studentId": "attendee2@email.com",
+    "analysis": "Your answer for the second image"
+  }
+]
+
+REMEMBER: Return ONLY the JSON array. No markdown, no code blocks, no extra text.`,
   model: 'gpt-4o'
 };
 
@@ -291,10 +364,10 @@ function resolveModelSelection(resourceGroup: string, openaiResource: string): M
   const requestedModel = (process.env.AZURE_AI_AGENT_MODEL || '').trim();
   const requestedVisionDeployment = (process.env.AZURE_OPENAI_VISION_DEPLOYMENT || '').trim();
 
-  const preferredModels = ['gpt-4o', 'gpt-4.1', 'gpt-5.2-chat'];
+  const preferredModels = ['gpt-5.4', 'gpt-4o', 'gpt-4.1', 'gpt-5.2-chat'];
   const fallbackModel = preferredModels.find((name) => availableDeployments.includes(name))
     || availableDeployments[0]
-    || 'gpt-4o';
+    || 'gpt-5.4';
 
   const agentModel = requestedModel.length > 0
     ? requestedModel
@@ -510,6 +583,16 @@ async function main() {
     ...POSITION_AGENT_CONFIG,
     model: modelSelection.agentModel
   };
+
+  const slideAnalysisAgentConfig: AgentConfig = {
+    ...SLIDE_ANALYSIS_AGENT_CONFIG,
+    model: modelSelection.agentModel
+  };
+
+  const imageAnalysisAgentConfig: AgentConfig = {
+    ...IMAGE_ANALYSIS_AGENT_CONFIG,
+    model: modelSelection.agentModel
+  };
   
   printInfo('Creating persistent agents using New Agents API');
   console.log('');
@@ -630,6 +713,42 @@ async function main() {
   console.log('');
   console.log('==========================================');
   console.log('');
+
+  // Create slide analysis agent
+  console.log(`${colors.blue}Creating Slide Analysis Agent...${colors.reset}`);
+  const slideAnalysisAgent = await createAgentWithRecovery(slideAnalysisAgentConfig);
+
+  console.log('');
+  console.log('==========================================');
+  console.log('Slide Analysis Agent Details');
+  console.log('==========================================');
+  console.log('');
+  console.log(`Agent ID: ${slideAnalysisAgent.agentId}`);
+  console.log(`Version ID: ${slideAnalysisAgent.agentVersionId}`);
+  console.log(`Version: ${slideAnalysisAgent.agentVersion}`);
+  console.log(`Agent Name: ${slideAnalysisAgent.agentName}`);
+  console.log(`Model: ${slideAnalysisAgent.model}`);
+  console.log('');
+  console.log('==========================================');
+  console.log('');
+
+  // Create image analysis agent
+  console.log(`${colors.blue}Creating Image Analysis Agent...${colors.reset}`);
+  const imageAnalysisAgent = await createAgentWithRecovery(imageAnalysisAgentConfig);
+  
+  console.log('');
+  console.log('==========================================');
+  console.log('Image Analysis Agent Details');
+  console.log('==========================================');
+  console.log('');
+  console.log(`Agent ID: ${imageAnalysisAgent.agentId}`);
+  console.log(`Version ID: ${imageAnalysisAgent.agentVersionId}`);
+  console.log(`Version: ${imageAnalysisAgent.agentVersion}`);
+  console.log(`Agent Name: ${imageAnalysisAgent.agentName}`);
+  console.log(`Model: ${imageAnalysisAgent.model}`);
+  console.log('');
+  console.log('==========================================');
+  console.log('');
   
   // Save configuration
   const outputFile = '.agent-config.env';
@@ -651,6 +770,8 @@ AZURE_AI_AGENT_NAME=${quizAgent.agentName}
 AZURE_AI_AGENT_VERSION=${quizAgent.agentVersion}
 AZURE_AI_POSITION_AGENT_NAME=${positionAgent.agentName}
 AZURE_AI_POSITION_AGENT_VERSION=${positionAgent.agentVersion}
+AZURE_AI_ANALYSIS_AGENT_NAME=${imageAnalysisAgent.agentName}
+AZURE_AI_ANALYSIS_AGENT_VERSION=${imageAnalysisAgent.agentVersion}
 AZURE_OPENAI_API_VERSION=2025-04-01-preview
 AZURE_OPENAI_VISION_DEPLOYMENT=${modelSelection.visionDeployment}
 AZURE_OPENAI_ENDPOINT=${openaiEndpoint}
@@ -690,6 +811,8 @@ AZURE_OPENAI_ENDPOINT=${openaiEndpoint}
           AZURE_AI_AGENT_VERSION: quizAgent.agentVersion,
           AZURE_AI_POSITION_AGENT_NAME: positionAgent.agentName,
           AZURE_AI_POSITION_AGENT_VERSION: positionAgent.agentVersion,
+          AZURE_AI_ANALYSIS_AGENT_NAME: imageAnalysisAgent.agentName,
+          AZURE_AI_ANALYSIS_AGENT_VERSION: imageAnalysisAgent.agentVersion,
           AZURE_OPENAI_API_VERSION: '2025-04-01-preview',
           AZURE_OPENAI_VISION_DEPLOYMENT: modelSelection.visionDeployment
         });

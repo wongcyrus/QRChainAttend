@@ -17,7 +17,7 @@ export function QRScannerExample() {
 
   const handleSessionScanned = (data: SessionQRData) => {
     setCurrentSession(data.sessionId);
-    setScanResult(`Joined session: ${data.classId}`);
+    setScanResult(`Joined session: ${data.eventId}`);
     setScanError(null);
     setIsScanning(false);
   };

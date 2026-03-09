@@ -19,7 +19,7 @@ import * as df from 'durable-functions';
 process.env.AzureWebJobsStorage = 'AccountName=devstoreaccount1;AccountKey=test;DefaultEndpointsProtocol=http;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;';
 process.env.AZURE_OPENAI_ENDPOINT = 'https://test.openai.azure.com/';
 process.env.AZURE_OPENAI_KEY = 'test-key';
-process.env.AZURE_OPENAI_DEPLOYMENT = 'gpt-5.2-chat';
+process.env.AZURE_OPENAI_DEPLOYMENT = 'gpt-5.4';
 
 // Mock dependencies
 jest.mock('../../utils/captureStorage');
@@ -168,7 +168,7 @@ describe('Error Handling and Retry Integration Test', () => {
       }),
       attempt1Context
     );
-    console.log(`✓ Error broadcast to teacher`);
+    console.log(`✓ Error broadcast to organizer`);
 
     // ========================================================================
     // STEP 4: Simulate retry attempt 2 (after 2 second backoff)
@@ -251,7 +251,7 @@ describe('Error Handling and Retry Integration Test', () => {
     console.log(`✓ Activity function attempted 3 times`);
     console.log(`✓ Exponential backoff applied (2s, 4s)`);
     console.log(`✓ Status updated to FAILED on each attempt`);
-    console.log(`✓ Error broadcast to teacher on each attempt`);
+    console.log(`✓ Error broadcast to organizer on each attempt`);
     console.log(`✓ All verification checks passed!`);
     console.log('=====================================\n');
   }, 30000); // 30 second timeout for retry delays
@@ -282,7 +282,7 @@ describe('Error Handling and Retry Integration Test', () => {
     const mockEstimationOutput = {
       positions: [
         {
-          studentId: 'student1@test.com',
+          attendeeId: 'student1@test.com',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
@@ -394,7 +394,7 @@ describe('Error Handling and Retry Integration Test', () => {
       }),
       context
     );
-    console.log(`✓ Error broadcast to teacher`);
+    console.log(`✓ Error broadcast to organizer`);
 
     console.log('\nSTEP 2: Verifying retry behavior...');
     console.log(`  - Permanent errors would be retried 3 times`);

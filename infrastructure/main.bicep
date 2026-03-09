@@ -33,56 +33,32 @@ param deployAzureOpenAI bool = false
 @description('Deploy SignalR Service (optional, system works with polling fallback)')
 param deploySignalR bool = false
 
-@description('GPT-4 model deployment name')
-param gpt4DeploymentName string = 'gpt-4'
+@description('GPT-5.4 model deployment name')
+param gpt54DeploymentName string = 'gpt-5.4'
 
-@description('GPT-4 model name')
-param gpt4ModelName string = 'gpt-4'
+@description('GPT-5.4 model name')
+param gpt54ModelName string = 'gpt-5.4'
 
-@description('GPT-4 model version')
-param gpt4ModelVersion string = '0613'
+@description('GPT-5.4 model version')
+param gpt54ModelVersion string = '2026-03-05'
 
-@description('GPT-4 Vision model deployment name')
-param gpt4VisionDeploymentName string = 'gpt-4-vision'
+@description('Deploy GPT-5.4 model (latest model with highest capabilities)')
+param deployGpt54Model bool = true
 
-@description('GPT-4 Vision model name')
-param gpt4VisionModelName string = 'gpt-4'
-
-@description('GPT-4 Vision model version')
-param gpt4VisionModelVersion string = 'vision-preview'
-
-@description('Deploy GPT-4 Vision model (required for Live Quiz feature)')
-param deployVisionModel bool = true
-
-@description('Deploy GPT-4 base model')
-param deployGpt4Model bool = true
-
-@description('GPT-5.2-chat model deployment name')
-param gpt52ChatDeploymentName string = 'gpt-5.2-chat'
-
-@description('GPT-5.2-chat model name')
-param gpt52ChatModelName string = 'gpt-5.2-chat'
-
-@description('GPT-5.2-chat model version')
-param gpt52ChatModelVersion string = '2026-02-10'
-
-@description('Deploy GPT-5.2-chat model (preview - most advanced model)')
-param deployGpt52ChatModel bool = true
-
-@description('GPT-4 deployment capacity (TPM in thousands)')
-param gpt4Capacity int = 10
-
-@description('GPT-4 Vision deployment capacity (TPM in thousands)')
-param gpt4VisionCapacity int = 10
-
-@description('GPT-5.2-chat deployment capacity (TPM in thousands)')
-param gpt52ChatCapacity int = 250
+@description('GPT-5.4 deployment capacity (TPM in thousands)')
+param gpt54Capacity int = 200
 
 @description('OTP SMTP host for custom email OTP delivery')
 param otpSmtpHost string = 'smtp.gmail.com'
 
 @description('OTP SMTP port for custom email OTP delivery')
 param otpSmtpPort string = '465'
+
+@description('Email domain for automatic organizer role assignment (e.g., vtc.edu.hk). Leave empty to disable domain-based assignment.')
+param organizerDomain string = 'vtc.edu.hk'
+
+@description('Email domain restriction for attendee role (e.g., stu.vtc.edu.hk). If set, ONLY this domain can be attendee. Leave empty to allow any email as attendee.')
+param attendeeDomain string = ''
 
 @description('OTP SMTP secure flag for custom email OTP delivery')
 param otpSmtpSecure string = 'true'
@@ -106,6 +82,12 @@ param otpEmailSubject string = 'Your verification code'
 
 @description('OTP app name used in email body')
 param otpAppName string = 'ProvePresent'
+
+@description('Allowed email domains for authentication (comma-separated). Leave empty for no restriction.')
+param allowedEmailDomains string = ''
+
+@description('Organization name for display in UI')
+param organizationName string = ''
 
 @description('Tags to apply to all resources')
 param tags object = {
@@ -174,21 +156,11 @@ module openai 'modules/openai.bicep' = if (deployAzureOpenAI) {
   params: {
     openAIName: openAIName
     location: location
-    gpt4DeploymentName: gpt4DeploymentName
-    gpt4ModelName: gpt4ModelName
-    gpt4ModelVersion: gpt4ModelVersion
-    gpt4VisionDeploymentName: gpt4VisionDeploymentName
-    gpt4VisionModelName: gpt4VisionModelName
-    gpt4VisionModelVersion: gpt4VisionModelVersion
-    deployVisionModel: deployVisionModel
-    deployGpt4Model: deployGpt4Model
-    gpt52ChatDeploymentName: gpt52ChatDeploymentName
-    gpt52ChatModelName: gpt52ChatModelName
-    gpt52ChatModelVersion: gpt52ChatModelVersion
-    deployGpt52ChatModel: deployGpt52ChatModel
-    gpt4Capacity: gpt4Capacity
-    gpt4VisionCapacity: gpt4VisionCapacity
-    gpt52ChatCapacity: gpt52ChatCapacity
+    gpt54DeploymentName: gpt54DeploymentName
+    gpt54ModelName: gpt54ModelName
+    gpt54ModelVersion: gpt54ModelVersion
+    deployGpt54Model: deployGpt54Model
+    gpt54Capacity: gpt54Capacity
     tags: tags
   }
 }
@@ -204,10 +176,7 @@ module functions 'modules/functions.bicep' = {
     storageAccountUri: storage.outputs.tableEndpoint
     signalRConnectionString: signalr.outputs.connectionString
     appInsightsConnectionString: appInsights.outputs.connectionString
-    azureOpenAIEndpoint: deployAzureOpenAI ? openai.outputs.endpoint : ''
-    azureOpenAIKey: deployAzureOpenAI ? openai.outputs.primaryKey : ''
-    azureOpenAIDeployment: deployAzureOpenAI ? (deployGpt4Model ? openai.outputs.gpt4DeploymentName : (deployGpt52ChatModel ? openai.outputs.gpt52ChatDeploymentName : '')) : ''
-    azureOpenAIVisionDeployment: deployAzureOpenAI ? (deployVisionModel ? openai.outputs.gpt4VisionDeploymentName : (deployGpt4Model ? openai.outputs.gpt4DeploymentName : 'gpt-4.1')) : ''
+    azureAIProjectEndpoint: deployAzureOpenAI ? openai.outputs.projectEndpoint : ''
     otpSmtpHost: otpSmtpHost
     otpSmtpPort: otpSmtpPort
     otpSmtpSecure: otpSmtpSecure
@@ -217,6 +186,10 @@ module functions 'modules/functions.bicep' = {
     otpFromName: otpFromName
     otpEmailSubject: otpEmailSubject
     otpAppName: otpAppName
+    allowedEmailDomains: allowedEmailDomains
+    organizationName: organizationName
+    organizerDomain: organizerDomain
+    attendeeDomain: attendeeDomain
     frontendUrls: corsUrls
     tags: tags
   }
@@ -275,14 +248,8 @@ output openAIName string = deployAzureOpenAI ? openai.outputs.openAIName : ''
 @description('Azure OpenAI endpoint (if deployed)')
 output openAIEndpoint string = deployAzureOpenAI ? openai.outputs.endpoint : ''
 
-@description('GPT-4 deployment name (if deployed)')
-output gpt4DeploymentName string = deployAzureOpenAI ? openai.outputs.gpt4DeploymentName : ''
-
-@description('GPT-4 Vision deployment name (if deployed)')
-output gpt4VisionDeploymentName string = deployAzureOpenAI ? openai.outputs.gpt4VisionDeploymentName : ''
-
-@description('GPT-5.2-chat deployment name (if deployed)')
-output gpt52ChatDeploymentName string = deployAzureOpenAI ? openai.outputs.gpt52ChatDeploymentName : ''
+@description('GPT-5.4 deployment name (if deployed)')
+output gpt54DeploymentName string = deployAzureOpenAI ? openai.outputs.gpt54DeploymentName : ''
 
 @description('Foundry project name (if deployed)')
 output projectName string = deployAzureOpenAI ? openai.outputs.projectName : ''

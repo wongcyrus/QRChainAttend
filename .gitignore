@@ -51,6 +51,7 @@ azurite/
 __blobstorage__/
 __queuestorage__/
 __azurite_db*__.json
+infrastructure/main.json
 
 # Temporary files
 *.tmp
@@ -98,6 +99,11 @@ production-token.txt
 .otp-email-credentials
 backend/.otp-email-credentials
 .jwt-otp-config
+
+# JWT and OTP configuration (sensitive)
+.jwt-otp-config
+.jwt-config
+*jwt*secret*
 
 # Agent configuration (contains sensitive data)
 .agent-config.env

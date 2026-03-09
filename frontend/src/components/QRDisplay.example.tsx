@@ -12,7 +12,7 @@ import type { ChainQRData, RotatingQRData } from '@/types/shared';
 
 /**
  * Example 1: Basic Chain Token Display
- * Shows a student as the holder of an entry chain token
+ * Shows a attendee as the holder of an entry chain token
  */
 export function BasicChainTokenExample() {
   const [token] = useState<ChainQRData>({
@@ -20,14 +20,14 @@ export function BasicChainTokenExample() {
     sessionId: 'session-123',
     tokenId: 'token-abc-123',
     etag: 'etag-xyz-789',
-    holderId: 'student-456',
+    holderId: 'attendee-456',
     exp: Math.floor(Date.now() / 1000) + 20, // 20 seconds from now
   });
 
   return (
     <div>
       <h2>Entry Chain Token</h2>
-      <p>You are the current holder. Show this QR code to another student.</p>
+      <p>You are the current holder. Show this QR code to another attendee.</p>
       <QRDisplay qrData={token} />
     </div>
   );
@@ -35,7 +35,7 @@ export function BasicChainTokenExample() {
 
 /**
  * Example 2: Exit Chain Token Display
- * Shows a student as the holder of an exit chain token
+ * Shows a attendee as the holder of an exit chain token
  */
 export function ExitChainTokenExample() {
   const [token] = useState<ChainQRData>({
@@ -43,7 +43,7 @@ export function ExitChainTokenExample() {
     sessionId: 'session-123',
     tokenId: 'token-exit-456',
     etag: 'etag-exit-123',
-    holderId: 'student-789',
+    holderId: 'attendee-789',
     exp: Math.floor(Date.now() / 1000) + 20,
   });
 
@@ -58,7 +58,7 @@ export function ExitChainTokenExample() {
 
 /**
  * Example 3: Late Entry Token Display
- * Shows a rotating QR code for late arrivals (teacher view)
+ * Shows a rotating QR code for late arrivals (organizer view)
  */
 export function LateEntryTokenExample() {
   const [token] = useState<RotatingQRData>({
@@ -83,7 +83,7 @@ export function LateEntryTokenExample() {
 
 /**
  * Example 4: Early Leave Token Display
- * Shows a rotating QR code for early departures (teacher view)
+ * Shows a rotating QR code for early departures (organizer view)
  */
 export function EarlyLeaveTokenExample() {
   const [token] = useState<RotatingQRData>({
@@ -116,7 +116,7 @@ export function WithExpirationCallbackExample() {
     sessionId: 'session-123',
     tokenId: 'token-callback-999',
     etag: 'etag-callback-888',
-    holderId: 'student-111',
+    holderId: 'attendee-111',
     exp: Math.floor(Date.now() / 1000) + 10, // Short expiration for demo
   });
   const [message, setMessage] = useState<string>('');
@@ -161,7 +161,7 @@ export function CustomSizeExample() {
     sessionId: 'session-123',
     tokenId: 'token-size-555',
     etag: 'etag-size-444',
-    holderId: 'student-222',
+    holderId: 'attendee-222',
     exp: Math.floor(Date.now() / 1000) + 20,
   });
 
@@ -187,7 +187,7 @@ export function WithoutHolderInfoExample() {
     sessionId: 'session-123',
     tokenId: 'token-noinfo-777',
     etag: 'etag-noinfo-666',
-    holderId: 'student-333',
+    holderId: 'attendee-333',
     exp: Math.floor(Date.now() / 1000) + 20,
   });
 
@@ -204,7 +204,7 @@ export function WithoutHolderInfoExample() {
 
 /**
  * Example 8: Rotating Token with Auto-Refresh
- * Simulates teacher's rotating QR code that refreshes automatically
+ * Simulates organizer's rotating QR code that refreshes automatically
  */
 export function RotatingTokenWithRefreshExample() {
   const [token, setToken] = useState<RotatingQRData>({
@@ -246,7 +246,7 @@ export function RotatingTokenWithRefreshExample() {
 
 /**
  * Example 9: Conditional Display
- * Shows QR code only when student is a holder
+ * Shows QR code only when attendee is a holder
  */
 export function ConditionalDisplayExample() {
   const [isHolder, setIsHolder] = useState(false);
@@ -255,7 +255,7 @@ export function ConditionalDisplayExample() {
     sessionId: 'session-123',
     tokenId: 'token-cond-888',
     etag: 'etag-cond-777',
-    holderId: 'student-444',
+    holderId: 'attendee-444',
     exp: Math.floor(Date.now() / 1000) + 20,
   });
 
@@ -287,7 +287,7 @@ export function ConditionalDisplayExample() {
           textAlign: 'center'
         }}>
           <p>You are not currently a holder.</p>
-          <p>Scan another student's QR code to become the holder.</p>
+          <p>Scan another attendee's QR code to become the holder.</p>
         </div>
       )}
     </div>
@@ -304,7 +304,7 @@ export function MultipleTokenTypesExample() {
     sessionId: 'session-123',
     tokenId: 'token-multi-1',
     etag: 'etag-multi-1',
-    holderId: 'student-555',
+    holderId: 'attendee-555',
     exp: Math.floor(Date.now() / 1000) + 20,
   };
 
@@ -313,7 +313,7 @@ export function MultipleTokenTypesExample() {
     sessionId: 'session-123',
     tokenId: 'token-multi-2',
     etag: 'etag-multi-2',
-    holderId: 'student-666',
+    holderId: 'attendee-666',
     exp: Math.floor(Date.now() / 1000) + 20,
   };
 

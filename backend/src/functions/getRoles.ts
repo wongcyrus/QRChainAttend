@@ -5,20 +5,22 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getRolesFromEmail } from '../utils/auth';
+import { getRolesFromEmail, parseAuthFromRequest } from '../utils/auth';
 
 export async function getRoles(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  context.log('Processing POST /api/auth/roles request');
+  context.log('=== getRoles START ===');
+  context.log('Method:', request.method);
+  context.log('URL:', request.url);
 
   try {
-    // Get the user principal from the header (provided by Static Web Apps)
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
+    // Get the user principal from JWT cookie or Authorization header
+    const principal = parseAuthFromRequest(request);
     
-    if (!principalHeader) {
-      context.log('No client principal header found (x-ms-client-principal or x-client-principal)');
+    if (!principal) {
+      context.log('❌ No authentication found');
       return {
         status: 200,
         jsonBody: {
@@ -27,16 +29,17 @@ export async function getRoles(
       };
     }
 
-    // Decode the principal
-    const principal = JSON.parse(Buffer.from(principalHeader, 'base64').toString('utf-8'));
-    const email = principal.userDetails || '';
+    const email = principal.userDetails || principal.userId || '';
     
-    context.log('User email:', email);
+    context.log('✅ User email:', email);
+    context.log('ORGANIZER_DOMAIN:', process.env.ORGANIZER_DOMAIN);
+    context.log('ATTENDEE_DOMAIN:', process.env.ATTENDEE_DOMAIN);
     
     // Compute roles from email domain
     const roles = getRolesFromEmail(email);
     
-    context.log('Assigned roles:', roles);
+    context.log('✅ Assigned roles:', JSON.stringify(roles));
+    context.log('=== getRoles END ===');
     
     // Return roles in the format expected by Static Web Apps
     return {
@@ -47,7 +50,8 @@ export async function getRoles(
     };
 
   } catch (error: any) {
-    context.error('Error getting roles:', error);
+    context.error('❌ Error getting roles:', error);
+    context.error('Stack:', error.stack);
     
     // Return empty roles on error (fail safe)
     return {

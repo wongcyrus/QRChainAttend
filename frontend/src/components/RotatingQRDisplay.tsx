@@ -33,7 +33,7 @@ export interface RotatingQRDisplayProps {
   /**
    * Whether the window is currently active
    * For late entry, this is typically always true after cutoff
-   * For early leave, this is controlled by teacher
+   * For early leave, this is controlled by organizer
    */
   isActive?: boolean;
 

@@ -17,7 +17,7 @@
  * - 2.5: Update status to 'COMPLETED' when uploads = 0
  * - 2.6: Store results and update status to 'COMPLETED' on success
  * - 2.7: Update status to 'FAILED' and broadcast error on failure
- * - 2.8: Broadcast captureResults event to teacher
+ * - 2.8: Broadcast captureResults event to organizer
  */
 
 import { InvocationContext } from '@azure/functions';
@@ -59,7 +59,7 @@ interface ActivityResult {
  * 2. Updating status to ANALYZING
  * 3. Broadcasting expiration event
  * 4. Triggering GPT position estimation (if uploads > 0)
- * 5. Storing results and broadcasting to teacher
+ * 5. Storing results and broadcasting to organizer
  * 
  * @param captureRequestId - UUID of the capture request to process
  * @param context - Azure Functions invocation context
@@ -152,7 +152,7 @@ export async function processCaptureTimeoutActivity(
         captureRequestId,
         status: 'COMPLETED',
         positions: [],
-        analysisNotes: 'No student photos were uploaded during the capture window'
+        analysisNotes: 'No attendee photos were uploaded during the capture window'
       };
       
       await broadcastToHub(
@@ -177,7 +177,7 @@ export async function processCaptureTimeoutActivity(
     const estimationInput: PositionEstimationInput = {
       captureRequestId,
       imageUrls: uploads.map(upload => ({
-        studentId: upload.rowKey,
+        attendeeId: upload.rowKey,
         blobUrl: upload.blobUrl
       }))
     };
@@ -200,7 +200,7 @@ export async function processCaptureTimeoutActivity(
         positions: JSON.stringify(estimationOutput.positions),
         analysisNotes: estimationOutput.analysisNotes,
         analyzedAt: new Date().toISOString(),
-        gptModel: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4.1',
+        gptModel: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-5.4',
         gptTokensUsed: 0 // Could be populated from GPT response if needed
       };
       
@@ -215,7 +215,7 @@ export async function processCaptureTimeoutActivity(
       });
       
       // ========================================================================
-      // Step 8: Broadcast results to teacher (Requirement 2.8)
+      // Step 8: Broadcast results to organizer (Requirement 2.8)
       // ========================================================================
       
       const resultsEvent: CaptureResultsEvent = {
@@ -267,7 +267,7 @@ export async function processCaptureTimeoutActivity(
         errorMessage: `Position estimation failed: ${error.message}`
       });
       
-      // Broadcast error to teacher
+      // Broadcast error to organizer
       const errorEvent: CaptureResultsEvent = {
         captureRequestId,
         status: 'FAILED',

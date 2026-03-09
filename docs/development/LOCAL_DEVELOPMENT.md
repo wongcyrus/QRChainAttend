@@ -128,10 +128,10 @@ Choose your development environment:
 
 ### Required Tools
 ```bash
-# Node.js 20+
+# Node.js 22+
 node --version
 
-# Azure Functions Core Tools
+# Azure Functions Core Tools v4
 npm install -g azure-functions-core-tools@4
 
 # Azure CLI (for production connections)
@@ -206,7 +206,7 @@ NEXT_PUBLIC_AAD_REDIRECT_URI=http://localhost:3001/.auth/login/aad/callback
 ### Default Login
 When `NEXT_PUBLIC_ENVIRONMENT=local`:
 - Click "Login with Azure AD"
-- Auto-login as Teacher (teacher@vtc.edu.hk)
+- Auto-login as Teacher (organizer@example.com)
 
 ### Switch Roles
 Visit: http://localhost:3000/dev-config
@@ -225,7 +225,7 @@ Visit: http://localhost:3000/dev-config
 ### Test as Teacher
 1. Open frontend URL
 2. Click "Login with Azure AD"
-3. Click "Teacher Dashboard"
+3. Click "Organizer Dashboard"
 4. Create a session
 
 ### Test as Student

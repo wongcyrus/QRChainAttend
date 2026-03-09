@@ -4,7 +4,7 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import * as crypto from 'crypto';
 import { validateGeolocation } from '../utils/geolocation';
@@ -41,30 +41,27 @@ export async function joinSession(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    
+    }    
     context.log('User principal:', JSON.stringify(principal, null, 2));
     
-    // Require Student role
-    if (!hasRole(principal, 'Student') && !hasRole(principal, 'student')) {
-      context.log('Access denied: User does not have Student role');
+    // Require Attendee role
+    if (!hasRole(principal, 'Attendee') && !hasRole(principal, 'attendee')) {
+      context.log('Access denied: User does not have Attendee role');
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Attendee role required', timestamp: Date.now() } }
       };
     }
     
-    context.log('Student role verified for user:', getUserId(principal));
+    context.log('Attendee role verified for user:', getUserId(principal));
 
-    const studentId = getUserId(principal);
+    const attendeeId = getUserId(principal);
     const sessionId = request.params.sessionId;
     
     if (!sessionId) {
@@ -161,12 +158,12 @@ export async function joinSession(
 
     const missingLocationWarning = !studentLocation ? 'Location not provided' : undefined;
     if (missingLocationWarning) {
-      context.warn(`Join without location: student=${studentId}, session=${sessionId}`);
+      context.warn(`Join without location: attendee=${attendeeId}, session=${sessionId}`);
     }
 
     const locationWarning = geoCheck.warning || missingLocationWarning;
 
-    // Block entry if geofence is enforced and student is out of bounds
+    // Block entry if geofence is enforced and attendee is out of bounds
     if (geoCheck.shouldBlock) {
       return {
         status: 403,
@@ -186,12 +183,12 @@ export async function joinSession(
     
     try {
       // Check if already enrolled
-      await attendanceTable.getEntity(sessionId, studentId);
+      await attendanceTable.getEntity(sessionId, attendeeId);
       
       if (locationWarning) {
         await attendanceTable.updateEntity({
           partitionKey: sessionId,
-          rowKey: studentId,
+          rowKey: attendeeId,
           locationWarning,
           locationDistance: geoCheck.distance
         }, 'Merge');
@@ -202,7 +199,7 @@ export async function joinSession(
         jsonBody: {
           success: true,
           sessionId,
-          studentId,
+          attendeeId,
           message: 'Already enrolled in session',
           locationWarning
         }
@@ -213,7 +210,7 @@ export async function joinSession(
         const joinTimestamp = Math.floor(Date.now() / 1000);
         const entity: any = {
           partitionKey: sessionId,
-          rowKey: studentId,
+          rowKey: attendeeId,
           exitVerified: false,
           joinedAt: joinTimestamp,
           entryStatus: 'PRESENT_ENTRY', // Set entry status for quiz system
@@ -239,7 +236,7 @@ export async function joinSession(
           jsonBody: {
             success: true,
             sessionId,
-            studentId,
+            attendeeId,
             message: 'Successfully enrolled in session',
             locationWarning
           }

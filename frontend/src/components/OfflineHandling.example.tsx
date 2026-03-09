@@ -199,7 +199,7 @@ export function Example4_SessionCreationWithOffline() {
     setMessage('');
 
     const formData = {
-      classId: 'CS101',
+      eventId: 'CS101',
       startAt: new Date().toISOString(),
       endAt: new Date(Date.now() + 3600000).toISOString(),
       lateCutoffMinutes: 15,

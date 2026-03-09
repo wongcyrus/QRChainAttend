@@ -20,7 +20,7 @@ describe('ChainManagementControls', () => {
       chainId: 'entry-chain-1',
       index: 0,
       state: 'ACTIVE' as const,
-      lastHolder: 'student-1',
+      lastHolder: 'attendee-1',
       lastSeq: 5,
       lastAt: Math.floor(Date.now() / 1000) - 30,
     },
@@ -30,7 +30,7 @@ describe('ChainManagementControls', () => {
       chainId: 'exit-chain-1',
       index: 0,
       state: 'ACTIVE' as const,
-      lastHolder: 'student-2',
+      lastHolder: 'attendee-2',
       lastSeq: 3,
       lastAt: Math.floor(Date.now() / 1000) - 60,
     },
@@ -42,7 +42,7 @@ describe('ChainManagementControls', () => {
       ok: true,
       json: async () => ({
         chainsCreated: 3,
-        initialHolders: ['student-1', 'student-2', 'student-3'],
+        initialHolders: ['attendee-1', 'attendee-2', 'attendee-3'],
       }),
     });
   });
@@ -76,7 +76,7 @@ describe('ChainManagementControls', () => {
       );
 
       expect(screen.getByText(/Active Entry Chains/)).toBeInTheDocument();
-      expect(screen.getByText('student-1')).toBeInTheDocument();
+      expect(screen.getByText('attendee-1')).toBeInTheDocument();
       expect(screen.getByText('5')).toBeInTheDocument();
     });
 
@@ -90,7 +90,7 @@ describe('ChainManagementControls', () => {
       );
 
       expect(screen.getByText(/Active Exit Chains/)).toBeInTheDocument();
-      expect(screen.getByText('student-2')).toBeInTheDocument();
+      expect(screen.getByText('attendee-2')).toBeInTheDocument();
       expect(screen.getByText('3')).toBeInTheDocument();
     });
 

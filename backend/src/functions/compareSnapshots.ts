@@ -4,7 +4,7 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import { compareSnapshots } from '../utils/snapshotService';
 
@@ -16,21 +16,18 @@ export async function compareSnapshotsHandler(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher')) {
+    }    
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
@@ -97,10 +94,10 @@ export async function compareSnapshotsHandler(
         success: true,
         comparison,
         summary: {
-          newStudentsCount: comparison.differences.newStudents.length,
-          absentStudentsCount: comparison.differences.absentStudents.length,
+          newStudentsCount: comparison.differences.newAttendees.length,
+          absentStudentsCount: comparison.differences.absentAttendees.length,
           duplicateScansCount: comparison.differences.duplicateScans.length,
-          attendanceGrowth: comparison.differences.newStudents.length - comparison.differences.absentStudents.length
+          attendanceGrowth: comparison.differences.newAttendees.length - comparison.differences.absentAttendees.length
         }
       }
     };

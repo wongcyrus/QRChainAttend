@@ -1,12 +1,12 @@
 /**
  * Send Quiz Question API Endpoint
- * Selects a student fairly and sends them a quiz question
+ * Selects a attendee fairly and sends them a quiz question
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { randomUUID } from 'crypto';
 import { broadcastQuizQuestion } from '../utils/signalrBroadcast';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 
 export async function sendQuizQuestion(
@@ -17,32 +17,29 @@ export async function sendQuizQuestion(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       context.log('Missing authentication header');
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    context.log('User:', principal.userDetails);
+    }    context.log('User:', principal.userDetails);
     
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
-      context.log('User does not have Teacher role');
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer') && !hasRole(principal, 'organizer')) {
+      context.log('User does not have Organizer role');
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
     const sessionId = request.params.sessionId;
     const body = await request.json() as any;
-    const { questionId, studentId, timeLimit = 60 } = body;
+    const { questionId, attendeeId, timeLimit = 60 } = body;
     
-    context.log('Request body:', { questionId, studentId, timeLimit });
+    context.log('Request body:', { questionId, attendeeId, timeLimit });
     
     if (!sessionId || !questionId) {
       context.log('Missing sessionId or questionId');
@@ -92,14 +89,14 @@ export async function sendQuizQuestion(
     const responseIds: string[] = [];
     const expiresAt = now + timeLimit;
 
-    for (const studentId of attendees) {
+    for (const attendeeId of attendees) {
       const responseId = randomUUID();
       
       await responsesTable.createEntity({
         partitionKey: sessionId,
         rowKey: responseId,
         questionId,
-        studentId: studentId,
+        attendeeId: attendeeId,
         answer: '',
         isCorrect: false,
         responseTime: 0,
@@ -111,11 +108,11 @@ export async function sendQuizQuestion(
 
       responseIds.push(responseId);
 
-      // Broadcast question to this student via SignalR
+      // Broadcast question to this attendee via SignalR
       const questionData = {
         responseId,
         questionId,
-        studentId: studentId,
+        attendeeId: attendeeId,
         question: question.question as string,
         questionType: question.questionType as string,
         options: question.options ? JSON.parse(question.options as string) : null,
@@ -123,7 +120,7 @@ export async function sendQuizQuestion(
         expiresAt
       };
       
-      context.log(`Broadcasting question to student ${studentId}:`, {
+      context.log(`Broadcasting question to attendee ${attendeeId}:`, {
         responseId,
         questionId,
         expiresAt

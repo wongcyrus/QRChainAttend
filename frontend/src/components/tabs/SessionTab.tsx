@@ -4,12 +4,12 @@
 
 import React from 'react';
 import { SessionEndAndExportControls } from '../SessionEndAndExportControls';
-import { CoTeacherManagement } from '../CoTeacherManagement';
+import { CoOrganizerManagement } from '../CoOrganizerManagement';
 
 interface Session {
   sessionId: string;
-  classId: string;
-  teacherId: string;
+  eventId: string;
+  organizerId: string;
   startAt: string;
   endAt: string;
   lateCutoffMinutes: number;
@@ -47,7 +47,7 @@ export const SessionTab: React.FC<SessionTabProps> = ({
   onSessionEnded,
   onError,
 }) => {
-  const isOwner = currentUserId?.toLowerCase() === session.teacherId?.toLowerCase();
+  const isOwner = currentUserId?.toLowerCase() === session.organizerId?.toLowerCase();
   
   return (
     <div>
@@ -88,7 +88,7 @@ export const SessionTab: React.FC<SessionTabProps> = ({
               Class ID
             </div>
             <div style={{ fontSize: '1.1rem', color: '#2d3748', fontWeight: '600' }}>
-              {session.classId}
+              {session.eventId}
             </div>
           </div>
           
@@ -265,8 +265,8 @@ export const SessionTab: React.FC<SessionTabProps> = ({
         />
       </div>
 
-      {/* Co-Teacher Management */}
-      <CoTeacherManagement
+      {/* Co-Organizer Management */}
+      <CoOrganizerManagement
         sessionId={sessionId}
         isOwner={isOwner}
         onError={onError}

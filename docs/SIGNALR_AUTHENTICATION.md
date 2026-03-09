@@ -54,12 +54,12 @@ First, users authenticate with Azure AD through Static Web Apps:
 
 When a client wants to connect to SignalR, it calls a "negotiate" endpoint:
 
-**For Teachers (Dashboard):**
+**For Organizers (Dashboard):**
 ```
 POST /api/sessions/{sessionId}/dashboard/negotiate
 ```
 
-**For Students:**
+**For Attendees:**
 ```
 POST /api/sessions/{sessionId}/negotiate
 ```
@@ -98,9 +98,9 @@ The negotiate function:
   "aud": "https://signalr-qrattendance-dev.service.signalr.net/client/?hub=dashboard",
   "iat": 1707148800,
   "exp": 1707152400,
-  "nameid": "teacher@vtc.edu.hk",
-  "userId": "teacher@vtc.edu.hk",
-  "role": "teacher",
+  "nameid": "organizer@example.com",
+  "userId": "organizer@example.com",
+  "role": "organizer",
   "sessionId": "abc-123"
 }
 
@@ -193,7 +193,7 @@ export async function negotiateDashboard(request: HttpRequest, context: Invocati
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 3600,
     nameid: userId,
-    role: 'teacher',
+    role: 'organizer',
     sessionId: sessionId
   };
   

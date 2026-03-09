@@ -4,13 +4,13 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import { randomUUID } from 'crypto';
 
 // Inline types
 interface CreateSessionRequest {
-  classId: string;
+  eventId: string;
   startAt: string;
   endAt: string;
   lateCutoffMinutes: number;
@@ -92,21 +92,18 @@ export async function createSession(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
+    }    
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer') && !hasRole(principal, 'organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
@@ -114,7 +111,7 @@ export async function createSession(
     const body = await request.json() as CreateSessionRequest;
 
     // Validate required fields
-    if (!body.classId || !body.startAt || !body.endAt || body.lateCutoffMinutes === undefined) {
+    if (!body.eventId || !body.startAt || !body.endAt || body.lateCutoffMinutes === undefined) {
       return {
         status: 400,
         jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing required fields', timestamp: Date.now() } }
@@ -129,7 +126,7 @@ export async function createSession(
       };
     }
 
-    const teacherId = getUserId(principal);
+    const organizerId = getUserId(principal);
     const now = new Date().toISOString();
     const sessionsTable = getTableClient(TableNames.SESSIONS);
     
@@ -162,8 +159,8 @@ export async function createSession(
       const entity = {
         partitionKey: 'SESSION',
         rowKey: sessionId,
-        classId: body.classId,
-        teacherId,
+        eventId: body.eventId,
+        organizerId,
         startAt: sessionDates[i].startAt,
         endAt: sessionDates[i].endAt,
         lateCutoffMinutes: body.lateCutoffMinutes,
@@ -190,7 +187,7 @@ export async function createSession(
 
     // Generate Session QR for first session
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
-    const sessionQR = `${baseUrl}/student?sessionId=${createdSessionIds[0]}`;
+    const sessionQR = `${baseUrl}/attendee?sessionId=${createdSessionIds[0]}`;
 
     const response: CreateSessionResponse = {
       sessionIds: createdSessionIds,

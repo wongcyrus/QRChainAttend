@@ -1,25 +1,25 @@
 /**
  * Seating Grid Visualization Component
  * 
- * Displays estimated student seating positions in a grid layout.
+ * Displays estimated attendee seating positions in a grid layout.
  * Provides an alternative visualization to the list format in TeacherCaptureControl.
  * 
  * Features:
  * - Grid layout based on max row and column from positions
  * - Color-coded borders for confidence levels (HIGH=green, MEDIUM=yellow, LOW=red)
- * - Hover/click to show studentId, confidence level, and reasoning
+ * - Hover/click to show attendeeId, confidence level, and reasoning
  * - Empty cells for unoccupied positions
  * 
  * Validates: Requirements 6.2, 6.3
  */
 
 import { useState } from 'react';
-import { formatStudentId } from '../utils/formatStudentId';
+import { formatAttendeeId } from '../utils/formatAttendeeId';
 import type { SeatingPosition } from '../../../backend/src/types/studentImageCapture';
 
 interface SeatingGridVisualizationProps {
   positions: SeatingPosition[];
-  imageUrls?: Map<string, string>; // Map of studentId to image URL
+  imageUrls?: Map<string, string>; // Map of attendeeId to image URL
 }
 
 interface SelectedPosition {
@@ -97,7 +97,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
   // Handle cell click
   const handleCellClick = (position: SeatingPosition | null, row: number, col: number, event: React.MouseEvent) => {
     if (position) {
-      const imageUrl = imageUrls?.get(position.studentId);
+      const imageUrl = imageUrls?.get(position.attendeeId);
       setSelectedPosition({
         position,
         x: event.clientX,
@@ -209,7 +209,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                 fontSize: '0.85rem',
                 color: '#666'
               }}>
-                {positions.length} student{positions.length !== 1 ? 's' : ''} • {maxRow} row{maxRow !== 1 ? 's' : ''} × {maxColumn} column{maxColumn !== 1 ? 's' : ''}
+                {positions.length} attendee{positions.length !== 1 ? 's' : ''} • {maxRow} row{maxRow !== 1 ? 's' : ''} × {maxColumn} column{maxColumn !== 1 ? 's' : ''}
               </div>
             </div>
 
@@ -249,7 +249,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
             </div>
           </div>
 
-          {/* Front of classroom indicator */}
+          {/* Front of venue indicator */}
           <div style={{
             textAlign: 'center',
             marginBottom: '0.5rem',
@@ -261,7 +261,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
             color: '#4a5568',
             border: '2px solid #cbd5e0'
           }}>
-            🖥️ Front of Classroom (Projector)
+            🖥️ Front of Venue (Projector)
           </div>
 
           {/* Grid */}
@@ -317,8 +317,8 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                   >
                     {position ? (
                       <>
-                        {/* Student Photo Thumbnail or Icon */}
-                        {imageUrls?.get(position.studentId) ? (
+                        {/* Attendee Photo Thumbnail or Icon */}
+                        {imageUrls?.get(position.attendeeId) ? (
                           <div style={{
                             width: '50px',
                             height: '50px',
@@ -329,8 +329,8 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                           }}>
                             <img
-                              src={imageUrls.get(position.studentId)}
-                              alt={formatStudentId(position.studentId)}
+                              src={imageUrls.get(position.attendeeId)}
+                              alt={formatAttendeeId(position.attendeeId)}
                               style={{
                                 width: '100%',
                                 height: '100%',
@@ -347,7 +347,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                           </div>
                         )}
                         
-                        {/* Student ID (shortened) */}
+                        {/* Attendee ID (shortened) */}
                         <div style={{
                           fontSize: '0.75rem',
                           fontWeight: '600',
@@ -356,8 +356,8 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                           wordBreak: 'break-word',
                           lineHeight: '1.2'
                         }}>
-                          {formatStudentId(position.studentId).substring(0, 15)}
-                          {formatStudentId(position.studentId).length > 15 ? '...' : ''}
+                          {formatAttendeeId(position.attendeeId).substring(0, 15)}
+                          {formatAttendeeId(position.attendeeId).length > 15 ? '...' : ''}
                         </div>
 
                         {/* Position label */}
@@ -503,7 +503,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
               </button>
             </div>
 
-            {/* Front of classroom indicator */}
+            {/* Front of venue indicator */}
             <div style={{
               padding: '0.75rem',
               textAlign: 'center',
@@ -513,7 +513,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
               fontWeight: '600',
               color: '#4a5568'
             }}>
-              🖥️ Front of Classroom (Projector)
+              🖥️ Front of Venue (Projector)
             </div>
 
             {/* Scrollable Grid Content */}
@@ -575,8 +575,8 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                       >
                         {position ? (
                           <>
-                            {/* Student Photo */}
-                            {imageUrls?.get(position.studentId) ? (
+                            {/* Attendee Photo */}
+                            {imageUrls?.get(position.attendeeId) ? (
                               <div style={{
                                 width: '60px',
                                 height: '60px',
@@ -587,8 +587,8 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
                               }}>
                                 <img
-                                  src={imageUrls.get(position.studentId)}
-                                  alt={formatStudentId(position.studentId)}
+                                  src={imageUrls.get(position.attendeeId)}
+                                  alt={formatAttendeeId(position.attendeeId)}
                                   style={{
                                     width: '100%',
                                     height: '100%',
@@ -605,7 +605,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                               </div>
                             )}
                             
-                            {/* Student ID */}
+                            {/* Attendee ID */}
                             <div style={{
                               fontSize: '0.8rem',
                               fontWeight: '600',
@@ -617,7 +617,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                               overflow: 'hidden',
                               textOverflow: 'ellipsis'
                             }}>
-                              {formatStudentId(position.studentId)}
+                              {formatAttendeeId(position.attendeeId)}
                             </div>
 
                             {/* Position label */}
@@ -700,7 +700,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
               ×
             </button>
 
-            {/* Student Photo */}
+            {/* Attendee Photo */}
             {selectedPosition.imageUrl && (
               <div style={{
                 marginBottom: '1rem',
@@ -728,7 +728,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                 >
                   <img
                     src={selectedPosition.imageUrl}
-                    alt={formatStudentId(selectedPosition.position.studentId)}
+                    alt={formatAttendeeId(selectedPosition.position.attendeeId)}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -746,7 +746,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
               </div>
             )}
 
-            {/* Student info */}
+            {/* Attendee info */}
             <div style={{
               marginBottom: '1rem'
             }}>
@@ -757,13 +757,13 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                 marginBottom: '0.5rem',
                 paddingRight: '2rem'
               }}>
-                {formatStudentId(selectedPosition.position.studentId)}
+                {formatAttendeeId(selectedPosition.position.attendeeId)}
               </div>
               <div style={{
                 fontSize: '0.85rem',
                 color: '#718096'
               }}>
-                {selectedPosition.position.studentId}
+                {selectedPosition.position.attendeeId}
               </div>
             </div>
 
@@ -913,7 +913,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
             {/* Enlarged Image */}
             <img
               src={enlargedImage}
-              alt="Enlarged student photo"
+              alt="Enlarged attendee photo"
               onClick={(e) => e.stopPropagation()}
               style={{
                 maxWidth: '90vw',

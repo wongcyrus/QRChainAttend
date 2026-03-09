@@ -17,7 +17,7 @@ See `backend/host.json` for runtime configuration.
 ## Core Services
 
 ### AuthService
-Handles authentication and authorization logic for teachers and students.
+Handles authentication and authorization logic for organizers and students.
 
 ### TokenService
 Manages QR token generation, validation, and rotation with caching support.

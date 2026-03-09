@@ -1,19 +1,19 @@
 # ProvePresent
 
-**Peer-Verified Classroom Attendance**
+**Peer-Verified Event Attendance**
 
-Students prove they're actually in class by passing verification tokens to each other. No more proxy attendance or buddy check-ins.
+Attendees prove they're actually present by passing verification tokens to each other. No more proxy attendance or remote check-ins.
 
 ---
 
 ## How It Works
 
-1. **Teacher starts a session** → Entry chains are seeded to random students
-2. **Students pass the chain** → Scan QR codes from classmates to verify presence
+1. **Organizer starts a session** → Entry chains are seeded to random attendees
+2. **Attendees pass the chain** → Scan QR codes from others to verify presence
 3. **Chain completes** → Everyone who participated is marked present
-4. **Exit verification** → Same process when class ends
+4. **Exit verification** → Same process when event ends
 
-The chain mechanism ensures students must be physically present to participate - you can't pass a QR code to someone who isn't there.
+The chain mechanism ensures attendees must be physically present to participate - you can't pass a QR code to someone who isn't there.
 
 ---
 
@@ -22,9 +22,9 @@ The chain mechanism ensures students must be physically present to participate -
 | Feature | Description |
 |---------|-------------|
 | **Chain Verification** | Peer-to-peer token passing proves physical presence |
-| **Real-time Dashboard** | Teachers see live attendance as chains progress |
-| **Live Quiz** | AI generates questions from lecture slides (GPT-4) |
-| **Seating Analysis** | Capture photos to analyze classroom arrangement |
+| **Real-time Dashboard** | Organizers see live attendance as chains progress |
+| **Live Quiz** | AI generates questions from presentation slides (GPT-4) |
+| **Seating Analysis** | Capture photos to analyze venue arrangement |
 | **Geolocation** | Optional location validation with configurable radius |
 | **Recurring Sessions** | Daily, weekly, or monthly schedules |
 | **Export** | CSV/JSON with full audit trail |
@@ -39,7 +39,7 @@ Backend:      Azure Functions v4 (Node.js 22)
 Database:     Azure Table Storage (16 tables)
 Real-time:    Azure SignalR Service
 AI:           Azure OpenAI + Foundry Agent Service
-Auth:         Azure AD External ID
+Auth:         Email OTP (Self-managed JWT)
 Hosting:      Azure Static Web Apps
 ```
 
@@ -49,18 +49,15 @@ Hosting:      Azure Static Web Apps
 
 ### Deploy to Azure
 
-**⚠️ Prerequisites**: Azure AD External ID tenant must be configured manually first.
-
-1. **Set up Azure AD External ID** (manual - Azure Portal)
-   - Create External ID tenant
-   - Create app registration
-   - Configure user flows
-   - See **[Azure AD Config Guide](docs/deployment/AZURE_AD_CONFIG.md)**
-
-2. **Create credentials file**
+1. **Setup JWT configuration**
    ```bash
-   cp .external-id-credentials.template .external-id-credentials
-   # Edit with your Azure AD app credentials
+   ./setup-jwt-config.sh
+   ```
+
+2. **Verify SMTP credentials**
+   ```bash
+   # Ensure .otp-email-credentials exists with valid SMTP settings
+   cat .otp-email-credentials
    ```
 
 3. **Deploy**
@@ -68,11 +65,7 @@ Hosting:      Azure Static Web Apps
    ./deploy-full-production.sh
    ```
 
-4. **Post-deployment** (manual - Azure Portal)
-   - Add Static Web App URL to app registration redirect URIs
-   - Configure custom OTP email extension (optional)
-
-See **[Deployment Guide](docs/deployment/DEPLOYMENT_GUIDE.md)** for complete instructions.
+See **[Quick Start Guide](QUICK_START.md)** for complete instructions.
 
 ### Local Development
 
@@ -113,12 +106,14 @@ npm install
 
 ## Authentication
 
-Roles are assigned automatically by email domain:
+Users are assigned roles through the ExternalOrganizers table:
 
-| Domain | Role |
-|--------|------|
-| `@vtc.edu.hk` (excluding students) | Teacher |
-| `@stu.vtc.edu.hk` | Student |
+| Role | Access |
+|------|--------|
+| Organizer | Create and manage events, view attendance |
+| Attendee | Join events, participate in verification chains |
+
+To add organizers, use the `manageExternalOrganizers` API endpoint or Azure Portal to add emails to the ExternalOrganizers table.
 
 ---
 

@@ -2,10 +2,10 @@
  * GPT Position Estimation Service
  * 
  * This module provides AI-powered seating position estimation using Azure AI Foundry Agent Service.
- * It analyzes student photos to estimate their seating positions based on:
+ * It analyzes attendee photos to estimate their seating positions based on:
  * - Projector screen visibility and angle
  * - Projector screen size in the frame
- * - Classroom features visible in the background
+ * - Venue features visible in the background
  * - Relative positions compared to other students' photos
  * 
  * Uses managed identity authentication via agent service (no API keys).
@@ -36,7 +36,7 @@ import { getAgentClient } from './agentService';
  *   - Batch 1: Students 1-10
  *   - Batch 2: Students 8-17 (overlap: 8, 9, 10)
  *   - Batch 3: Students 15-24 (overlap: 15, 16, 17)
- *   - Batch 4: Student 22-25 (overlap: 22, 23, 24)
+ *   - Batch 4: Attendee 22-25 (overlap: 22, 23, 24)
  */
 const AGENT_CONFIG = {
   maxTokens: 2000,
@@ -51,13 +51,13 @@ const AGENT_CONFIG = {
  * System prompt is now stored in the agent configuration
  * This is kept here for reference only
  */
-const SYSTEM_PROMPT_REFERENCE = `Position estimation agent analyzes classroom photos to estimate student seating positions based on projector visibility, screen size, and classroom features.`;
+const SYSTEM_PROMPT_REFERENCE = `Position estimation agent analyzes venue photos to estimate attendee seating positions based on projector visibility, screen size, and venue features.`;
 
 /**
  * Generate user prompt for GPT analysis
  */
-function generateUserPrompt(imageCount: number, images: Array<{ studentId: string; url: string }>, batchInfo?: { current: number; total: number }): string {
-  const imageList = images.map((img, i) => `Student ${i + 1} (ID: ${img.studentId}): [Image URL]`).join('\n');
+function generateUserPrompt(imageCount: number, images: Array<{ attendeeId: string; url: string }>, batchInfo?: { current: number; total: number }): string {
+  const imageList = images.map((img, i) => `Attendee ${i + 1} (ID: ${img.attendeeId}): [Image URL]`).join('\n');
   
   let batchContext = '';
   if (batchInfo) {
@@ -75,7 +75,7 @@ function generateUserPrompt(imageCount: number, images: Array<{ studentId: strin
     }
   }
   
-  return `Analyze these ${imageCount} student photos and estimate their seating positions:
+  return `Analyze these ${imageCount} attendee photos and estimate their seating positions:
 
 ${imageList}${batchContext}
 
@@ -83,14 +83,14 @@ Respond in JSON format:
 {
   "positions": [
     {
-      "studentId": "student@email.com",
+      "attendeeId": "attendee@email.com",
       "estimatedRow": 2,
       "estimatedColumn": 3,
       "confidence": "HIGH" | "MEDIUM" | "LOW",
       "reasoning": "Brief explanation"
     }
   ],
-  "analysisNotes": "Overall observations about the classroom layout"
+  "analysisNotes": "Overall observations about the venue layout"
 }
 
 Consider:
@@ -133,7 +133,7 @@ function parseAgentResponse(content: string): GPTAnalysisResponse {
  */
 async function callPositionEstimationAgent(
   userPrompt: string,
-  imageUrls: Array<{ studentId: string; url: string }>,
+  imageUrls: Array<{ attendeeId: string; url: string }>,
   context: InvocationContext
 ): Promise<string> {
   const agentClient = getAgentClient();
@@ -148,11 +148,11 @@ async function callPositionEstimationAgent(
   context.log(`Analyzing ${imageUrls.length} images`);
 
   const response = await agentClient.runSingleVisionInteraction({
-    userMessage: userPrompt,
+    userPrompt: userPrompt,
     imageUrls: imageUrls.map((img) => img.url),
     agentName: positionAgentName,
     agentVersion: positionAgentVersion,
-    model: process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4.1'
+    model: process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-5.4'
   });
 
   context.log('Position estimation agent-reference run completed');
@@ -160,7 +160,7 @@ async function callPositionEstimationAgent(
 }
 
 /**
- * Estimate seating positions from student photos using a vision-capable Azure OpenAI deployment
+ * Estimate seating positions from attendee photos using a vision-capable Azure OpenAI deployment
  * 
  * This function:
  * 1. Generates read SAS URLs for each image
@@ -181,7 +181,7 @@ export async function estimateSeatingPositions(
   context: InvocationContext
 ): Promise<PositionEstimationOutput> {
   context.log(`Starting position estimation for capture request: ${input.captureRequestId}`);
-  context.log(`Analyzing ${input.imageUrls.length} student photos`);
+  context.log(`Analyzing ${input.imageUrls.length} attendee photos`);
   
   try {
     // ========================================================================
@@ -190,9 +190,9 @@ export async function estimateSeatingPositions(
     
     const imageUrls = input.imageUrls.map(img => {
       const sasUrl = generateReadSasUrl(img.blobUrl);
-      context.log(`Generated read SAS URL for student: ${img.studentId}`);
+      context.log(`Generated read SAS URL for attendee: ${img.attendeeId}`);
       return {
-        studentId: img.studentId,
+        attendeeId: img.attendeeId,
         url: sasUrl
       };
     });
@@ -225,7 +225,7 @@ export async function estimateSeatingPositions(
  * Process a single batch of images (10 or fewer)
  */
 async function processSingleBatch(
-  imageUrls: Array<{ studentId: string; url: string }>,
+  imageUrls: Array<{ attendeeId: string; url: string }>,
   context: InvocationContext
 ): Promise<PositionEstimationOutput> {
   const userPrompt = generateUserPrompt(imageUrls.length, imageUrls);
@@ -255,12 +255,12 @@ async function processSingleBatch(
  * Uses overlapping students as anchor points to align batches accurately
  */
 async function processBatchedAnalysis(
-  imageUrls: Array<{ studentId: string; url: string }>,
+  imageUrls: Array<{ attendeeId: string; url: string }>,
   context: InvocationContext
 ): Promise<PositionEstimationOutput> {
   const batchSize = AGENT_CONFIG.batchSize;
   const overlapSize = AGENT_CONFIG.overlapSize;
-  const batches: Array<Array<{ studentId: string; url: string }>> = [];
+  const batches: Array<Array<{ attendeeId: string; url: string }>> = [];
   
   // Split into overlapping batches
   let startIndex = 0;
@@ -276,7 +276,7 @@ async function processBatchedAnalysis(
   
   context.log(`Split ${imageUrls.length} images into ${batches.length} overlapping batches`);
   batches.forEach((batch, i) => {
-    const studentIds = batch.map(img => img.studentId).join(', ');
+    const studentIds = batch.map(img => img.attendeeId).join(', ');
     context.log(`Batch ${i + 1}: ${batch.length} students (${studentIds})`);
   });
   
@@ -339,7 +339,7 @@ async function processBatchedAnalysis(
  *    - Find overlapping students (students that appear in both batches)
  *    - Calculate the offset by comparing their positions in both batches
  *    - Apply the offset to all non-overlapping students in the new batch
- * 3. Merge all positions, keeping only one entry per student
+ * 3. Merge all positions, keeping only one entry per attendee
  * 
  * Example with 25 students:
  * - Batch 1: Students 1-10 → Positions as-is
@@ -348,7 +348,7 @@ async function processBatchedAnalysis(
  */
 function alignBatchesUsingOverlap(
   batchResults: Array<{ positions: SeatingPosition[]; notes: string }>,
-  batches: Array<Array<{ studentId: string; url: string }>>,
+  batches: Array<Array<{ attendeeId: string; url: string }>>,
   context: InvocationContext
 ): SeatingPosition[] {
   if (batchResults.length === 1) {
@@ -361,7 +361,7 @@ function alignBatchesUsingOverlap(
   
   // Add all positions from first batch
   for (const position of batchResults[0].positions) {
-    alignedPositions.set(position.studentId, position);
+    alignedPositions.set(position.attendeeId, position);
   }
   
   context.log(`Batch 1: Added ${batchResults[0].positions.length} positions as reference frame`);
@@ -369,12 +369,12 @@ function alignBatchesUsingOverlap(
   // Process each subsequent batch
   for (let batchIndex = 1; batchIndex < batchResults.length; batchIndex++) {
     const currentBatch = batchResults[batchIndex];
-    const currentBatchStudents = batches[batchIndex].map(img => img.studentId);
+    const currentBatchStudents = batches[batchIndex].map(img => img.attendeeId);
     const batchNum = batchIndex + 1;
     
     // Find overlapping students (students already in alignedPositions)
     const overlapStudents = currentBatch.positions.filter(pos => 
-      alignedPositions.has(pos.studentId)
+      alignedPositions.has(pos.attendeeId)
     );
     
     if (overlapStudents.length === 0) {
@@ -382,8 +382,8 @@ function alignBatchesUsingOverlap(
       // Fallback: stack vertically
       const maxRow = Math.max(...Array.from(alignedPositions.values()).map(p => p.estimatedRow));
       for (const position of currentBatch.positions) {
-        if (!alignedPositions.has(position.studentId)) {
-          alignedPositions.set(position.studentId, {
+        if (!alignedPositions.has(position.attendeeId)) {
+          alignedPositions.set(position.attendeeId, {
             ...position,
             estimatedRow: position.estimatedRow + maxRow,
             reasoning: `${position.reasoning} [Batch ${batchNum}, fallback stacking]`
@@ -393,7 +393,7 @@ function alignBatchesUsingOverlap(
       continue;
     }
     
-    context.log(`Batch ${batchNum}: Found ${overlapStudents.length} overlapping students: ${overlapStudents.map(s => s.studentId).join(', ')}`);
+    context.log(`Batch ${batchNum}: Found ${overlapStudents.length} overlapping students: ${overlapStudents.map(s => s.attendeeId).join(', ')}`);
     
     // Calculate offset by comparing overlapping students' positions
     let totalRowOffset = 0;
@@ -401,13 +401,13 @@ function alignBatchesUsingOverlap(
     let validComparisons = 0;
     
     for (const overlapStudent of overlapStudents) {
-      const referencePos = alignedPositions.get(overlapStudent.studentId)!;
+      const referencePos = alignedPositions.get(overlapStudent.attendeeId)!;
       const currentPos = overlapStudent;
       
       const rowDiff = referencePos.estimatedRow - currentPos.estimatedRow;
       const colDiff = referencePos.estimatedColumn - currentPos.estimatedColumn;
       
-      context.log(`  ${overlapStudent.studentId}: Reference (${referencePos.estimatedRow},${referencePos.estimatedColumn}) vs Current (${currentPos.estimatedRow},${currentPos.estimatedColumn}) → Offset (${rowDiff},${colDiff})`);
+      context.log(`  ${overlapStudent.attendeeId}: Reference (${referencePos.estimatedRow},${referencePos.estimatedColumn}) vs Current (${currentPos.estimatedRow},${currentPos.estimatedColumn}) → Offset (${rowDiff},${colDiff})`);
       
       totalRowOffset += rowDiff;
       totalColOffset += colDiff;
@@ -423,8 +423,8 @@ function alignBatchesUsingOverlap(
     // Apply offset to all non-overlapping students in this batch
     let addedCount = 0;
     for (const position of currentBatch.positions) {
-      if (!alignedPositions.has(position.studentId)) {
-        alignedPositions.set(position.studentId, {
+      if (!alignedPositions.has(position.attendeeId)) {
+        alignedPositions.set(position.attendeeId, {
           ...position,
           estimatedRow: position.estimatedRow + avgRowOffset,
           estimatedColumn: position.estimatedColumn + avgColOffset,
@@ -446,9 +446,9 @@ function alignBatchesUsingOverlap(
   for (const pos of finalPositions) {
     const key = `${pos.estimatedRow},${pos.estimatedColumn}`;
     if (positionMap.has(key)) {
-      conflicts.push(`Position (${pos.estimatedRow}, ${pos.estimatedColumn}) assigned to both ${positionMap.get(key)} and ${pos.studentId}`);
+      conflicts.push(`Position (${pos.estimatedRow}, ${pos.estimatedColumn}) assigned to both ${positionMap.get(key)} and ${pos.attendeeId}`);
     } else {
-      positionMap.set(key, pos.studentId);
+      positionMap.set(key, pos.attendeeId);
     }
   }
   

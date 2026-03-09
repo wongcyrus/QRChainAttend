@@ -18,7 +18,7 @@ import { InvocationContext } from '@azure/functions';
 process.env.AzureWebJobsStorage = 'AccountName=devstoreaccount1;AccountKey=test;DefaultEndpointsProtocol=http;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;';
 process.env.AZURE_OPENAI_ENDPOINT = 'https://test.openai.azure.com/';
 process.env.AZURE_OPENAI_KEY = 'test-key';
-process.env.AZURE_OPENAI_DEPLOYMENT = 'gpt-5.2-chat';
+process.env.AZURE_OPENAI_DEPLOYMENT = 'gpt-5.4';
 
 // Mock dependencies
 jest.mock('../../utils/captureStorage');
@@ -102,14 +102,14 @@ describe('Timer Cancellation Integration Test', () => {
     const mockEstimationOutput = {
       positions: [
         {
-          studentId: 'student1@test.com',
+          attendeeId: 'student1@test.com',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
           reasoning: 'Test'
         },
         {
-          studentId: 'student2@test.com',
+          attendeeId: 'student2@test.com',
           estimatedRow: 1,
           estimatedColumn: 2,
           confidence: 'HIGH',
@@ -290,7 +290,7 @@ describe('Timer Cancellation Integration Test', () => {
 
     const mockEstimationOutput = {
       positions: [
-        { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
+        { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
       ],
       analysisNotes: 'Short timer test'
     };
@@ -351,8 +351,8 @@ describe('Timer Cancellation Integration Test', () => {
 
     const mockEstimationOutput = {
       positions: [
-        { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
-        { studentId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' }
+        { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
+        { attendeeId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' }
       ],
       analysisNotes: 'Race condition test'
     };
@@ -422,7 +422,7 @@ describe('Timer Cancellation Integration Test', () => {
 
     const mockEstimationOutput = {
       positions: [
-        { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
+        { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
       ],
       analysisNotes: 'Timer wins test'
     };

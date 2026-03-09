@@ -16,7 +16,7 @@ import { InvocationContext } from '@azure/functions';
 export interface ErrorLogContext {
   sessionId?: string;
   captureRequestId?: string;
-  studentId?: string;
+  attendeeId?: string;
   errorType?: string;
   errorCode?: string;
   requestHeaders?: Record<string, string>;
@@ -44,7 +44,7 @@ export function logError(
     stackTrace: error?.stack,
     sessionId: logContext?.sessionId,
     captureRequestId: logContext?.captureRequestId,
-    studentId: logContext?.studentId,
+    attendeeId: logContext?.attendeeId,
     requestContext: {
       headers: logContext?.requestHeaders,
       body: logContext?.requestBody
@@ -70,7 +70,7 @@ export function logWarning(
     message,
     sessionId: logContext?.sessionId,
     captureRequestId: logContext?.captureRequestId,
-    studentId: logContext?.studentId
+    attendeeId: logContext?.attendeeId
   };
 
   context.warn(JSON.stringify(logEntry, null, 2));
@@ -92,7 +92,7 @@ export function logInfo(
     message,
     sessionId: logContext?.sessionId,
     captureRequestId: logContext?.captureRequestId,
-    studentId: logContext?.studentId
+    attendeeId: logContext?.attendeeId
   };
 
   context.log(JSON.stringify(logEntry, null, 2));
@@ -114,7 +114,7 @@ export function logDebug(
     message,
     sessionId: logContext?.sessionId,
     captureRequestId: logContext?.captureRequestId,
-    studentId: logContext?.studentId
+    attendeeId: logContext?.attendeeId
   };
 
   context.log(JSON.stringify(logEntry, null, 2));

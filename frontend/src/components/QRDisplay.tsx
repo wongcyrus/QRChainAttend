@@ -204,7 +204,7 @@ export function QRDisplay({
         {showHolderInfo && 'holderId' in qrData && (
           <div className="holder-info">
             <p className="holder-label">You are the current holder</p>
-            <p className="holder-instruction">Show this QR code to another student to scan</p>
+            <p className="holder-instruction">Show this QR code to another attendee to scan</p>
           </div>
         )}
 

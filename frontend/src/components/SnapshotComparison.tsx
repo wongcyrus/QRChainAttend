@@ -19,8 +19,8 @@ export function SnapshotComparison({
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '📊', count: null },
-    { id: 'new', label: 'New Students', icon: '✨', count: comparison.differences.newStudents.length },
-    { id: 'absent', label: 'Absent Students', icon: '👤', count: comparison.differences.absentStudents.length },
+    { id: 'new', label: 'New Students', icon: '✨', count: comparison.differences.newAttendees.length },
+    { id: 'absent', label: 'Absent Students', icon: '👤', count: comparison.differences.absentAttendees.length },
     { id: 'duplicates', label: 'Duplicate Scans', icon: '🔄', count: comparison.differences.duplicateScans.length }
   ];
 
@@ -45,14 +45,14 @@ export function SnapshotComparison({
           snapshotId={comparison.snapshot1.snapshotId}
           capturedAt={comparison.snapshot1.capturedAt}
           totalScans={comparison.snapshot1.totalScans}
-          studentsCount={comparison.snapshot1.studentsAppeared.length}
+          studentsCount={comparison.snapshot1.attendeesAppeared.length}
         />
         <SnapshotInfoCard
           label="Snapshot 2"
           snapshotId={comparison.snapshot2.snapshotId}
           capturedAt={comparison.snapshot2.capturedAt}
           totalScans={comparison.snapshot2.totalScans}
-          studentsCount={comparison.snapshot2.studentsAppeared.length}
+          studentsCount={comparison.snapshot2.attendeesAppeared.length}
         />
         <div style={{
           padding: '1.25rem',
@@ -67,7 +67,7 @@ export function SnapshotComparison({
             {Math.round(comparison.differences.timeDifference / 60)} min
           </div>
           <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.5rem' }}>
-            Attendance Growth: {comparison.differences.newStudents.length - comparison.differences.absentStudents.length > 0 ? '+' : ''}{comparison.differences.newStudents.length - comparison.differences.absentStudents.length}
+            Attendance Growth: {comparison.differences.newAttendees.length - comparison.differences.absentAttendees.length > 0 ? '+' : ''}{comparison.differences.newAttendees.length - comparison.differences.absentAttendees.length}
           </div>
         </div>
       </div>
@@ -125,7 +125,7 @@ export function SnapshotComparison({
         )}
         {selectedTab === 'new' && (
           <StudentListTab
-            students={comparison.differences.newStudents}
+            students={comparison.differences.newAttendees}
             title="New Students"
             icon="✨"
             emptyMessage="No new students"
@@ -134,7 +134,7 @@ export function SnapshotComparison({
         )}
         {selectedTab === 'absent' && (
           <StudentListTab
-            students={comparison.differences.absentStudents}
+            students={comparison.differences.absentAttendees}
             title="Absent Students"
             icon="👤"
             emptyMessage="No absent students"
@@ -233,8 +233,8 @@ interface OverviewTabProps {
 }
 
 function OverviewTab({ comparison }: OverviewTabProps) {
-  const newCount = comparison.differences.newStudents.length;
-  const absentCount = comparison.differences.absentStudents.length;
+  const newCount = comparison.differences.newAttendees.length;
+  const absentCount = comparison.differences.absentAttendees.length;
   const dupCount = comparison.differences.duplicateScans.length;
 
   return (
@@ -283,9 +283,9 @@ function OverviewTab({ comparison }: OverviewTabProps) {
         color: '#718096'
       }}>
         <p style={{ margin: '0.5rem 0' }}>
-          <strong>Summary:</strong> Between these two snapshots, {newCount} new student(s) appeared in attendance, 
-          {absentCount > 0 ? ` ${absentCount} student(s) were absent, ` : ' no students were absent, '}
-          and {dupCount} student(s) appeared in both snapshots.
+          <strong>Summary:</strong> Between these two snapshots, {newCount} new attendee(s) appeared in attendance, 
+          {absentCount > 0 ? ` ${absentCount} attendee(s) were absent, ` : ' no students were absent, '}
+          and {dupCount} attendee(s) appeared in both snapshots.
         </p>
       </div>
     </div>
@@ -360,9 +360,9 @@ function StudentListTab({
         gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
         gap: '0.75rem'
       }}>
-        {students.map((student) => (
+        {students.map((attendee) => (
           <div
-            key={student}
+            key={attendee}
             style={{
               padding: '0.75rem 1rem',
               backgroundColor: `${color}15`,
@@ -381,7 +381,7 @@ function StudentListTab({
               backgroundColor: color,
               borderRadius: '50%'
             }}></span>
-            {student}
+            {attendee}
           </div>
         ))}
       </div>

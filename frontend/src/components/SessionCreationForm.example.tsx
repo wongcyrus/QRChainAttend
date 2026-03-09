@@ -17,7 +17,7 @@ import { SessionCreationForm } from './SessionCreationForm';
  */
 export function BasicExample() {
   return (
-    <div className="teacher-dashboard">
+    <div className="organizer-dashboard">
       <h1>Create New Session</h1>
       <SessionCreationForm />
     </div>
@@ -174,7 +174,7 @@ export function WithDefaultsExample() {
         <ul>
           <li>Late Cutoff: 15 minutes</li>
           <li>Exit Window: 10 minutes</li>
-          <li>Enable geofence for classroom location</li>
+          <li>Enable geofence for venue location</li>
         </ul>
       </div>
     </div>
@@ -304,7 +304,7 @@ export function WithLoadingExample() {
   const [isReady, setIsReady] = React.useState(false);
 
   React.useEffect(() => {
-    // Simulate loading teacher data or permissions
+    // Simulate loading organizer data or permissions
     setTimeout(() => {
       setIsReady(true);
     }, 1000);

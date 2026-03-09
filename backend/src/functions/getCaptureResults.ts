@@ -4,7 +4,7 @@
  * GET /api/sessions/{sessionId}/capture/{captureRequestId}/results
  * 
  * This function allows teachers to retrieve capture results:
- * 1. Validates teacher authentication and session ownership
+ * 1. Validates organizer authentication and session ownership
  * 2. Retrieves capture request from Table Storage
  * 3. Returns results based on status:
  *    - ACTIVE: Returns 202 with progress (still capturing)
@@ -16,7 +16,7 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import {
   GetCaptureResultsResponse,
@@ -45,13 +45,12 @@ export async function getCaptureResults(
 
   try {
     // ========================================================================
-    // Step 1: Validate teacher authentication
+    // Step 1: Validate organizer authentication
     // ========================================================================
     
-    const principalHeader = request.headers.get('x-ms-client-principal') || 
-                           request.headers.get('x-client-principal');
+    const principal = parseAuthFromRequest(request);
     
-    if (!principalHeader) {
+    if (!principal) {
       return {
         status: 401,
         jsonBody: {
@@ -62,25 +61,22 @@ export async function getCaptureResults(
           }
         }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
+    }    
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer') && !hasRole(principal, 'organizer')) {
       return {
         status: 403,
         jsonBody: {
           error: {
             code: CaptureErrorCode.FORBIDDEN,
-            message: 'Teacher role required',
+            message: 'Organizer role required',
             timestamp: Date.now()
           }
         }
       };
     }
 
-    const teacherId = getUserId(principal);
+    const organizerId = getUserId(principal);
     const sessionId = request.params.sessionId;
     const captureRequestId = request.params.captureRequestId;
     
@@ -110,10 +106,10 @@ export async function getCaptureResults(
       };
     }
 
-    context.log(`Get results - Session: ${sessionId}, Capture: ${captureRequestId}, Teacher: ${teacherId}`);
+    context.log(`Get results - Session: ${sessionId}, Capture: ${captureRequestId}, Organizer: ${organizerId}`);
 
     // ========================================================================
-    // Step 2: Verify session exists and teacher owns it
+    // Step 2: Verify session exists and organizer owns it
     // ========================================================================
     
     const sessionsTable = getTableClient(TableNames.SESSIONS);
@@ -138,7 +134,7 @@ export async function getCaptureResults(
     }
 
     // Verify ownership
-    if (session.teacherId !== teacherId) {
+    if (session.organizerId !== organizerId) {
       return {
         status: 403,
         jsonBody: {
@@ -255,13 +251,13 @@ export async function getCaptureResults(
           });
           
           for await (const upload of uploads) {
-            const studentId = upload.rowKey as string;
+            const attendeeId = upload.rowKey as string;
             const blobUrl = upload.blobUrl as string;
-            if (studentId && blobUrl) {
+            if (attendeeId && blobUrl) {
               // Generate fresh read SAS URL with 1-year expiry for long-term viewing
               const { generateReadSasUrl } = await import('../utils/blobStorage');
               const sasUrl = generateReadSasUrl(blobUrl);
-              imageUrls[studentId] = sasUrl;
+              imageUrls[attendeeId] = sasUrl;
             }
           }
           

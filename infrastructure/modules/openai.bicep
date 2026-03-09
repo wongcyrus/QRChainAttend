@@ -1,6 +1,6 @@
 // Azure OpenAI Service (Optional)
 // Requirements: 19.3
-// Updated: Support for Live Quiz feature with GPT-4 and GPT-4 Vision
+// Updated: GPT-5.4-only deployment
 // API Version: 2024-10-01 (updated from 2023-05-01 for better compatibility)
 // Kind: AIServices (updated from OpenAI for unified AI services)
 
@@ -10,50 +10,20 @@ param openAIName string
 @description('Location for Azure OpenAI')
 param location string
 
-@description('GPT-4 model deployment name')
-param gpt4DeploymentName string = 'gpt-4'
+@description('GPT-5.4 model deployment name')
+param gpt54DeploymentName string = 'gpt-5.4'
 
-@description('GPT-4 model name')
-param gpt4ModelName string = 'gpt-4'
+@description('GPT-5.4 model name')
+param gpt54ModelName string = 'gpt-5.4'
 
-@description('GPT-4 model version')
-param gpt4ModelVersion string = '0613'
+@description('GPT-5.4 model version')
+param gpt54ModelVersion string = '2026-03-05'
 
-@description('GPT-4 Vision model deployment name')
-param gpt4VisionDeploymentName string = 'gpt-4-vision'
+@description('Deploy GPT-5.4 model (latest model with highest capabilities)')
+param deployGpt54Model bool = true
 
-@description('GPT-4 Vision model name')
-param gpt4VisionModelName string = 'gpt-4'
-
-@description('GPT-4 Vision model version')
-param gpt4VisionModelVersion string = 'vision-preview'
-
-@description('Deploy GPT-4 Vision model (required for Live Quiz feature)')
-param deployVisionModel bool = true
-
-@description('Deploy GPT-4 base model')
-param deployGpt4Model bool = true
-
-@description('GPT-5.2-chat model deployment name')
-param gpt52ChatDeploymentName string = 'gpt-5.2-chat'
-
-@description('GPT-5.2-chat model name')
-param gpt52ChatModelName string = 'gpt-5.2-chat'
-
-@description('GPT-5.2-chat model version')
-param gpt52ChatModelVersion string = '2026-02-10'
-
-@description('Deploy GPT-5.2-chat model (preview - most advanced model, supported by agents)')
-param deployGpt52ChatModel bool = true
-
-@description('GPT-4 deployment capacity (TPM in thousands)')
-param gpt4Capacity int = 10
-
-@description('GPT-4 Vision deployment capacity (TPM in thousands)')
-param gpt4VisionCapacity int = 10
-
-@description('GPT-5.2-chat deployment capacity (TPM in thousands)')
-param gpt52ChatCapacity int = 250
+@description('GPT-5.4 deployment capacity (TPM in thousands)')
+param gpt54Capacity int = 200
 
 @description('Default model for agents (format: "model, version" e.g. "gpt-4o, 2024-11-20")')
 param defaultAgentModel string = 'gpt-4o, 2024-11-20' // Recommended for eastus2, no registration required
@@ -107,71 +77,23 @@ resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-0
 }
 
 // ============================================================================
-// GPT-4 DEPLOYMENT (for question generation and answer evaluation)
+// GPT-5.4 DEPLOYMENT (latest model with highest capabilities)
 // ============================================================================
 
-resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = if (deployGpt4Model) {
+resource gpt54Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = if (deployGpt54Model) {
   parent: openAI
-  name: gpt4DeploymentName
-  sku: {
-    name: 'Standard'
-    capacity: gpt4Capacity
-  }
-  properties: {
-    model: {
-      format: 'OpenAI'
-      name: gpt4ModelName
-      version: gpt4ModelVersion
-    }
-  }
-}
-
-// ============================================================================
-// GPT-4 VISION DEPLOYMENT (for slide analysis)
-// ============================================================================
-
-resource gpt4VisionDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = if (deployVisionModel) {
-  parent: openAI
-  name: gpt4VisionDeploymentName
-  sku: {
-    name: 'Standard'
-    capacity: gpt4VisionCapacity
-  }
-  properties: {
-    model: {
-      format: 'OpenAI'
-      name: gpt4VisionModelName
-      version: gpt4VisionModelVersion
-    }
-  }
-  dependsOn: deployGpt4Model ? [
-    gpt4Deployment  // Deploy sequentially to avoid conflicts
-  ] : []
-}
-
-// ============================================================================
-// GPT-5.2-CHAT DEPLOYMENT (preview - most advanced model)
-// ============================================================================
-
-resource gpt52ChatDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = if (deployGpt52ChatModel) {
-  parent: openAI
-  name: gpt52ChatDeploymentName
+  name: gpt54DeploymentName
   sku: {
     name: 'GlobalStandard'
-    capacity: gpt52ChatCapacity
+    capacity: gpt54Capacity
   }
   properties: {
     model: {
       format: 'OpenAI'
-      name: gpt52ChatModelName
-      version: gpt52ChatModelVersion
+      name: gpt54ModelName
+      version: gpt54ModelVersion
     }
   }
-  dependsOn: deployVisionModel ? [
-    gpt4VisionDeployment
-  ] : (deployGpt4Model ? [
-    gpt4Deployment
-  ] : [])
 }
 
 // ============================================================================
@@ -243,14 +165,8 @@ output endpoint string = openAI.properties.endpoint
 @description('Azure OpenAI primary key - Not available when disableLocalAuth is true')
 output primaryKey string = ''  // Keyless auth - use managed identity instead
 
-@description('GPT-4 deployment name')
-output gpt4DeploymentName string = deployGpt4Model ? gpt4Deployment.name : ''
-
-@description('GPT-4 Vision deployment name (if deployed)')
-output gpt4VisionDeploymentName string = deployVisionModel ? gpt4VisionDeployment.name : ''
-
-@description('GPT-5.2-chat deployment name (if deployed)')
-output gpt52ChatDeploymentName string = deployGpt52ChatModel ? gpt52ChatDeployment.name : ''
+@description('GPT-5.4 deployment name (if deployed)')
+output gpt54DeploymentName string = deployGpt54Model ? gpt54Deployment.name : ''
 
 @description('Agent instructions for quiz question generator')
 output agentInstructions string = agentInstructions

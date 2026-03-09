@@ -20,7 +20,7 @@ describe('SessionEndAndExportControls', () => {
   const mockFinalAttendance = [
     {
       sessionId: mockSessionId,
-      studentId: 'student-1',
+      attendeeId: 'attendee-1',
       entryStatus: 'PRESENT_ENTRY' as const,
       entryAt: 1700000000,
       exitVerified: true,
@@ -29,7 +29,7 @@ describe('SessionEndAndExportControls', () => {
     },
     {
       sessionId: mockSessionId,
-      studentId: 'student-2',
+      attendeeId: 'attendee-2',
       entryStatus: 'LATE_ENTRY' as const,
       entryAt: 1700001800,
       exitVerified: true,
@@ -38,7 +38,7 @@ describe('SessionEndAndExportControls', () => {
     },
     {
       sessionId: mockSessionId,
-      studentId: 'student-3',
+      attendeeId: 'attendee-3',
       entryStatus: 'PRESENT_ENTRY' as const,
       entryAt: 1700000000,
       exitVerified: false,
@@ -46,7 +46,7 @@ describe('SessionEndAndExportControls', () => {
     },
     {
       sessionId: mockSessionId,
-      studentId: 'student-4',
+      attendeeId: 'attendee-4',
       entryStatus: 'PRESENT_ENTRY' as const,
       entryAt: 1700000000,
       exitVerified: true,
@@ -56,7 +56,7 @@ describe('SessionEndAndExportControls', () => {
     },
     {
       sessionId: mockSessionId,
-      studentId: 'student-5',
+      attendeeId: 'attendee-5',
       exitVerified: false,
       finalStatus: 'ABSENT' as const,
     },
@@ -178,7 +178,7 @@ describe('SessionEndAndExportControls', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Session ended successfully/)).toBeInTheDocument();
-        expect(screen.getByText(/5 student\(s\)/)).toBeInTheDocument();
+        expect(screen.getByText(/5 attendee\(s\)/)).toBeInTheDocument();
       });
     });
 
@@ -382,7 +382,7 @@ describe('SessionEndAndExportControls', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Attendance data exported successfully/)).toBeInTheDocument();
-        expect(screen.getByText(/5 student\(s\)/)).toBeInTheDocument();
+        expect(screen.getByText(/5 attendee\(s\)/)).toBeInTheDocument();
       });
     });
 
@@ -461,7 +461,7 @@ describe('SessionEndAndExportControls', () => {
       });
 
       // Verify all required fields are present (Requirement 14.2)
-      expect(exportedData[0]).toHaveProperty('studentId');
+      expect(exportedData[0]).toHaveProperty('attendeeId');
       expect(exportedData[0]).toHaveProperty('entryStatus');
       expect(exportedData[0]).toHaveProperty('entryAt');
       expect(exportedData[0]).toHaveProperty('exitVerified');
@@ -538,7 +538,7 @@ describe('SessionEndAndExportControls', () => {
       });
 
       // Check table headers
-      expect(screen.getByText('Student ID')).toBeInTheDocument();
+      expect(screen.getByText('Attendee ID')).toBeInTheDocument();
       expect(screen.getByText('Final Status')).toBeInTheDocument();
       expect(screen.getByText('Entry Status')).toBeInTheDocument();
       expect(screen.getByText('Entry Time')).toBeInTheDocument();
@@ -547,7 +547,7 @@ describe('SessionEndAndExportControls', () => {
       expect(screen.getByText('Early Leave Time')).toBeInTheDocument();
     });
 
-    it('should display all student records in table', async () => {
+    it('should display all attendee records in table', async () => {
       render(
         <SessionEndAndExportControls
           sessionId={mockSessionId}
@@ -559,11 +559,11 @@ describe('SessionEndAndExportControls', () => {
       fireEvent.click(endButton);
 
       await waitFor(() => {
-        expect(screen.getByText('student-1')).toBeInTheDocument();
-        expect(screen.getByText('student-2')).toBeInTheDocument();
-        expect(screen.getByText('student-3')).toBeInTheDocument();
-        expect(screen.getByText('student-4')).toBeInTheDocument();
-        expect(screen.getByText('student-5')).toBeInTheDocument();
+        expect(screen.getByText('attendee-1')).toBeInTheDocument();
+        expect(screen.getByText('attendee-2')).toBeInTheDocument();
+        expect(screen.getByText('attendee-3')).toBeInTheDocument();
+        expect(screen.getByText('attendee-4')).toBeInTheDocument();
+        expect(screen.getByText('attendee-5')).toBeInTheDocument();
       });
     });
 
@@ -703,7 +703,7 @@ describe('SessionEndAndExportControls', () => {
       fireEvent.click(endButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/0 student\(s\)/)).toBeInTheDocument();
+        expect(screen.getByText(/0 attendee\(s\)/)).toBeInTheDocument();
       });
     });
 

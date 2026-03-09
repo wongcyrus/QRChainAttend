@@ -24,18 +24,8 @@ param signalRConnectionString string
 @secure()
 param appInsightsConnectionString string
 
-@description('Azure OpenAI endpoint (optional)')
-param azureOpenAIEndpoint string = ''
-
-@description('Azure OpenAI key (optional)')
-@secure()
-param azureOpenAIKey string = ''
-
-@description('Azure OpenAI GPT-4 deployment name (optional)')
-param azureOpenAIDeployment string = ''
-
-@description('Azure OpenAI vision deployment name')
-param azureOpenAIVisionDeployment string = 'gpt-4.1'
+@description('Azure AI Foundry project endpoint for Agent Service')
+param azureAIProjectEndpoint string = ''
 
 @description('OTP SMTP host for custom email OTP delivery')
 param otpSmtpHost string = 'smtp.gmail.com'
@@ -65,6 +55,18 @@ param otpEmailSubject string = 'Your verification code'
 
 @description('OTP app name used in email body')
 param otpAppName string = 'ProvePresent'
+
+@description('Allowed email domains for authentication (comma-separated). Leave empty for no restriction.')
+param allowedEmailDomains string = ''
+
+@description('Organization name for display in UI')
+param organizationName string = ''
+
+@description('Email domain for automatic organizer role assignment (e.g., vtc.edu.hk)')
+param organizerDomain string = 'vtc.edu.hk'
+
+@description('Email domain restriction for attendee role (e.g., stu.vtc.edu.hk)')
+param attendeeDomain string = ''
 
 @description('Frontend URLs for CORS configuration (fallback only - Static Web App uses linked backend)')
 param frontendUrls array = []
@@ -196,37 +198,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           value: ''
         }
         {
-          name: 'AZURE_OPENAI_ENDPOINT'
-          value: azureOpenAIEndpoint
-        }
-        {
-          name: 'AZURE_OPENAI_KEY'
-          value: azureOpenAIKey
-        }
-        {
-          name: 'AZURE_OPENAI_DEPLOYMENT'
-          value: azureOpenAIDeployment
-        }
-        {
-          name: 'AZURE_OPENAI_VISION_DEPLOYMENT'
-          value: azureOpenAIVisionDeployment
-        }
-        {
-          name: 'AZURE_OPENAI_API_VERSION'
-          value: '2025-04-01-preview'
-        }
-        // Legacy AOAI settings (kept for backward compatibility)
-        {
-          name: 'AOAI_ENDPOINT'
-          value: azureOpenAIEndpoint
-        }
-        {
-          name: 'AOAI_KEY'
-          value: azureOpenAIKey
-        }
-        {
-          name: 'AOAI_DEPLOYMENT'
-          value: azureOpenAIDeployment
+          name: 'AZURE_AI_PROJECT_ENDPOINT'
+          value: azureAIProjectEndpoint
         }
         {
           name: 'QR_ENCRYPTION_KEY'
@@ -267,6 +240,22 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'OTP_APP_NAME'
           value: otpAppName
+        }
+        {
+          name: 'ALLOWED_EMAIL_DOMAINS'
+          value: allowedEmailDomains
+        }
+        {
+          name: 'ORGANIZATION_NAME'
+          value: organizationName
+        }
+        {
+          name: 'ORGANIZER_DOMAIN'
+          value: organizerDomain
+        }
+        {
+          name: 'ATTENDEE_DOMAIN'
+          value: attendeeDomain
         }
       ]
       cors: {

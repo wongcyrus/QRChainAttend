@@ -162,7 +162,7 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
           </span>
           <input
             type="text"
-            placeholder="student@stu.vtc.edu.hk"
+            placeholder="attendee@stu.vtc.edu.hk"
             value={manualHolderInput[chain.chainId] || ''}
             onChange={(e) => setManualHolderInput({ ...manualHolderInput, [chain.chainId]: e.target.value })}
             disabled={settingHolder === chain.chainId}
@@ -269,14 +269,14 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
   };
 
   const handleSetHolder = async (chainId: string) => {
-    const studentId = manualHolderInput[chainId]?.trim();
+    const attendeeId = manualHolderInput[chainId]?.trim();
     
-    if (!studentId) {
-      onError?.('Please enter a student ID');
+    if (!attendeeId) {
+      onError?.('Please enter a attendee ID');
       return;
     }
 
-    if (!confirm(`Set ${studentId} as the holder of this chain?`)) {
+    if (!confirm(`Set ${attendeeId} as the holder of this chain?`)) {
       return;
     }
 
@@ -292,7 +292,7 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
         { credentials: 'include', 
           method: 'POST', 
           headers,
-          body: JSON.stringify({ studentId })
+          body: JSON.stringify({ attendeeId })
         }
       );
 
@@ -369,12 +369,12 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
         </p>
         <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.875rem', color: '#0d47a1', lineHeight: '1.6' }}>
           <li><strong>Seed Entry Chains:</strong> Click to start attendance. Random students become "holders" and see a QR code on their phone.</li>
-          <li><strong>Students scan each other:</strong> Holders show their QR code to another student, who scans it with their phone camera. The chain passes to the scanner.</li>
-          <li><strong>Chain continues:</strong> Each scan marks the previous holder as present and passes the chain to the next student.</li>
-          <li><strong>Last student problem:</strong> When the last student has the chain (no one left to pass to), you have 2 options:
+          <li><strong>Students scan each other:</strong> Holders show their QR code to another attendee, who scans it with their phone camera. The chain passes to the scanner.</li>
+          <li><strong>Chain continues:</strong> Each scan marks the previous holder as present and passes the chain to the next attendee.</li>
+          <li><strong>Last attendee problem:</strong> When the last attendee has the chain (no one left to pass to), you have 2 options:
             <ul style={{ marginTop: '0.25rem' }}>
-              <li><strong>Option 1 - Manually assign:</strong> If chain shows "Holder: None", enter the last student's email and click "Assign" to give them the holder status.</li>
-              <li><strong>Option 2 - Close chain:</strong> If chain already has a holder, click "🔒 Close & Mark Present" to end the chain and mark that student as present.</li>
+              <li><strong>Option 1 - Manually assign:</strong> If chain shows "Holder: None", enter the last attendee's email and click "Assign" to give them the holder status.</li>
+              <li><strong>Option 2 - Close chain:</strong> If chain already has a holder, click "🔒 Close & Mark Present" to end the chain and mark that attendee as present.</li>
             </ul>
           </li>
         </ul>
@@ -684,7 +684,7 @@ export const ChainManagementControls: React.FC<ChainManagementControlsProps> = (
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <input
                         type="text"
-                        placeholder="Student ID"
+                        placeholder="Attendee ID"
                         value={manualHolderInput[chain.chainId] || ''}
                         onChange={(e) => setManualHolderInput({ ...manualHolderInput, [chain.chainId]: e.target.value })}
                         disabled={settingHolder === chain.chainId}

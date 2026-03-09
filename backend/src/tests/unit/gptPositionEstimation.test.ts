@@ -37,7 +37,7 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
     // Mock environment variables
     process.env.AZURE_OPENAI_ENDPOINT = 'https://test.openai.azure.com';
     process.env.AZURE_OPENAI_KEY = 'test-key';
-    process.env.AZURE_OPENAI_VISION_DEPLOYMENT = 'gpt-5.2-chat';
+    process.env.AZURE_OPENAI_VISION_DEPLOYMENT = 'gpt-5.4';
   });
 
   describe('Single Batch (≤10 students)', () => {
@@ -45,8 +45,8 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
       const input: PositionEstimationInput = {
         captureRequestId: 'test-capture-1',
         imageUrls: Array.from({ length: 10 }, (_, i) => ({
-          studentId: `student${i + 1}@test.com`,
-          blobUrl: `https://storage.blob.core.windows.net/images/student${i + 1}.jpg`
+          attendeeId: `attendee${i + 1}@test.com`,
+          blobUrl: `https://storage.blob.core.windows.net/images/attendee${i + 1}.jpg`
         }))
       };
 
@@ -58,11 +58,11 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: Array.from({ length: 10 }, (_, i) => ({
-                  studentId: `student${i + 1}@test.com`,
+                  attendeeId: `attendee${i + 1}@test.com`,
                   estimatedRow: Math.floor(i / 3) + 1,
                   estimatedColumn: (i % 3) + 1,
                   confidence: 'HIGH',
-                  reasoning: `Student ${i + 1} analysis`
+                  reasoning: `Attendee ${i + 1} analysis`
                 })),
                 analysisNotes: 'Single batch analysis'
               })
@@ -85,8 +85,8 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
       const input: PositionEstimationInput = {
         captureRequestId: 'test-capture-2',
         imageUrls: Array.from({ length: 25 }, (_, i) => ({
-          studentId: `student${i + 1}@test.com`,
-          blobUrl: `https://storage.blob.core.windows.net/images/student${i + 1}.jpg`
+          attendeeId: `attendee${i + 1}@test.com`,
+          blobUrl: `https://storage.blob.core.windows.net/images/attendee${i + 1}.jpg`
         }))
       };
 
@@ -99,16 +99,16 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: [
-                  { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Front left' },
-                  { studentId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Front center' },
-                  { studentId: 'student3@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Front right' },
-                  { studentId: 'student4@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Second row left' },
-                  { studentId: 'student5@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Second row center' },
-                  { studentId: 'student6@test.com', estimatedRow: 2, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Second row right' },
-                  { studentId: 'student7@test.com', estimatedRow: 3, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Third row left' },
-                  { studentId: 'student8@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Third row center' },
-                  { studentId: 'student9@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Third row right' },
-                  { studentId: 'student10@test.com', estimatedRow: 4, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Fourth row left' }
+                  { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Front left' },
+                  { attendeeId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Front center' },
+                  { attendeeId: 'student3@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Front right' },
+                  { attendeeId: 'student4@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Second row left' },
+                  { attendeeId: 'student5@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Second row center' },
+                  { attendeeId: 'student6@test.com', estimatedRow: 2, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Second row right' },
+                  { attendeeId: 'student7@test.com', estimatedRow: 3, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Third row left' },
+                  { attendeeId: 'student8@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Third row center' },
+                  { attendeeId: 'student9@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Third row right' },
+                  { attendeeId: 'student10@test.com', estimatedRow: 4, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Fourth row left' }
                 ],
                 analysisNotes: 'Batch 1 analysis'
               })
@@ -126,16 +126,16 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: [
-                  { studentId: 'student8@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Front center (overlap)' },
-                  { studentId: 'student9@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Front right (overlap)' },
-                  { studentId: 'student10@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Second row left (overlap)' },
-                  { studentId: 'student11@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Second row center' },
-                  { studentId: 'student12@test.com', estimatedRow: 2, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Second row right' },
-                  { studentId: 'student13@test.com', estimatedRow: 3, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Third row left' },
-                  { studentId: 'student14@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Third row center' },
-                  { studentId: 'student15@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Third row right' },
-                  { studentId: 'student16@test.com', estimatedRow: 4, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Fourth row left' },
-                  { studentId: 'student17@test.com', estimatedRow: 4, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Fourth row center' }
+                  { attendeeId: 'student8@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Front center (overlap)' },
+                  { attendeeId: 'student9@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Front right (overlap)' },
+                  { attendeeId: 'student10@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Second row left (overlap)' },
+                  { attendeeId: 'student11@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Second row center' },
+                  { attendeeId: 'student12@test.com', estimatedRow: 2, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Second row right' },
+                  { attendeeId: 'student13@test.com', estimatedRow: 3, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Third row left' },
+                  { attendeeId: 'student14@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Third row center' },
+                  { attendeeId: 'student15@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Third row right' },
+                  { attendeeId: 'student16@test.com', estimatedRow: 4, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Fourth row left' },
+                  { attendeeId: 'student17@test.com', estimatedRow: 4, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Fourth row center' }
                 ],
                 analysisNotes: 'Batch 2 analysis'
               })
@@ -153,16 +153,16 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: [
-                  { studentId: 'student15@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Front right (overlap)' },
-                  { studentId: 'student16@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Second row left (overlap)' },
-                  { studentId: 'student17@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Second row center (overlap)' },
-                  { studentId: 'student18@test.com', estimatedRow: 2, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Second row right' },
-                  { studentId: 'student19@test.com', estimatedRow: 3, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Third row left' },
-                  { studentId: 'student20@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Third row center' },
-                  { studentId: 'student21@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Third row right' },
-                  { studentId: 'student22@test.com', estimatedRow: 4, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Fourth row left' },
-                  { studentId: 'student23@test.com', estimatedRow: 4, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Fourth row center' },
-                  { studentId: 'student24@test.com', estimatedRow: 4, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Fourth row right' }
+                  { attendeeId: 'student15@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Front right (overlap)' },
+                  { attendeeId: 'student16@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Second row left (overlap)' },
+                  { attendeeId: 'student17@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Second row center (overlap)' },
+                  { attendeeId: 'student18@test.com', estimatedRow: 2, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Second row right' },
+                  { attendeeId: 'student19@test.com', estimatedRow: 3, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Third row left' },
+                  { attendeeId: 'student20@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Third row center' },
+                  { attendeeId: 'student21@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Third row right' },
+                  { attendeeId: 'student22@test.com', estimatedRow: 4, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Fourth row left' },
+                  { attendeeId: 'student23@test.com', estimatedRow: 4, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Fourth row center' },
+                  { attendeeId: 'student24@test.com', estimatedRow: 4, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Fourth row right' }
                 ],
                 analysisNotes: 'Batch 3 analysis'
               })
@@ -180,10 +180,10 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: [
-                  { studentId: 'student22@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Front left (overlap)' },
-                  { studentId: 'student23@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Front center (overlap)' },
-                  { studentId: 'student24@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Front right (overlap)' },
-                  { studentId: 'student25@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Second row left' }
+                  { attendeeId: 'student22@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Front left (overlap)' },
+                  { attendeeId: 'student23@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Front center (overlap)' },
+                  { attendeeId: 'student24@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Front right (overlap)' },
+                  { attendeeId: 'student25@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Second row left' }
                 ],
                 analysisNotes: 'Batch 4 analysis'
               })
@@ -209,7 +209,7 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
       expect(mockContext.log).toHaveBeenCalledWith(expect.stringContaining('Found 3 overlapping students'));
 
       // Check that all students have unique positions (no duplicates)
-      const studentIds = result.positions.map(p => p.studentId);
+      const studentIds = result.positions.map(p => p.attendeeId);
       const uniqueStudentIds = new Set(studentIds);
       expect(uniqueStudentIds.size).toBe(25);
 
@@ -223,8 +223,8 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
       const input: PositionEstimationInput = {
         captureRequestId: 'test-capture-3',
         imageUrls: Array.from({ length: 15 }, (_, i) => ({
-          studentId: `student${i + 1}@test.com`,
-          blobUrl: `https://storage.blob.core.windows.net/images/student${i + 1}.jpg`
+          attendeeId: `attendee${i + 1}@test.com`,
+          blobUrl: `https://storage.blob.core.windows.net/images/attendee${i + 1}.jpg`
         }))
       };
 
@@ -236,11 +236,11 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: [
-                  { studentId: 'student8@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Batch 1' },
-                  { studentId: 'student9@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Batch 1' },
-                  { studentId: 'student10@test.com', estimatedRow: 4, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Batch 1' },
+                  { attendeeId: 'student8@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Batch 1' },
+                  { attendeeId: 'student9@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Batch 1' },
+                  { attendeeId: 'student10@test.com', estimatedRow: 4, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Batch 1' },
                   ...Array.from({ length: 7 }, (_, i) => ({
-                    studentId: `student${i + 1}@test.com`,
+                    attendeeId: `attendee${i + 1}@test.com`,
                     estimatedRow: Math.floor(i / 3) + 1,
                     estimatedColumn: (i % 3) + 1,
                     confidence: 'HIGH',
@@ -264,14 +264,14 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: [
-                  { studentId: 'student8@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Batch 2' },
-                  { studentId: 'student9@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Batch 2' },
-                  { studentId: 'student10@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Batch 2' },
-                  { studentId: 'student11@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Batch 2' },
-                  { studentId: 'student12@test.com', estimatedRow: 2, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Batch 2' },
-                  { studentId: 'student13@test.com', estimatedRow: 3, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Batch 2' },
-                  { studentId: 'student14@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Batch 2' },
-                  { studentId: 'student15@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Batch 2' }
+                  { attendeeId: 'student8@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Batch 2' },
+                  { attendeeId: 'student9@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Batch 2' },
+                  { attendeeId: 'student10@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Batch 2' },
+                  { attendeeId: 'student11@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Batch 2' },
+                  { attendeeId: 'student12@test.com', estimatedRow: 2, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Batch 2' },
+                  { attendeeId: 'student13@test.com', estimatedRow: 3, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Batch 2' },
+                  { attendeeId: 'student14@test.com', estimatedRow: 3, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Batch 2' },
+                  { attendeeId: 'student15@test.com', estimatedRow: 3, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Batch 2' }
                 ],
                 analysisNotes: 'Batch 2'
               })
@@ -284,20 +284,20 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
       const result = await estimateSeatingPositions(input, mockContext);
 
       // Find the offset that was calculated
-      // Student 8: Reference (3,2) vs Current (1,2) → Offset (+2, 0)
-      // Student 9: Reference (3,3) vs Current (1,3) → Offset (+2, 0)
-      // Student 10: Reference (4,1) vs Current (2,1) → Offset (+2, 0)
+      // Attendee 8: Reference (3,2) vs Current (1,2) → Offset (+2, 0)
+      // Attendee 9: Reference (3,3) vs Current (1,3) → Offset (+2, 0)
+      // Attendee 10: Reference (4,1) vs Current (2,1) → Offset (+2, 0)
       // Average offset should be (+2, 0)
 
-      // Verify student 11 was adjusted correctly
-      const student11 = result.positions.find(p => p.studentId === 'student11@test.com');
+      // Verify attendee 11 was adjusted correctly
+      const student11 = result.positions.find(p => p.attendeeId === 'student11@test.com');
       expect(student11).toBeDefined();
       // Original: (2, 2), After offset (+2, 0): (4, 2)
       expect(student11!.estimatedRow).toBe(4);
       expect(student11!.estimatedColumn).toBe(2);
 
       // Verify overlapping students kept their original positions
-      const student8 = result.positions.find(p => p.studentId === 'student8@test.com');
+      const student8 = result.positions.find(p => p.attendeeId === 'student8@test.com');
       expect(student8!.estimatedRow).toBe(3); // From Batch 1
       expect(student8!.estimatedColumn).toBe(2);
     }, 10000); // 10 second timeout for batching delays
@@ -308,8 +308,8 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
       const input: PositionEstimationInput = {
         captureRequestId: 'test-capture-4',
         imageUrls: Array.from({ length: 10 }, (_, i) => ({
-          studentId: `student${i + 1}@test.com`,
-          blobUrl: `https://storage.blob.core.windows.net/images/student${i + 1}.jpg`
+          attendeeId: `attendee${i + 1}@test.com`,
+          blobUrl: `https://storage.blob.core.windows.net/images/attendee${i + 1}.jpg`
         }))
       };
 
@@ -320,7 +320,7 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: Array.from({ length: 10 }, (_, i) => ({
-                  studentId: `student${i + 1}@test.com`,
+                  attendeeId: `attendee${i + 1}@test.com`,
                   estimatedRow: Math.floor(i / 3) + 1,
                   estimatedColumn: (i % 3) + 1,
                   confidence: 'HIGH',
@@ -344,8 +344,8 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
       const input: PositionEstimationInput = {
         captureRequestId: 'test-capture-5',
         imageUrls: Array.from({ length: 11 }, (_, i) => ({
-          studentId: `student${i + 1}@test.com`,
-          blobUrl: `https://storage.blob.core.windows.net/images/student${i + 1}.jpg`
+          attendeeId: `attendee${i + 1}@test.com`,
+          blobUrl: `https://storage.blob.core.windows.net/images/attendee${i + 1}.jpg`
         }))
       };
 
@@ -357,7 +357,7 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: Array.from({ length: 10 }, (_, i) => ({
-                  studentId: `student${i + 1}@test.com`,
+                  attendeeId: `attendee${i + 1}@test.com`,
                   estimatedRow: Math.floor(i / 3) + 1,
                   estimatedColumn: (i % 3) + 1,
                   confidence: 'HIGH',
@@ -379,10 +379,10 @@ describe('GPT Position Estimation - Overlapping Batches', () => {
             message: {
               content: JSON.stringify({
                 positions: [
-                  { studentId: 'student8@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Overlap' },
-                  { studentId: 'student9@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Overlap' },
-                  { studentId: 'student10@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Overlap' },
-                  { studentId: 'student11@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'New student' }
+                  { attendeeId: 'student8@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Overlap' },
+                  { attendeeId: 'student9@test.com', estimatedRow: 1, estimatedColumn: 3, confidence: 'HIGH', reasoning: 'Overlap' },
+                  { attendeeId: 'student10@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Overlap' },
+                  { attendeeId: 'student11@test.com', estimatedRow: 2, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'New attendee' }
                 ],
                 analysisNotes: 'Batch 2'
               })

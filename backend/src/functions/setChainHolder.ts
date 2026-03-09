@@ -1,11 +1,11 @@
 /**
  * Set Chain Holder API Endpoint
- * Manually assign a student as the current holder of a chain
- * Used when teacher needs to help the last student take the holder status
+ * Manually assign a attendee as the current holder of a chain
+ * Used when organizer needs to help the last attendee take the holder status
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import { broadcastAttendanceUpdate, broadcastChainUpdate } from '../utils/signalrBroadcast';
 
@@ -17,22 +17,19 @@ export async function setChainHolder(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    const principalId = principal.userDetails || principal.userId;
+    }    const principalId = principal.userDetails || principal.userId;
     
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher')) {
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
@@ -50,12 +47,12 @@ export async function setChainHolder(
 
     // Parse request body
     const body = await request.json() as any;
-    const studentId = body.studentId;
+    const attendeeId = body.attendeeId;
 
-    if (!studentId) {
+    if (!attendeeId) {
       return {
         status: 400,
-        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing studentId in request body', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'INVALID_REQUEST', message: 'Missing attendeeId in request body', timestamp: Date.now() } }
       };
     }
 
@@ -78,14 +75,14 @@ export async function setChainHolder(
       throw error;
     }
 
-    const hasTeacherRole = hasRole(principal, 'Teacher') || hasRole(principal, 'teacher');
-    const isSessionOwner = !!principalId && session.teacherId === principalId;
-    context.log(`[setChainHolder] auth: hasTeacherRole=${hasTeacherRole}, isSessionOwner=${isSessionOwner}, sessionTeacherId=${session.teacherId || 'missing'}`);
+    const hasTeacherRole = hasRole(principal, 'Organizer') || hasRole(principal, 'organizer');
+    const isSessionOwner = !!principalId && session.organizerId === principalId;
+    context.log(`[setChainHolder] auth: hasTeacherRole=${hasTeacherRole}, isSessionOwner=${isSessionOwner}, sessionTeacherId=${session.organizerId || 'missing'}`);
     if (!hasTeacherRole && !isSessionOwner) {
-      context.warn(`[setChainHolder] forbidden: principalId=${principalId || 'missing'} is not teacher/owner for session ${sessionId}`);
+      context.warn(`[setChainHolder] forbidden: principalId=${principalId || 'missing'} is not organizer/owner for session ${sessionId}`);
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
@@ -103,15 +100,15 @@ export async function setChainHolder(
       throw error;
     }
 
-    // Verify student is in attendance
+    // Verify attendee is in attendance
     try {
-      await attendanceTable.getEntity(sessionId, studentId);
+      await attendanceTable.getEntity(sessionId, attendeeId);
     } catch (error: any) {
       if (error.statusCode === 404) {
-        context.warn(`[setChainHolder] student missing in attendance: session=${sessionId}, studentId=${studentId}`);
+        context.warn(`[setChainHolder] attendee missing in attendance: session=${sessionId}, attendeeId=${attendeeId}`);
         return {
           status: 404,
-          jsonBody: { error: { code: 'NOT_FOUND', message: 'Student not found in session', timestamp: now } }
+          jsonBody: { error: { code: 'NOT_FOUND', message: 'Attendee not found in session', timestamp: now } }
         };
       }
       throw error;
@@ -124,19 +121,19 @@ export async function setChainHolder(
     await chainsTable.updateEntity({
       partitionKey: sessionId,
       rowKey: chainId,
-      lastHolder: studentId,
+      lastHolder: attendeeId,
       lastSeq: newSeq,
       lastAt: now,
       state: 'ACTIVE'
     }, 'Merge');
 
-    context.log(`[setChainHolder] updated: chain=${chainId}, newHolder=${studentId}, seq=${newSeq}`);
+    context.log(`[setChainHolder] updated: chain=${chainId}, newHolder=${attendeeId}, seq=${newSeq}`);
 
     // Broadcast chain update
     await broadcastChainUpdate(sessionId, {
       chainId,
       phase: chain.phase,
-      lastHolder: studentId,
+      lastHolder: attendeeId,
       lastSeq: newSeq,
       state: 'ACTIVE'
     }, context);
@@ -146,7 +143,7 @@ export async function setChainHolder(
       jsonBody: {
         success: true,
         chainId,
-        newHolder: studentId,
+        newHolder: attendeeId,
         sequence: newSeq
       }
     };

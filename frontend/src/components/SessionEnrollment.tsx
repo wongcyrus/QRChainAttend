@@ -14,7 +14,7 @@ import { getCurrentLocation } from '../utils/geolocation';
 
 export interface SessionEnrollmentProps {
   /**
-   * Callback when student successfully joins a session
+   * Callback when attendee successfully joins a session
    * @param sessionId - The session ID that was joined
    */
   onSessionJoined?: (sessionId: string) => void;
@@ -161,7 +161,7 @@ export function SessionEnrollment({
                 <div className="icon">📱</div>
                 <h2>Ready to Join</h2>
                 <p className="instruction">
-                  Your teacher will display a QR code at the start of class.
+                  Your organizer will display a QR code at the start of class.
                   Tap the button below to scan it and join the session.
                 </p>
                 <button onClick={toggleScanning} className="button-primary">
@@ -182,7 +182,7 @@ export function SessionEnrollment({
                   onScanError={handleScanError}
                 />
                 <p className="scanner-hint">
-                  Point your camera at the QR code displayed by your teacher
+                  Point your camera at the QR code displayed by your organizer
                 </p>
               </div>
             )}
@@ -194,7 +194,7 @@ export function SessionEnrollment({
           <div className="instructions">
             <h3>How It Works</h3>
             <ol>
-              <li>Your teacher will display a Session QR code at the start of class</li>
+              <li>Your organizer will display a Session QR code at the start of class</li>
               <li>Scan the QR code using the button above</li>
               <li>You'll be enrolled in the session automatically</li>
               <li>Follow the on-screen instructions to mark your attendance</li>

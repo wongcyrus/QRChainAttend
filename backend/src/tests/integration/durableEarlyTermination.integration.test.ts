@@ -20,7 +20,7 @@ import * as df from 'durable-functions';
 process.env.AzureWebJobsStorage = 'AccountName=devstoreaccount1;AccountKey=test;DefaultEndpointsProtocol=http;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;';
 process.env.AZURE_OPENAI_ENDPOINT = 'https://test.openai.azure.com/';
 process.env.AZURE_OPENAI_KEY = 'test-key';
-process.env.AZURE_OPENAI_DEPLOYMENT = 'gpt-5.2-chat';
+process.env.AZURE_OPENAI_DEPLOYMENT = 'gpt-5.4';
 
 // Mock dependencies
 jest.mock('../../utils/captureStorage');
@@ -61,7 +61,7 @@ function createMockContext(): InvocationContext {
 describe('Early Termination Flow Integration Test', () => {
   const captureRequestId = 'early-term-test-capture-123';
   const sessionId = 'early-term-test-session-456';
-  const teacherId = 'teacher@test.com';
+  const organizerId = 'organizer@test.com';
   const studentIds = ['student1@test.com', 'student2@test.com', 'student3@test.com'];
 
   beforeEach(() => {
@@ -85,7 +85,7 @@ describe('Early Termination Flow Integration Test', () => {
       partitionKey: captureRequestId,
       rowKey: 'REQUEST',
       sessionId,
-      teacherId,
+      organizerId,
       status: 'ACTIVE',
       onlineStudentCount: 3,
       uploadedCount: 3, // All students uploaded
@@ -117,21 +117,21 @@ describe('Early Termination Flow Integration Test', () => {
     const mockEstimationOutput = {
       positions: [
         {
-          studentId: 'student1@test.com',
+          attendeeId: 'student1@test.com',
           estimatedRow: 1,
           estimatedColumn: 1,
           confidence: 'HIGH',
           reasoning: 'Clear projector visibility'
         },
         {
-          studentId: 'student2@test.com',
+          attendeeId: 'student2@test.com',
           estimatedRow: 1,
           estimatedColumn: 2,
           confidence: 'HIGH',
           reasoning: 'Clear projector visibility'
         },
         {
-          studentId: 'student3@test.com',
+          attendeeId: 'student3@test.com',
           estimatedRow: 2,
           estimatedColumn: 1,
           confidence: 'HIGH',
@@ -258,9 +258,9 @@ describe('Early Termination Flow Integration Test', () => {
       {
         captureRequestId,
         imageUrls: [
-          { studentId: 'student1@test.com', blobUrl: mockUploads[0].blobUrl },
-          { studentId: 'student2@test.com', blobUrl: mockUploads[1].blobUrl },
-          { studentId: 'student3@test.com', blobUrl: mockUploads[2].blobUrl }
+          { attendeeId: 'student1@test.com', blobUrl: mockUploads[0].blobUrl },
+          { attendeeId: 'student2@test.com', blobUrl: mockUploads[1].blobUrl },
+          { attendeeId: 'student3@test.com', blobUrl: mockUploads[2].blobUrl }
         ]
       },
       activityContext
@@ -314,7 +314,7 @@ describe('Early Termination Flow Integration Test', () => {
 
     // Verify all students' uploads were processed
     expect(mockEstimationOutput.positions.length).toBe(3);
-    console.log(`✓ All ${mockEstimationOutput.positions.length} student positions estimated`);
+    console.log(`✓ All ${mockEstimationOutput.positions.length} attendee positions estimated`);
 
     // Verify broadcasts were made in correct order
     const broadcastCalls = (broadcastToHub as jest.Mock).mock.calls;
@@ -352,7 +352,7 @@ describe('Early Termination Flow Integration Test', () => {
       partitionKey: captureRequestId,
       rowKey: 'REQUEST',
       sessionId,
-      teacherId,
+      organizerId,
       status: 'ACTIVE',
       onlineStudentCount: 2,
       uploadedCount: 2, // Exactly equals onlineStudentCount
@@ -377,8 +377,8 @@ describe('Early Termination Flow Integration Test', () => {
 
     const mockEstimationOutput = {
       positions: [
-        { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
-        { studentId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' }
+        { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
+        { attendeeId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' }
       ],
       analysisNotes: 'Early termination test'
     };
@@ -437,7 +437,7 @@ describe('Early Termination Flow Integration Test', () => {
       partitionKey: captureRequestId,
       rowKey: 'REQUEST',
       sessionId,
-      teacherId,
+      organizerId,
       status: 'ACTIVE',
       onlineStudentCount: 5,
       uploadedCount: 3, // Less than onlineStudentCount
@@ -453,9 +453,9 @@ describe('Early Termination Flow Integration Test', () => {
 
     const mockEstimationOutput = {
       positions: [
-        { studentId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
-        { studentId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' },
-        { studentId: 'student3@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
+        { attendeeId: 'student1@test.com', estimatedRow: 1, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' },
+        { attendeeId: 'student2@test.com', estimatedRow: 1, estimatedColumn: 2, confidence: 'HIGH', reasoning: 'Test' },
+        { attendeeId: 'student3@test.com', estimatedRow: 2, estimatedColumn: 1, confidence: 'HIGH', reasoning: 'Test' }
       ],
       analysisNotes: 'Partial upload test'
     };

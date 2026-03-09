@@ -4,30 +4,36 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getRolesFromEmail } from '../utils/auth';
+import { getRolesFromEmail, parseAuthFromRequest } from '../utils/auth';
 
 export async function getUserRoles(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  context.log('Processing GET /api/auth/me request');
+  context.log('=== getUserRoles START ===');
+  context.log('Method:', request.method);
+  context.log('URL:', request.url);
 
   try {
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
+    const principal = parseAuthFromRequest(request);
     
-    if (!principalHeader) {
+    if (!principal) {
+      context.log('❌ Not authenticated');
       return {
         status: 401,
         jsonBody: { error: 'Not authenticated' }
       };
     }
 
-    // Decode the principal
-    const principal = JSON.parse(Buffer.from(principalHeader, 'base64').toString('utf-8'));
-    
     // Compute roles from email domain
-    const email = principal.userDetails || '';
+    const email = principal.userDetails || principal.userId || '';
+    context.log('✅ User email:', email);
+    context.log('ORGANIZER_DOMAIN:', process.env.ORGANIZER_DOMAIN);
+    context.log('ATTENDEE_DOMAIN:', process.env.ATTENDEE_DOMAIN);
+    
     const roles = getRolesFromEmail(email);
+    context.log('✅ Assigned roles:', JSON.stringify(roles));
+    context.log('=== getUserRoles END ===');
     
     return {
       status: 200,
@@ -48,7 +54,8 @@ export async function getUserRoles(
     };
 
   } catch (error: any) {
-    context.error('Error getting user roles:', error);
+    context.error('❌ Error getting user roles:', error);
+    context.error('Stack:', error.stack);
     
     return {
       status: 500,

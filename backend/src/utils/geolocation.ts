@@ -38,11 +38,11 @@ export interface GeolocationCheckResult {
 }
 
 /**
- * Validate student location against session geofence
+ * Validate attendee location against session geofence
  * @param sessionLocation Session's location {latitude, longitude}
  * @param geofenceRadius Geofence radius in meters
  * @param enforceGeofence Whether to block (true) or warn (false)
- * @param studentLocation Student's GPS location
+ * @param studentLocation Attendee's GPS location
  * @returns Validation result
  */
 export function validateGeolocation(
@@ -59,7 +59,7 @@ export function validateGeolocation(
     };
   }
 
-  // If student didn't provide location, handle based on enforcement mode
+  // If attendee didn't provide location, handle based on enforcement mode
   if (!studentLocation) {
     if (enforceGeofence) {
       return {
@@ -87,7 +87,7 @@ export function validateGeolocation(
   const withinGeofence = distance <= geofenceRadius;
 
   if (!withinGeofence) {
-    const warning = `${Math.round(distance)}m from classroom (limit: ${geofenceRadius}m)`;
+    const warning = `${Math.round(distance)}m from venue (limit: ${geofenceRadius}m)`;
     return {
       withinGeofence: false,
       distance,

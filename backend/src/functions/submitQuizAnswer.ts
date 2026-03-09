@@ -5,7 +5,7 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { broadcastQuizResult } from '../utils/signalrBroadcast';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 
 // Simple answer evaluation - multiple choice only
@@ -37,22 +37,19 @@ export async function submitQuizAnswer(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    const studentEmail = principal.userDetails;
+    }    const studentEmail = principal.userDetails;
     
-    // Require Student role
-    if (!hasRole(principal, 'Student') && !hasRole(principal, 'student')) {
+    // Require Attendee role
+    if (!hasRole(principal, 'Attendee') && !hasRole(principal, 'attendee')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Student role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Attendee role required', timestamp: Date.now() } }
       };
     }
 
@@ -75,8 +72,8 @@ export async function submitQuizAnswer(
     // Get response record
     const response = await responsesTable.getEntity(sessionId, responseId);
 
-    // Verify this response belongs to the student
-    if (response.studentId !== studentEmail) {
+    // Verify this response belongs to the attendee
+    if (response.attendeeId !== studentEmail) {
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'This question was not assigned to you', timestamp: now } }
@@ -184,16 +181,16 @@ export async function submitQuizAnswer(
       });
     }
 
-    // Broadcast result to teacher
+    // Broadcast result to organizer
     await broadcastQuizResult(sessionId, {
       responseId,
-      studentId: studentEmail,
+      attendeeId: studentEmail,
       isCorrect: evaluation.isCorrect,
       score: evaluation.score,
       responseTime
     }, context);
 
-    context.log(`Student ${studentEmail} answered question: ${evaluation.isCorrect ? 'CORRECT' : 'INCORRECT'} (${evaluation.score}/100)`);
+    context.log(`Attendee ${studentEmail} answered question: ${evaluation.isCorrect ? 'CORRECT' : 'INCORRECT'} (${evaluation.score}/100)`);
 
     return {
       status: 200,

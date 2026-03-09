@@ -31,7 +31,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     accessTier: 'Hot'
     supportsHttpsTrafficOnly: true
     minimumTlsVersion: 'TLS1_2'
-    allowBlobPublicAccess: false
+    allowBlobPublicAccess: true
     allowSharedKeyAccess: true // Required for Table Storage
     networkAcls: {
       defaultAction: 'Allow'
@@ -125,6 +125,11 @@ resource quizMetricsTable 'Microsoft.Storage/storageAccounts/tableServices/table
   name: 'QuizMetrics'
 }
 
+resource quizConversationsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'QuizConversations'
+}
+
 // Student image capture tables
 resource captureRequestsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
   parent: tableService
@@ -147,6 +152,12 @@ resource externalTeachersTable 'Microsoft.Storage/storageAccounts/tableServices/
   name: 'ExternalTeachers'
 }
 
+// OTP codes table (for email-based OTP authentication)
+resource otpCodesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'OtpCodes'
+}
+
 // ============================================================================
 // BLOB SERVICE
 // ============================================================================
@@ -162,7 +173,11 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
     cors: {
       corsRules: [
         {
-          allowedOrigins: blobCorsAllowedOrigins
+          allowedOrigins: union(blobCorsAllowedOrigins, [
+            'https://*.azurestaticapps.net'
+            'http://localhost:3000'
+            'http://localhost:7071'
+          ])
           allowedMethods: [
             'GET'
             'PUT'

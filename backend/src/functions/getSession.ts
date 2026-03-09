@@ -4,15 +4,15 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import { checkSessionAccess, getCoTeachers } from '../utils/sessionAccess';
 // Inline types
 interface Session {
   partitionKey: string;
   rowKey: string;
-  teacherId: string;
-  classId: string;
+  organizerId: string;
+  eventId: string;
   courseName?: string; // Legacy field
   status: 'ACTIVE' | 'ENDED';
   startAt: string; // ISO string
@@ -26,7 +26,7 @@ interface Session {
 interface AttendanceRecord {
   partitionKey: string;
   rowKey: string;
-  studentId: string;
+  attendeeId: string;
   entryStatus: string;
   entryAt?: number;
   exitVerified?: boolean;
@@ -54,17 +54,16 @@ export async function getSession(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
     }
 
-    const principal = parseUserPrincipal(principalHeader);
     const userId = getUserId(principal);
-    const isTeacher = hasRole(principal, 'Teacher');
+    const isTeacher = hasRole(principal, 'Organizer');
 
     // Get sessionId
     const sessionId = request.params.sessionId;
@@ -92,7 +91,7 @@ export async function getSession(
       throw error;
     }
 
-    // Check ownership for teachers (owner or co-teacher)
+    // Check ownership for teachers (owner or co-organizer)
     if (isTeacher) {
       const access = checkSessionAccess(session, userId);
       if (!access.hasAccess) {
@@ -112,7 +111,7 @@ export async function getSession(
     for await (const entity of attendanceTable.listEntities({ queryOptions: { filter: `PartitionKey eq '${sessionId}'` } })) {
       const record = entity as any;
       
-      // Check if student is online based on lastSeen timestamp only
+      // Check if attendee is online based on lastSeen timestamp only
       const lastSeen = record.lastSeen ? (record.lastSeen as number) : 0;
       const isRecentlyActive = lastSeen > 0 && (now - lastSeen) < onlineThreshold;
       
@@ -175,8 +174,8 @@ export async function getSession(
     const response: any = {
       session: {
         sessionId: session.rowKey,
-        classId: session.classId || session.courseName, // Support both new and legacy field names
-        teacherId: session.teacherId,
+        eventId: session.eventId || session.courseName, // Support both new and legacy field names
+        organizerId: session.organizerId,
         coTeachers, // Include co-teachers in response
         startAt: session.startAt || toISOString(session.startTime) || new Date().toISOString(),
         endAt: session.endAt || toISOString(session.endTime),
@@ -190,7 +189,7 @@ export async function getSession(
       },
       attendance: attendance.map(a => ({
         sessionId,
-        studentId: a.studentId || a.rowKey, // Use rowKey (email) as fallback
+        attendeeId: a.attendeeId || a.rowKey, // Use rowKey (email) as fallback
         entryStatus: a.entryStatus,
         entryMethod: (a as any).entryMethod, // DIRECT_QR or CHAIN
         entryAt: a.entryAt, // Use entryAt directly from database
@@ -201,7 +200,7 @@ export async function getSession(
         locationWarning: (a as any).locationWarning,
         locationDistance: (a as any).locationDistance,
         isOnline: (a as any).isOnline || false,
-        isHolder: activeHolders.has(a.studentId || a.rowKey) // Check if student is a current holder
+        isHolder: activeHolders.has(a.attendeeId || a.rowKey) // Check if attendee is a current holder
       })),
       chains: chains.map(c => ({
         sessionId,

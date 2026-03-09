@@ -53,12 +53,12 @@ describe('ErrorDisplay', () => {
   test('should render guidance when provided', () => {
     const errorWithGuidance: FormattedError = {
       ...mockError,
-      guidance: 'Please ensure you are in the classroom.',
+      guidance: 'Please ensure you are in the venue.',
     };
 
     render(<ErrorDisplay error={errorWithGuidance} />);
     expect(screen.getByText('What to do:')).toBeInTheDocument();
-    expect(screen.getByText('Please ensure you are in the classroom.')).toBeInTheDocument();
+    expect(screen.getByText('Please ensure you are in the venue.')).toBeInTheDocument();
   });
 
   test('should render retry button when canRetry is true', () => {
@@ -208,10 +208,10 @@ describe('ErrorDisplay', () => {
   test('should render all components together', () => {
     const complexError: FormattedError = {
       title: 'Location Verification Failed',
-      message: 'You must be in the classroom',
+      message: 'You must be in the venue',
       type: 'warning',
       canRetry: false,
-      guidance: 'Please ensure you are connected to the classroom Wi-Fi network.',
+      guidance: 'Please ensure you are connected to the venue Wi-Fi network.',
     };
 
     const onDismiss = jest.fn();
@@ -226,7 +226,7 @@ describe('ErrorDisplay', () => {
     );
 
     expect(screen.getByText('Location Verification Failed')).toBeInTheDocument();
-    expect(screen.getByText('You must be in the classroom')).toBeInTheDocument();
+    expect(screen.getByText('You must be in the venue')).toBeInTheDocument();
     expect(screen.getByText('What to do:')).toBeInTheDocument();
     expect(screen.getByText(/Please ensure you are connected/)).toBeInTheDocument();
     expect(screen.getByText(/Please wait 30 seconds/)).toBeInTheDocument();

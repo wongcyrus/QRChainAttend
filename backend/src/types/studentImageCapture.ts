@@ -1,5 +1,5 @@
 /**
- * TypeScript interfaces for Student Image Capture and Seating Position Estimation
+ * TypeScript interfaces for Attendee Image Capture and Seating Position Estimation
  * 
  * This file contains all data models for the image capture feature including:
  * - Table Storage entities (CaptureRequest, CaptureUpload, CaptureResult)
@@ -28,7 +28,7 @@ export type ConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW';
 
 /**
  * CaptureRequest entity stored in Table Storage
- * Tracks the overall capture request initiated by a teacher
+ * Tracks the overall capture request initiated by a organizer
  * 
  * Partition Key: 'CAPTURE_REQUEST'
  * Row Key: captureRequestId (UUID)
@@ -39,11 +39,11 @@ export interface CaptureRequest {
   partitionKey: 'CAPTURE_REQUEST';
   rowKey: string; // captureRequestId (UUID)
   sessionId: string;
-  teacherId: string;
+  organizerId: string;
   status: CaptureRequestStatus;
   createdAt: string; // ISO timestamp
   expiresAt: string; // ISO timestamp (createdAt + 30s)
-  onlineStudentIds: string; // JSON array of student IDs
+  onlineStudentIds: string; // JSON array of attendee IDs
   onlineStudentCount: number;
   uploadedCount: number;
   analysisStartedAt?: string; // ISO timestamp
@@ -53,18 +53,18 @@ export interface CaptureRequest {
 
 /**
  * CaptureUpload entity stored in Table Storage
- * Tracks individual student photo uploads
+ * Tracks individual attendee photo uploads
  * 
  * Partition Key: captureRequestId
- * Row Key: studentId
+ * Row Key: attendeeId
  * 
  * Validates: Requirements 3.1, 3.3, 8.2
  */
 export interface CaptureUpload {
   partitionKey: string; // captureRequestId
-  rowKey: string; // studentId
+  rowKey: string; // attendeeId
   sessionId: string;
-  blobName: string; // captures/{sessionId}/{captureRequestId}/{studentId}.jpg
+  blobName: string; // captures/{sessionId}/{captureRequestId}/{attendeeId}.jpg
   blobUrl: string;
   uploadedAt: string; // ISO timestamp
   fileSizeBytes: number;
@@ -91,15 +91,15 @@ export interface CaptureResult {
 }
 
 /**
- * Individual student seating position estimate
+ * Individual attendee seating position estimate
  * Stored as JSON within CaptureResult.positions
  * 
  * Validates: Requirements 6.1, 6.2
  */
 export interface SeatingPosition {
-  studentId: string;
+  attendeeId: string;
   estimatedRow: number; // 1-based row number (1 = closest to projector)
-  estimatedColumn: number; // 1-based column number (1 = leftmost from teacher's perspective)
+  estimatedColumn: number; // 1-based column number (1 = leftmost from organizer's perspective)
   confidence: ConfidenceLevel;
   reasoning: string; // Brief explanation of position estimate
 }
@@ -161,7 +161,7 @@ export interface GetCaptureResultsResponse {
   uploadedCount: number;
   totalCount: number;
   positions?: SeatingPosition[];
-  imageUrls?: Record<string, string>; // Map of studentId to image URL
+  imageUrls?: Record<string, string>; // Map of attendeeId to image URL
   analysisNotes?: string;
   analyzedAt?: string; // ISO timestamp
   errorMessage?: string;
@@ -172,7 +172,7 @@ export interface GetCaptureResultsResponse {
 // ============================================================================
 
 /**
- * SignalR event sent to students when teacher initiates capture
+ * SignalR event sent to students when organizer initiates capture
  * Event: 'captureRequest'
  * Hub: dashboard{sessionId}
  * 
@@ -180,13 +180,13 @@ export interface GetCaptureResultsResponse {
  */
 export interface CaptureRequestEvent {
   captureRequestId: string;
-  sasUrl: string; // Student-specific SAS URL for blob upload
+  sasUrl: string; // Attendee-specific SAS URL for blob upload
   expiresAt: number; // Unix timestamp (milliseconds)
   blobName: string; // Expected blob name for upload
 }
 
 /**
- * SignalR event sent to teacher when student completes upload
+ * SignalR event sent to organizer when attendee completes upload
  * Event: 'uploadComplete'
  * Hub: dashboard{sessionId}
  * 
@@ -194,7 +194,7 @@ export interface CaptureRequestEvent {
  */
 export interface UploadCompleteEvent {
   captureRequestId: string;
-  studentId: string;
+  attendeeId: string;
   uploadedAt: number; // Unix timestamp (milliseconds)
   uploadedCount: number;
   totalCount: number;
@@ -214,7 +214,7 @@ export interface CaptureExpiredEvent {
 }
 
 /**
- * SignalR event sent to teacher when GPT analysis completes
+ * SignalR event sent to organizer when GPT analysis completes
  * Event: 'captureResults'
  * Hub: dashboard{sessionId}
  * 
@@ -241,7 +241,7 @@ export interface CaptureResultsEvent {
 export interface PositionEstimationInput {
   captureRequestId: string;
   imageUrls: Array<{
-    studentId: string;
+    attendeeId: string;
     blobUrl: string;
   }>;
 }
@@ -266,14 +266,14 @@ export interface GPTAnalysisResponse {
 }
 
 /**
- * Blob metadata for uploaded student images
+ * Blob metadata for uploaded attendee images
  * 
  * Validates: Requirements 3.1, 8.2
  */
 export interface BlobMetadata {
   sessionId: string;
   captureRequestId: string;
-  studentId: string;
+  attendeeId: string;
   uploadedAt: string; // ISO timestamp
 }
 
@@ -285,7 +285,7 @@ export interface BlobMetadata {
 export interface SasUrlParams {
   sessionId: string;
   captureRequestId: string;
-  studentId: string;
+  attendeeId: string;
   permissions: 'w' | 'r'; // write-only for students, read for GPT
   expirySeconds: number; // 90 for students, 300 for GPT
 }
@@ -329,7 +329,7 @@ export enum CaptureErrorCode {
 // ============================================================================
 
 /**
- * Teacher capture control state
+ * Organizer capture control state
  * Used in TeacherDashboard component
  * 
  * Validates: Requirements 1.1, 1.2, 5.3, 6.3
@@ -345,7 +345,7 @@ export interface TeacherCaptureState {
 }
 
 /**
- * Student capture interface state
+ * Attendee capture interface state
  * Used in SimpleStudentView component
  * 
  * Validates: Requirements 2.1, 2.2, 2.3, 2.4, 3.1, 4.1

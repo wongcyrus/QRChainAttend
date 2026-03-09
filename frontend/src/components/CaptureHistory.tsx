@@ -16,6 +16,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAuthHeaders } from '../utils/authHeaders';
 import { SeatingGridVisualization } from './SeatingGridVisualization';
+import { BatchImageAnalysisModal } from './BatchImageAnalysisModal';
 import type { 
   GetCaptureResultsResponse,
   SeatingPosition 
@@ -41,6 +42,8 @@ export function CaptureHistory({ sessionId, onError }: CaptureHistoryProps) {
   const [loading, setLoading] = useState(false);
   const [loadingResults, setLoadingResults] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [analysisCapture, setAnalysisCapture] = useState<CaptureHistoryItem | null>(null);
 
   // Fetch capture history for the session
   useEffect(() => {
@@ -249,7 +252,7 @@ export function CaptureHistory({ sessionId, onError }: CaptureHistoryProps) {
               }
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
                 <div style={{ fontWeight: '600', color: '#2d3748', marginBottom: '0.25rem' }}>
                   {formatTimestamp(capture.createdAt)}
@@ -258,19 +261,45 @@ export function CaptureHistory({ sessionId, onError }: CaptureHistoryProps) {
                   {capture.uploadedCount} / {capture.totalCount} students uploaded
                 </div>
               </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
-                backgroundColor: getStatusColor(capture.status) + '20',
-                color: getStatusColor(capture.status),
-                borderRadius: '8px',
-                fontWeight: '600',
-                fontSize: '0.875rem'
-              }}>
-                <span>{getStatusIcon(capture.status)}</span>
-                <span>{capture.status}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {capture.uploadedCount > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAnalysisCapture(capture);
+                      setShowAnalysisModal(true);
+                    }}
+                    style={{
+                      padding: '0.5rem 0.75rem',
+                      backgroundColor: '#805ad5',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}
+                  >
+                    🔍 Analyze
+                  </button>
+                )}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  backgroundColor: getStatusColor(capture.status) + '20',
+                  color: getStatusColor(capture.status),
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  fontSize: '0.875rem'
+                }}>
+                  <span>{getStatusIcon(capture.status)}</span>
+                  <span>{capture.status}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -334,6 +363,19 @@ export function CaptureHistory({ sessionId, onError }: CaptureHistoryProps) {
             </div>
           ) : null}
         </div>
+      )}
+
+      {/* Batch Analysis Modal */}
+      {showAnalysisModal && analysisCapture && (
+        <BatchImageAnalysisModal
+          sessionId={sessionId}
+          captureRequestId={analysisCapture.captureRequestId}
+          imageCount={analysisCapture.uploadedCount}
+          onClose={() => {
+            setShowAnalysisModal(false);
+            setAnalysisCapture(null);
+          }}
+        />
       )}
     </div>
   );

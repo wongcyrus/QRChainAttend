@@ -3,8 +3,8 @@
  * 
  * POST /api/sessions/{sessionId}/capture/initiate
  * 
- * This function handles teacher-initiated photo capture requests:
- * 1. Validates teacher authentication and session ownership
+ * This function handles organizer-initiated photo capture requests:
+ * 1. Validates organizer authentication and session ownership
  * 2. Queries online students from Attendance table
  * 3. Generates unique captureRequestId (UUID)
  * 4. Calculates expiresAt timestamp (createdAt + 30 seconds)
@@ -14,7 +14,7 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import * as df from 'durable-functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import { randomUUID } from 'crypto';
 import {
@@ -32,9 +32,9 @@ import { logError, logInfo, logDebug } from '../utils/errorLogging';
  * Initiate a capture request for a session
  * 
  * This is task 4.1 - creates the function skeleton with:
- * - Teacher authentication validation
+ * - Organizer authentication validation
  * - Session ownership verification
- * - Online student querying
+ * - Online attendee querying
  * - Capture request ID generation
  * - Expiration timestamp calculation
  * 
@@ -55,13 +55,12 @@ export async function initiateImageCapture(
 
   try {
     // ========================================================================
-    // Step 1: Validate teacher authentication
+    // Step 1: Validate organizer authentication
     // ========================================================================
     
-    const principalHeader = request.headers.get('x-ms-client-principal') || 
-                           request.headers.get('x-client-principal');
+    const principal = parseAuthFromRequest(request);
     
-    if (!principalHeader) {
+    if (!principal) {
       return {
         status: 401,
         jsonBody: {
@@ -72,25 +71,22 @@ export async function initiateImageCapture(
           }
         }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
+    }    
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer') && !hasRole(principal, 'organizer')) {
       return {
         status: 403,
         jsonBody: {
           error: {
             code: CaptureErrorCode.FORBIDDEN,
-            message: 'Teacher role required',
+            message: 'Organizer role required',
             timestamp: Date.now()
           }
         }
       };
     }
 
-    const teacherId = getUserId(principal);
+    const organizerId = getUserId(principal);
     sessionId = request.params.sessionId;
     
     if (!sessionId) {
@@ -107,7 +103,7 @@ export async function initiateImageCapture(
     }
 
     // ========================================================================
-    // Step 2: Verify session exists and teacher owns it
+    // Step 2: Verify session exists and organizer owns it
     // ========================================================================
     
     const sessionsTable = getTableClient(TableNames.SESSIONS);
@@ -132,7 +128,7 @@ export async function initiateImageCapture(
     }
 
     // Verify ownership
-    if (session.teacherId !== teacherId) {
+    if (session.organizerId !== organizerId) {
       return {
         status: 403,
         jsonBody: {
@@ -158,7 +154,7 @@ export async function initiateImageCapture(
         filter: `PartitionKey eq '${sessionId}'`
       }
     })) {
-      // Check if student is online (isOnline flag)
+      // Check if attendee is online (isOnline flag)
       if (entity.isOnline === true) {
         onlineStudentIds.push(entity.rowKey as string);
       }
@@ -200,13 +196,13 @@ export async function initiateImageCapture(
     // Step 6: Generate SAS URLs for all online students
     // ========================================================================
     
-    // Generate SAS URLs for each online student
+    // Generate SAS URLs for each online attendee
     const studentSasUrls = new Map<string, string>();
     
-    for (const studentId of onlineStudentIds) {
-      const sasUrl = generateStudentSasUrl(sessionId, captureRequestId, studentId);
-      studentSasUrls.set(studentId, sasUrl);
-      context.log(`Generated SAS URL for student: ${studentId}`);
+    for (const attendeeId of onlineStudentIds) {
+      const sasUrl = generateStudentSasUrl(sessionId, captureRequestId, attendeeId);
+      studentSasUrls.set(attendeeId, sasUrl);
+      context.log(`Generated SAS URL for attendee: ${attendeeId}`);
     }
     
     context.log(`Generated ${studentSasUrls.size} SAS URLs for online students`);
@@ -220,7 +216,7 @@ export async function initiateImageCapture(
       partitionKey: 'CAPTURE_REQUEST',
       rowKey: captureRequestId,
       sessionId,
-      teacherId,
+      organizerId,
       status: 'ACTIVE',
       createdAt: createdAt.toISOString(),
       expiresAt: expiresAt.toISOString(),
@@ -286,19 +282,19 @@ export async function initiateImageCapture(
     // Step 8: Broadcast capture request via SignalR
     // ========================================================================
     
-    // Send captureRequest event to each student with their SAS URL
+    // Send captureRequest event to each attendee with their SAS URL
     context.log(`Broadcasting capture request to ${onlineStudentIds.length} students`);
-    context.log(`Student IDs to broadcast to: ${JSON.stringify(onlineStudentIds)}`);
+    context.log(`Attendee IDs to broadcast to: ${JSON.stringify(onlineStudentIds)}`);
     
-    for (const studentId of onlineStudentIds) {
-      const sasUrl = studentSasUrls.get(studentId);
+    for (const attendeeId of onlineStudentIds) {
+      const sasUrl = studentSasUrls.get(attendeeId);
       if (!sasUrl) {
-        context.warn(`No SAS URL found for student ${studentId}, skipping broadcast`);
+        context.warn(`No SAS URL found for attendee ${attendeeId}, skipping broadcast`);
         continue;
       }
       
-      // Construct the blob name for this student
-      const blobName = `${sessionId}/${captureRequestId}/${studentId}.jpg`;
+      // Construct the blob name for this attendee
+      const blobName = `${sessionId}/${captureRequestId}/${attendeeId}.jpg`;
       
       // Create the capture request event payload
       const captureRequestEvent: CaptureRequestEvent = {
@@ -308,24 +304,24 @@ export async function initiateImageCapture(
         blobName
       };
       
-      context.log(`Broadcasting to student: ${studentId} with event:`, JSON.stringify(captureRequestEvent));
+      context.log(`Broadcasting to attendee: ${attendeeId} with event:`, JSON.stringify(captureRequestEvent));
       
-      // Broadcast to this specific student
+      // Broadcast to this specific attendee
       await broadcastToUser(
         sessionId,
-        studentId,
+        attendeeId,
         'captureRequest',
         captureRequestEvent,
         context
       );
       
-      context.log(`Broadcasted capture request to student: ${studentId}`);
+      context.log(`Broadcasted capture request to attendee: ${attendeeId}`);
     }
     
     context.log(`Completed broadcasting to all ${onlineStudentIds.length} students`);
 
     // ========================================================================
-    // Step 6: Return success response to teacher
+    // Step 6: Return success response to organizer
     // ========================================================================
     
     const response: InitiateCaptureResponse = {
@@ -339,7 +335,7 @@ export async function initiateImageCapture(
     logInfo(context, 'Capture request initiated successfully', {
       sessionId,
       captureRequestId,
-      studentId: teacherId
+      attendeeId: organizerId
     });
 
     return {

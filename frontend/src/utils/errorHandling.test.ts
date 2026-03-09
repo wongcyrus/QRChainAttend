@@ -40,18 +40,18 @@ describe('Error Handling Utility', () => {
 
     test('should return user-friendly message for GEOFENCE_VIOLATION with guidance', () => {
       const message = getUserFriendlyMessage('GEOFENCE_VIOLATION');
-      expect(message).toContain('physically present in the classroom');
+      expect(message).toContain('physically present in the venue');
       expect(message).toContain('GPS location');
     });
 
     test('should return user-friendly message for WIFI_VIOLATION with guidance', () => {
       const message = getUserFriendlyMessage('WIFI_VIOLATION');
-      expect(message).toContain('classroom Wi-Fi network');
+      expect(message).toContain('venue Wi-Fi network');
     });
 
     test('should return user-friendly message for LOCATION_VIOLATION with guidance', () => {
       const message = getUserFriendlyMessage('LOCATION_VIOLATION');
-      expect(message).toContain('in the classroom');
+      expect(message).toContain('in the venue');
       expect(message).toContain('Wi-Fi network');
     });
 

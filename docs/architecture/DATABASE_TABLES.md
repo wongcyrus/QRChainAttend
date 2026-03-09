@@ -14,19 +14,19 @@ PartitionKey: "SESSION"
 RowKey: sessionId (UUID)
 Fields:
   - classId: string
-  - teacherId: string (email)
+  - organizerId: string (email)
   - startAt: timestamp
   - status: "ACTIVE" | "ENDED"
   - createdAt: timestamp
 ```
 
 ### 2. Attendance
-**Purpose**: Track student attendance records
+**Purpose**: Track attendee attendance records
 
 **Schema**:
 ```
 PartitionKey: sessionId
-RowKey: studentId (email)
+RowKey: attendeeId (email)
 Fields:
   - entryStatus: "PRESENT_ENTRY" | "LATE_ENTRY" [optional]
   - entryMethod: "DIRECT_QR" | "CHAIN" [optional]
@@ -101,7 +101,7 @@ Fields:
 PartitionKey: userId (email)
 RowKey: sessionId
 Fields:
-  - role: "teacher" | "student"
+  - role: "organizer" | "attendee"
   - joinedAt: number (Unix seconds)
   - status: "active" | "ended"
 ```
@@ -147,7 +147,7 @@ Fields:
 PartitionKey: sessionId
 RowKey: {timestamp}_{scanId}
 Fields:
-  - studentId: string (email)
+  - attendeeId: string (email)
   - scanType: string
   - success: boolean
   - timestamp: number (Unix seconds)
@@ -228,7 +228,7 @@ az storage table create --name Sessions \
 - Queried to list active sessions
 
 ### Attendance Table
-- Created when student joins session (with `joinedAt`)
+- Created when attendee joins session (with `joinedAt`)
 - Updated when student exits (with `exitedAt`, `exitVerified`)
 - Queried for attendance reports
 - Exported to CSV
@@ -404,7 +404,7 @@ PartitionKey: sessionId
 RowKey: responseId (UUID)
 Fields:
   - questionId: string (UUID)
-  - studentId: string (email)
+  - attendeeId: string (email)
   - answer: string
   - isCorrect: boolean
   - score: number (0-100)
@@ -422,7 +422,7 @@ Fields:
 **Schema**:
 ```
 PartitionKey: sessionId
-RowKey: studentId (email)
+RowKey: attendeeId (email)
 Fields:
   - totalQuestions: number
   - correctAnswers: number

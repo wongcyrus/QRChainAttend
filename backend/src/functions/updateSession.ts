@@ -4,11 +4,11 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId, getRolesFromEmail } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId, getRolesFromEmail } from '../utils/auth';
 import { getTableClient, TableNames } from '../utils/database';
 import { checkSessionAccess } from '../utils/sessionAccess';
 interface UpdateSessionRequest {
-  classId?: string;
+  eventId?: string;
   startAt?: string;
   endAt?: string;
   lateCutoffMinutes?: number;
@@ -41,22 +41,19 @@ export async function updateSession(
     }
 
     // Extract and validate authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Not authenticated', timestamp: Date.now() } }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    const userId = getUserId(principal);
+    }    const userId = getUserId(principal);
     
     const teacherEmail = principal.userDetails || '';
     const roles = getRolesFromEmail(teacherEmail);
 
-    // Verify teacher role
-    if (!roles.includes('teacher')) {
+    // Verify organizer role
+    if (!roles.includes('organizer')) {
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'Only teachers can update sessions', timestamp: Date.now() } }
@@ -75,7 +72,7 @@ export async function updateSession(
 
     const sessionsTable = getTableClient(TableNames.SESSIONS);
     
-    // Verify session exists and teacher has access (owner or co-teacher)
+    // Verify session exists and organizer has access (owner or co-organizer)
     let session: any;
     try {
       const entity = await sessionsTable.getEntity('SESSION', sessionId);
@@ -170,7 +167,7 @@ export async function updateSession(
           ...existingSession,
           partitionKey: 'SESSION',
           rowKey: sid,
-          ...(updates.classId && { classId: updates.classId }),
+          ...(updates.eventId && { eventId: updates.eventId }),
           ...(updatedStartAt && { startAt: updatedStartAt }),
           ...(updatedEndAt && { endAt: updatedEndAt }),
           ...(updates.lateCutoffMinutes !== undefined && { lateCutoffMinutes: updates.lateCutoffMinutes }),

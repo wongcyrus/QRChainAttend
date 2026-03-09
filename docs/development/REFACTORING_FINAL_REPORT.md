@@ -63,17 +63,17 @@ Exit Code: 0 ✅
 17. ✅ getRoles.ts ⭐ (final)
 18. ✅ getSession.ts
 19. ✅ getSnapshotTrace.ts
-20. ✅ getStudentQuestions.ts
-21. ✅ getStudentToken.ts
-22. ✅ getTeacherSessions.ts
+20. ✅ getAttendeeQuestions.ts
+21. ✅ getAttendeeToken.ts
+22. ✅ getOrganizerSessions.ts
 23. ✅ getUserRoles.ts ⭐ (final)
 24. ✅ joinSession.ts
 25. ✅ listSnapshots.ts
 26. ✅ markExit.ts
-27. ✅ markStudentExit.ts
+27. ✅ markAttendeeExit.ts
 28. ✅ negotiate.ts
 29. ✅ negotiateDashboard.ts
-30. ✅ negotiateStudent.ts
+30. ✅ negotiateAttendee.ts
 31. ✅ registerSession.ts
 32. ✅ requestChallenge.ts
 33. ✅ reseedEntry.ts
@@ -85,7 +85,7 @@ Exit Code: 0 ✅
 39. ✅ startEarlyLeave.ts
 40. ✅ startExitChain.ts
 41. ✅ stopEarlyLeave.ts
-42. ✅ studentOnline.ts
+42. ✅ attendeeOnline.ts
 43. ✅ submitQuizAnswer.ts
 44. ✅ takeSnapshot.ts
 45. ✅ updateSession.ts
@@ -149,13 +149,13 @@ function hasRole(principal: any, role: string): boolean {
   const email = principal.userDetails || '';
   const emailLower = email.toLowerCase();
   
-  if (role.toLowerCase() === 'teacher' && 
+  if (role.toLowerCase() === 'organizer' && 
       emailLower.endsWith('@vtc.edu.hk') && 
       !emailLower.endsWith('@stu.vtc.edu.hk')) {
     return true;
   }
   
-  if (role.toLowerCase() === 'student' && 
+  if (role.toLowerCase() === 'attendee' && 
       emailLower.endsWith('@stu.vtc.edu.hk')) {
     return true;
   }
@@ -253,7 +253,7 @@ $ npm run build
 - scanChain.ts
 - sendQuizQuestion.ts
 - submitQuizAnswer.ts
-- getStudentQuestions.ts
+- getAttendeeQuestions.ts
 
 ### Phase 2: Automated Refactoring (39 functions)
 - Created `scripts/refactor-all-functions.js`

@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { TeacherCaptureControl, type UploadCompleteEvent, type CaptureExpiredEvent, type CaptureResultsEvent } from '../TeacherCaptureControl';
+import { TeacherCaptureControl, type UploadCompleteEvent, type CaptureExpiredEvent, type CaptureResultsEvent } from '../OrganizerCaptureControl';
 import { SnapshotManager } from '../SnapshotManager';
 import { CaptureHistory } from '../CaptureHistory';
 
@@ -28,7 +28,7 @@ export const CaptureTab: React.FC<CaptureTabProps> = ({
 }) => {
   return (
     <div>
-      {/* Teacher Capture Control */}
+      {/* Organizer Capture Control */}
       <div style={{ marginBottom: '2rem' }}>
         <TeacherCaptureControl
           sessionId={sessionId}

@@ -7,7 +7,7 @@
 
 ## Question
 
-Can a student be recorded multiple times in the database during entry chain scanning?
+Can an attendee be recorded multiple times in the database during entry chain scanning?
 
 ## Answer
 
@@ -22,12 +22,12 @@ Can a student be recorded multiple times in the database during entry chain scan
 **Attendance Table Schema**:
 ```
 PartitionKey: sessionId
-RowKey: studentId (email)
+RowKey: attendeeId (email)
 ```
 
 **Azure Table Storage Behavior**:
-- Primary key is `(PartitionKey, RowKey)` = `(sessionId, studentId)`
-- **Cannot have duplicate records** with same sessionId + studentId
+- Primary key is `(PartitionKey, RowKey)` = `(sessionId, attendeeId)`
+- **Cannot have duplicate records** with same sessionId + attendeeId
 - Attempting to create duplicate will fail
 - Updates use `updateEntity()` with 'Merge' mode
 
@@ -81,125 +81,125 @@ try {
 
 ## Entry Chain Flow Analysis
 
-### Scenario: Student A → Student B → Student C
+### Scenario: Attendee A → Attendee B → Attendee C
 
-#### Step 1: Teacher Seeds Chain
+#### Step 1: Organizer Seeds Chain
 ```
-Chain created with Student A as initial holder
-Token created: holderId = "studentA@stu.vtc.edu.hk"
+Chain created with Attendee A as initial holder
+Token created: holderId = "attendeeA@example.com"
 ```
 
 **Database State**:
 ```
 Attendance Table:
-- studentA@stu.vtc.edu.hk: { joinedAt: T0, entryStatus: null }
+- attendeeA@example.com: { joinedAt: T0, entryStatus: null }
 
 Tokens Table:
-- token1: { holderId: "studentA@stu.vtc.edu.hk", seq: 1 }
+- token1: { holderId: "attendeeA@example.com", seq: 1 }
 ```
 
-#### Step 2: Student B Scans Student A's QR
+#### Step 2: Attendee B Scans Attendee A's QR
 ```
 POST /api/sessions/{sessionId}/chains/{chainId}/scan
 Body: { tokenId: "token1" }
-Caller: studentB@stu.vtc.edu.hk
+Caller: attendeeB@example.com
 ```
 
 **Process**:
-1. Validate token (belongs to Student A)
-2. Get Student A's attendance record
+1. Validate token (belongs to Attendee A)
+2. Get Attendee A's attendance record
 3. **Check**: `if (!prevAttendance.entryStatus)` → TRUE (not marked yet)
-4. Mark Student A: `entryStatus = 'PRESENT_ENTRY'`, `entryMethod = 'CHAIN'`
+4. Mark Attendee A: `entryStatus = 'PRESENT_ENTRY'`, `entryMethod = 'CHAIN'`
 5. Delete old token
-6. Create new token for Student B
-7. Student B becomes new holder
+6. Create new token for Attendee B
+7. Attendee B becomes new holder
 
 **Database State**:
 ```
 Attendance Table:
-- studentA@stu.vtc.edu.hk: { joinedAt: T0, entryStatus: 'PRESENT_ENTRY', entryMethod: 'CHAIN', entryAt: T1 } ✅
-- studentB@stu.vtc.edu.hk: { joinedAt: T0, entryStatus: null }
+- attendeeA@example.com: { joinedAt: T0, entryStatus: 'PRESENT_ENTRY', entryMethod: 'CHAIN', entryAt: T1 } ✅
+- attendeeB@example.com: { joinedAt: T0, entryStatus: null }
 
 Tokens Table:
-- token2: { holderId: "studentB@stu.vtc.edu.hk", seq: 2 }
+- token2: { holderId: "attendeeB@example.com", seq: 2 }
 ```
 
-#### Step 3: Student C Scans Student B's QR
+#### Step 3: Attendee C Scans Attendee B's QR
 ```
 POST /api/sessions/{sessionId}/chains/{chainId}/scan
 Body: { tokenId: "token2" }
-Caller: studentC@stu.vtc.edu.hk
+Caller: attendeeC@example.com
 ```
 
 **Process**:
-1. Validate token (belongs to Student B)
-2. Get Student B's attendance record
+1. Validate token (belongs to Attendee B)
+2. Get Attendee B's attendance record
 3. **Check**: `if (!prevAttendance.entryStatus)` → TRUE (not marked yet)
-4. Mark Student B: `entryStatus = 'PRESENT_ENTRY'`, `entryMethod = 'CHAIN'`
+4. Mark Attendee B: `entryStatus = 'PRESENT_ENTRY'`, `entryMethod = 'CHAIN'`
 5. Delete old token
-6. Create new token for Student C
-7. Student C becomes new holder
+6. Create new token for Attendee C
+7. Attendee C becomes new holder
 
 **Database State**:
 ```
 Attendance Table:
-- studentA@stu.vtc.edu.hk: { entryStatus: 'PRESENT_ENTRY', entryMethod: 'CHAIN', entryAt: T1 } ✅
-- studentB@stu.vtc.edu.hk: { entryStatus: 'PRESENT_ENTRY', entryMethod: 'CHAIN', entryAt: T2 } ✅
-- studentC@stu.vtc.edu.hk: { joinedAt: T0, entryStatus: null }
+- attendeeA@example.com: { entryStatus: 'PRESENT_ENTRY', entryMethod: 'CHAIN', entryAt: T1 } ✅
+- attendeeB@example.com: { entryStatus: 'PRESENT_ENTRY', entryMethod: 'CHAIN', entryAt: T2 } ✅
+- attendeeC@example.com: { joinedAt: T0, entryStatus: null }
 
 Tokens Table:
-- token3: { holderId: "studentC@stu.vtc.edu.hk", seq: 3 }
+- token3: { holderId: "attendeeC@example.com", seq: 3 }
 ```
 
 ---
 
-## Edge Case: What If Student A Scans Again?
+## Edge Case: What If Attendee A Scans Again?
 
-### Scenario: Student A tries to scan again later
+### Scenario: Attendee A tries to scan again later
 
 **Attempt**:
 ```
-Student D has token4 (holderId = "studentD@stu.vtc.edu.hk")
-Student A scans Student D's QR
+Attendee D has token4 (holderId = "attendeeD@example.com")
+Attendee A scans Attendee D's QR
 ```
 
 **Process**:
-1. Validate token (belongs to Student D)
-2. Get Student D's attendance record
+1. Validate token (belongs to Attendee D)
+2. Get Attendee D's attendance record
 3. **Check**: `if (!prevAttendance.entryStatus)` → TRUE
-4. Mark Student D: `entryStatus = 'PRESENT_ENTRY'`
-5. Student A becomes new holder (gets new token)
+4. Mark Attendee D: `entryStatus = 'PRESENT_ENTRY'`
+5. Attendee A becomes new holder (gets new token)
 
 **Database State**:
 ```
 Attendance Table:
-- studentA@stu.vtc.edu.hk: { entryStatus: 'PRESENT_ENTRY', entryAt: T1 } ← NO CHANGE ✅
-- studentD@stu.vtc.edu.hk: { entryStatus: 'PRESENT_ENTRY', entryAt: T5 } ✅
+- attendeeA@example.com: { entryStatus: 'PRESENT_ENTRY', entryAt: T1 } ← NO CHANGE ✅
+- attendeeD@example.com: { entryStatus: 'PRESENT_ENTRY', entryAt: T5 } ✅
 ```
 
-**Result**: Student A is NOT marked again. Only Student D (previous holder) is marked.
+**Result**: Attendee A is NOT marked again. Only Attendee D (previous holder) is marked.
 
 ---
 
-## Edge Case: What If Same Student Scanned Twice Simultaneously?
+## Edge Case: What If Same Attendee Scanned Twice Simultaneously?
 
-### Scenario: Race condition - two students scan Student A at the same time
+### Scenario: Race condition - two students scan Attendee A at the same time
 
 **Attempt**:
 ```
-Time T1: Student B scans Student A's token1
-Time T1: Student C scans Student A's token1 (same token)
+Time T1: Attendee B scans Attendee A's token1
+Time T1: Attendee C scans Attendee A's token1 (same token)
 ```
 
 **Process**:
 
-**Request 1 (Student B)**:
+**Request 1 (Attendee B)**:
 1. Validate token1 → SUCCESS
-2. Mark Student A
+2. Mark Attendee A
 3. **Delete token1** ← Token removed
-4. Create token2 for Student B
+4. Create token2 for Attendee B
 
-**Request 2 (Student C)**:
+**Request 2 (Attendee C)**:
 1. Validate token1 → **FAIL** (token already deleted)
 2. Return error: "Token not found or already used"
 
@@ -207,25 +207,25 @@ Time T1: Student C scans Student A's token1 (same token)
 
 ---
 
-## Edge Case: What If Student Scans Multiple Different Chains?
+## Edge Case: What If Attendee Scans Multiple Different Chains?
 
-### Scenario: Student A is holder in Chain 1 and Chain 2
+### Scenario: Attendee A is holder in Chain 1 and Chain 2
 
 **Setup**:
 ```
-Chain 1: Student A is holder (token1)
-Chain 2: Student A is holder (token2)
+Chain 1: Attendee A is holder (token1)
+Chain 2: Attendee A is holder (token2)
 ```
 
-**Student B scans Chain 1**:
-1. Mark Student A: `entryStatus = 'PRESENT_ENTRY'`, `entryAt = T1`
+**Attendee B scans Chain 1**:
+1. Mark Attendee A: `entryStatus = 'PRESENT_ENTRY'`, `entryAt = T1`
 
-**Student C scans Chain 2**:
-1. Get Student A's attendance
+**Attendee C scans Chain 2**:
+1. Get Attendee A's attendance
 2. **Check**: `if (!prevAttendance.entryStatus)` → FALSE (already marked at T1)
 3. **Skip marking** (no update)
 
-**Result**: Student A marked only once, even across multiple chains. ✅
+**Result**: Attendee A marked only once, even across multiple chains. ✅
 
 ---
 
@@ -238,7 +238,7 @@ Chain 2: Student A is holder (token2)
 // This will FAIL if record already exists
 await attendanceTable.createEntity({
   partitionKey: sessionId,
-  rowKey: studentId,  // Same student
+  rowKey: attendeeId,  // Same attendee
   // ...
 });
 // Error: EntityAlreadyExists
@@ -246,7 +246,7 @@ await attendanceTable.createEntity({
 // This will UPDATE existing record (no duplicate)
 await attendanceTable.updateEntity({
   partitionKey: sessionId,
-  rowKey: studentId,  // Same student
+  rowKey: attendeeId,  // Same attendee
   entryStatus: 'PRESENT_ENTRY'
 }, 'Merge');
 // Success: Updates existing record
@@ -262,7 +262,7 @@ await attendanceTable.updateEntity({
 ## Summary: Duplicate Prevention Layers
 
 ### Layer 1: Database Constraint ✅
-- Primary key `(sessionId, studentId)` is unique
+- Primary key `(sessionId, attendeeId)` is unique
 - Azure Table Storage enforces uniqueness
 - Cannot have duplicate records
 
@@ -285,7 +285,7 @@ await attendanceTable.updateEntity({
 
 ## Conclusion
 
-**Can a student be recorded multiple times?**
+**Can an attendee be recorded multiple times?**
 
 **NO** - Multiple layers of protection:
 
@@ -294,19 +294,19 @@ await attendanceTable.updateEntity({
 3. ✅ Tokens are single-use (deleted after scan)
 4. ✅ Update mode merges with existing record
 
-**Guarantee**: Each student can only have ONE attendance record per session, marked only ONCE during entry chain.
+**Guarantee**: Each attendee can only have ONE attendance record per session, marked only ONCE during entry chain.
 
 ---
 
 ## Code References
 
 - **scanChain.ts**: Lines 180-213 (duplicate check)
-- **Attendance Table**: `PartitionKey: sessionId, RowKey: studentId`
+- **Attendance Table**: `PartitionKey: sessionId, RowKey: attendeeId`
 - **Update Mode**: `updateEntity(data, 'Merge')`
 
 ---
 
-## Additional Question: Can a Student Become Chain Holder Multiple Times?
+## Additional Question: Can a Attendee Become Chain Holder Multiple Times?
 
 **NO (FIXED)** - Bug has been fixed with prevention mechanism.
 
@@ -315,14 +315,14 @@ await attendanceTable.updateEntity({
 **Original Behavior**: Students could become chain holders multiple times in the SAME chain.
 
 **Why This Was a Bug**:
-- Each student should only be a holder ONCE per chain
+- Each attendee should only be a holder ONCE per chain
 - Allowing re-assignment in the same chain could lead to unfair distribution
 - Students could manipulate a single chain by becoming holders repeatedly
 
 **Correct Behavior**: 
-- Student can be holder once in entry chain
-- Student can be holder once in exit chain  
-- Student can be holder once in each snapshot chain (can be multiple snapshot chains)
+- Attendee can be holder once in entry chain
+- Attendee can be holder once in exit chain  
+- Attendee can be holder once in each snapshot chain (can be multiple snapshot chains)
 - But NOT multiple times in the same chain instance
 
 ### Fix Implementation
@@ -368,37 +368,37 @@ try {
 #### Scenario 1: Same Chain (BLOCKED)
 ```
 Entry Chain: entry-123
-1. Teacher → Student A (holder, seq 1)
-2. Student B scans → Student A marked, Student B becomes holder (seq 2) ✅
-3. Student C scans → Student B marked, Student C becomes holder (seq 3) ✅
-4. Student A scans → ❌ BLOCKED - "Already been a holder in this chain"
+1. Organizer → Attendee A (holder, seq 1)
+2. Attendee B scans → Attendee A marked, Attendee B becomes holder (seq 2) ✅
+3. Attendee C scans → Attendee B marked, Attendee C becomes holder (seq 3) ✅
+4. Attendee A scans → ❌ BLOCKED - "Already been a holder in this chain"
 ```
 
 #### Scenario 2: Different Chains (ALLOWED)
 ```
 Entry Chain: entry-123
-1. Teacher → Student A (holder, seq 1)
-2. Student B scans → Student A marked, Student B becomes holder (seq 2) ✅
+1. Organizer → Attendee A (holder, seq 1)
+2. Attendee B scans → Attendee A marked, Attendee B becomes holder (seq 2) ✅
 
 Exit Chain: exit-456 (later in session)
-1. Teacher → Student C (holder, seq 1)
-2. Student A scans → ✅ ALLOWED - Student A can be holder in exit chain
-3. Student B scans → ✅ ALLOWED - Student B can be holder in exit chain
+1. Teacher → Attendee C (holder, seq 1)
+2. Attendee A scans → ✅ ALLOWED - Attendee A can be holder in exit chain
+3. Attendee B scans → ✅ ALLOWED - Attendee B can be holder in exit chain
 
 Snapshot Chain 1: snapshot-789
-1. Teacher → Student D (holder, seq 1)
-2. Student A scans → ✅ ALLOWED - Student A can be holder in snapshot chain
+1. Teacher → Attendee D (holder, seq 1)
+2. Attendee A scans → ✅ ALLOWED - Attendee A can be holder in snapshot chain
 ```
 
 #### Scenario 3: Multiple Chain Types (ALLOWED)
 ```
-Entry Chain: Student A is holder at seq 2 ✅
-Snapshot Chain 1: Student A can be holder ✅
-Snapshot Chain 2: Student A can be holder ✅
-Exit Chain: Student A can be holder ✅
+Entry Chain: Attendee A is holder at seq 2 ✅
+Snapshot Chain 1: Attendee A can be holder ✅
+Snapshot Chain 2: Attendee A can be holder ✅
+Exit Chain: Attendee A can be holder ✅
 
-But in Entry Chain again: Student A cannot be holder again ❌
-But in Snapshot Chain 1 again: Student A cannot be holder again ❌
+But in Entry Chain again: Attendee A cannot be holder again ❌
+But in Snapshot Chain 1 again: Attendee A cannot be holder again ❌
 ```
 
 ### Error Response

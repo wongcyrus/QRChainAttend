@@ -4,7 +4,7 @@ Quick guide to get the ProvePresent running locally.
 
 ## Prerequisites
 
-- **Node.js 20+**: [Download](https://nodejs.org/)
+- **Node.js 22+**: [Download](https://nodejs.org/)
 - **Azure Functions Core Tools**: `npm install -g azure-functions-core-tools@4`
 - **Azurite**: For local storage emulation
 - **Git**: For version control
@@ -78,8 +78,8 @@ Frontend runs on: http://localhost:3000
 1. Visit http://localhost:3000
 2. Click "Login" (uses mock authentication in local dev)
 3. Choose a role:
-   - Teacher: Use `teacher@vtc.edu.hk` email
-   - Student: Use `student@stu.vtc.edu.hk` email
+   - Organizer: Use any email with organizer domain (configurable)
+   - Attendee: Use any email with attendee domain (configurable)
 
 ## Configuration
 
@@ -105,10 +105,10 @@ NEXT_PUBLIC_ENVIRONMENT=local
 
 ## Testing the Flow
 
-### As a Teacher
+### As an Organizer
 
-1. Login with `teacher@vtc.edu.hk`
-2. Go to Teacher Dashboard
+1. Login with an organizer email
+2. Go to Organizer Dashboard
 3. Click "Create New Session"
 3. Fill in session details:
    - Class ID (e.g., "CS101")
@@ -120,16 +120,16 @@ NEXT_PUBLIC_ENVIRONMENT=local
 5. Click "Create Session"
 6. View session in dashboard
 7. Click "Show Entry QR" to generate entry QR code
-8. Students can scan this QR code to join
+8. Attendees can scan this QR code to join
 
-### As a Student
+### As an Attendee
 
-1. Login with `student@stu.vtc.edu.hk` (use different browser/incognito)
-2. Go to Student View
-3. Scan teacher's session QR code (or navigate to URL manually)
+1. Login with an attendee email (use different browser/incognito)
+2. Go to Attendee View
+3. Scan organizer's session QR code (or navigate to URL manually)
 4. View session information and attendance status
 5. When you become a chain holder, your QR code will display
-6. Other students can scan your QR code to pass the chain
+6. Other attendees can scan your QR code to pass the chain
 
 ### Testing Recurring Sessions
 
@@ -147,8 +147,8 @@ NEXT_PUBLIC_ENVIRONMENT=local
 2. Click "Use Current Location" to set coordinates
 3. Set radius (default: 1000 meters)
 4. Toggle "Enforce Geofence" for strict mode
-5. Students outside radius will see warning or be blocked
-6. View location warnings in teacher dashboard
+5. Attendees outside radius will see warning or be blocked
+6. View location warnings in organizer dashboard
 
 ### Testing Snapshots
 
@@ -157,7 +157,7 @@ NEXT_PUBLIC_ENVIRONMENT=local
 3. Set number of chains (1-20)
 4. Click "Take Snapshot Now"
 5. View snapshot in history list
-6. See: timestamp, chains started, students online, status
+6. See: timestamp, chains started, attendees online, status
 7. Snapshots record who's present at that moment via chains
 
 ## Common Issues

@@ -18,7 +18,7 @@ interface SessionConstraints {
 }
 
 interface CreateSessionRequest {
-  classId: string;
+  eventId: string;
   startAt: string;
   endAt: string;
   lateCutoffMinutes: number;
@@ -35,12 +35,12 @@ interface CreateSessionResponse {
 
 interface SessionCreationFormProps {
   onSessionCreated?: (sessionId: string) => void;
-  teacherId?: string;
+  organizerId?: string;
   teacherEmail?: string;
   mode?: 'create' | 'edit';
   sessionToEdit?: {
     sessionId: string;
-    classId: string;
+    eventId: string;
     startAt: string;
     endAt?: string;
     lateCutoffMinutes?: number;
@@ -55,7 +55,7 @@ interface SessionCreationFormProps {
 
 export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   onSessionCreated,
-  teacherId,
+  organizerId,
   teacherEmail,
   mode = 'create',
   sessionToEdit,
@@ -64,7 +64,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   const isEditMode = mode === 'edit';
 
   // Required fields
-  const [classId, setClassId] = useState(sessionToEdit?.classId || '');
+  const [eventId, setClassId] = useState(sessionToEdit?.eventId || '');
   const [startAt, setStartAt] = useState(
     sessionToEdit?.startAt ? sessionToEdit.startAt.slice(0, 16) : ''
   );
@@ -165,7 +165,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   }, [isRecurring, recurrencePattern, startAt, recurrenceEndDate]);
 
   const validateForm = (): string | null => {
-    if (!classId.trim()) return 'Class ID is required';
+    if (!eventId.trim()) return 'Class ID is required';
     if (!startAt) return 'Start time is required';
     if (!endAt) return 'End time is required';
     if (lateCutoffMinutes < 0) return 'Late cutoff minutes must be non-negative';
@@ -210,7 +210,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
       // Edit mode updates a single session only
       if (isEditMode && sessionToEdit) {
         const updates: any = {
-          classId: classId.trim(),
+          eventId: eventId.trim(),
           startAt: new Date(startAt).toISOString(),
           endAt: new Date(endAt).toISOString(),
           lateCutoffMinutes,
@@ -240,7 +240,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
       
       // Create the new session(s)
       const request: CreateSessionRequest = {
-        classId: classId.trim(),
+        eventId: eventId.trim(),
         startAt,
         endAt,
         lateCutoffMinutes,
@@ -455,7 +455,6 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
                 borderRadius: '12px',
                 boxShadow: '0 4px 16px rgba(0,0,0,0.08)'
               }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src={qrCodeDataUrl} 
                   alt="Session QR Code"
@@ -623,13 +622,13 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
           </h3>
           
           <div style={{ marginBottom: '1.25rem' }}>
-            <label htmlFor="classId" style={labelStyle}>
+            <label htmlFor="eventId" style={labelStyle}>
               Class ID <span style={{ color: '#e53e3e' }}>*</span>
             </label>
             <input
-              id="classId"
+              id="eventId"
               type="text"
-              value={classId}
+              value={eventId}
               onChange={(e) => setClassId(e.target.value)}
               placeholder="e.g., CS101-A, MATH202-B"
               disabled={loading}
@@ -1047,7 +1046,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
                   type="text"
                   value={wifiSSIDs}
                   onChange={(e) => setWifiSSIDs(e.target.value)}
-                  placeholder="e.g., ClassroomWiFi, SchoolNet"
+                  placeholder="e.g., EventWiFi, VenueNet"
                   disabled={loading}
                   style={inputStyle}
                   onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}

@@ -1,12 +1,14 @@
 /**
  * Analyze Slide API Endpoint
- * Uses Azure OpenAI Vision to analyze lecture slides
+ * Uses SlideAnalysisAgent to analyze presentation slides
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole } from '../utils/auth';
 import { BlobServiceClient } from '@azure/storage-blob';
-import { DefaultAzureCredential } from '@azure/identity';
+import { generateReadSasUrl } from '../utils/blobStorage';
+import { getAgentClient } from '../utils/agentService';
+import { upsertQuizConversation } from '../utils/quizConversationStorage';
 import { randomUUID } from 'crypto';
 
 export async function analyzeSlide(
@@ -17,27 +19,24 @@ export async function analyzeSlide(
 
   try {
     // Parse authentication
-    const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-    if (!principalHeader) {
+    const principal = parseAuthFromRequest(request);
+    if (!principal) {
       return {
         status: 401,
         jsonBody: { error: { code: 'UNAUTHORIZED', message: 'Missing authentication header', timestamp: Date.now() } }
       };
-    }
-
-    const principal = parseUserPrincipal(principalHeader);
-    
-    // Require Teacher role
-    if (!hasRole(principal, 'Teacher') && !hasRole(principal, 'teacher')) {
+    }    
+    // Require Organizer role
+    if (!hasRole(principal, 'Organizer') && !hasRole(principal, 'organizer')) {
       return {
         status: 403,
-        jsonBody: { error: { code: 'FORBIDDEN', message: 'Teacher role required', timestamp: Date.now() } }
+        jsonBody: { error: { code: 'FORBIDDEN', message: 'Organizer role required', timestamp: Date.now() } }
       };
     }
 
     const sessionId = request.params.sessionId;
     const body = await request.json() as any;
-    const { image, imageUrl } = body;
+    const { image, imageUrl, conversationId } = body;
     
     if (!sessionId) {
       return {
@@ -79,7 +78,7 @@ export async function analyzeSlide(
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     let blobUrl: string;
-    let imageDataForAI: string;
+    let visionImageUrl: string;
 
     if (image) {
       // Upload base64 image to blob storage
@@ -94,50 +93,32 @@ export async function analyzeSlide(
         context.warn('Blob upload warning:', error.message);
         blobUrl = `local-${slideId}`;
       }
-      imageDataForAI = image; // Use base64 for OpenAI
+      visionImageUrl = image;
     } else {
       // Use provided URL
       blobUrl = imageUrl;
-      imageDataForAI = imageUrl;
-    }
-
-    // Call Azure OpenAI vision-capable chat API
-    const openaiEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
-    const openaiKey = process.env.AZURE_OPENAI_KEY;
-    const openaiDeployment = process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4.1';
-
-    if (!openaiEndpoint) {
-      throw new Error('Azure OpenAI endpoint not configured');
-    }
-
-    const apiUrl = `${openaiEndpoint.replace(/\/$/, '')}/openai/deployments/${openaiDeployment}/chat/completions?api-version=2024-10-21`;
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-
-    if (openaiKey) {
-      headers['api-key'] = openaiKey;
-    } else {
-      context.log('AZURE_OPENAI_KEY not set, using managed identity token for Azure OpenAI');
-      const credential = new DefaultAzureCredential();
-      const token = await credential.getToken('https://cognitiveservices.azure.com/.default');
-
-      if (!token?.token) {
-        throw new Error('Failed to acquire managed identity token for Azure OpenAI');
+      if (typeof imageUrl === 'string' && imageUrl.includes('.blob.core.') && !imageUrl.includes('?')) {
+        try {
+          visionImageUrl = generateReadSasUrl(imageUrl);
+        } catch (sasError: any) {
+          context.warn('Failed to generate SAS URL for slide image, using raw URL', sasError?.message);
+          visionImageUrl = imageUrl;
+        }
+      } else {
+        visionImageUrl = imageUrl;
       }
-
-      headers['Authorization'] = `Bearer ${token.token}`;
     }
 
-    const requestBody = {
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Analyze this lecture slide and extract the following information in JSON format:
+    context.log('Slide analysis image source prepared', {
+      hasInlineImage: typeof image === 'string' && image.length > 0,
+      usingBlobSasUrl: typeof visionImageUrl === 'string' && visionImageUrl.includes('?')
+    });
+
+    // Use dedicated slide analysis agent
+    const agentClient = getAgentClient();
+    const slideAnalysisAgentName = 'SlideAnalysisAgent';
+    
+    const prompt = `Analyze the provided presentation slide image and extract the following information in JSON format:
 {
   "topic": "Main topic or concept (1-2 words)",
   "title": "Slide title if visible",
@@ -149,92 +130,39 @@ export async function analyzeSlide(
   "summary": "Brief 1-2 sentence summary of the slide content"
 }
 
-Be concise and accurate. Extract only what's clearly visible.`
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: imageDataForAI
-              }
-            }
-          ]
-        }
-      ],
-      max_completion_tokens: 1000
-      // temperature not set - uses default (1) for model compatibility
-    };
+Return ONLY valid JSON (no markdown, no code blocks).`;
 
-    // Retry logic with exponential backoff for rate limits
-    let response;
-    let lastError;
-    const maxRetries = 3;
+    context.log('Calling SlideAnalysisAgent to analyze slide...');
     
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        response = await fetch(apiUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(requestBody)
-        });
+    const response = await agentClient.runSingleVisionInteraction({
+      agentName: slideAnalysisAgentName,
+      userPrompt: prompt,
+      imageUrls: [visionImageUrl],
+      conversationId: typeof conversationId === 'string' && conversationId.trim().length > 0
+        ? conversationId
+        : undefined
+    });
 
-        if (response.ok) {
-          break; // Success, exit retry loop
-        }
-
-        const errorText = await response.text();
-        
-        // Handle rate limit errors with retry
-        if (response.status === 429) {
-          let retryAfter = 20;
-          try {
-            const errorData = JSON.parse(errorText);
-            const match = errorData.error?.message?.match(/retry after (\d+) seconds/i);
-            if (match) {
-              retryAfter = parseInt(match[1]);
-            }
-          } catch (e) {
-            // Use default retry time
-          }
-          
-          if (attempt < maxRetries - 1) {
-            context.log(`Rate limit hit, retrying after ${retryAfter} seconds (attempt ${attempt + 1}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-            continue;
-          }
-        }
-        
-        // Non-rate-limit error or final attempt
-        context.error('OpenAI API error:', errorText);
-        throw new Error(`OpenAI API error: ${response.status}`);
-        
-      } catch (error: any) {
-        lastError = error;
-        if (attempt === maxRetries - 1) {
-          throw error;
-        }
-      }
+    if (response.conversationId) {
+      await upsertQuizConversation(sessionId, response.conversationId);
     }
 
-    if (!response || !response.ok) {
-      throw lastError || new Error('Failed to get response from OpenAI');
-    }
-
-    const aiResponse = await response.json();
-    const content = aiResponse.choices[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No content in OpenAI response');
+    if (!response.content) {
+      throw new Error('No content in agent response');
     }
 
     // Parse JSON from response
     let analysis;
     try {
-      // Extract JSON from markdown code blocks if present
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : content;
+      const cleanContent = response.content.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
+      const firstBrace = cleanContent.indexOf('{');
+      const lastBrace = cleanContent.lastIndexOf('}');
+      const jsonStr = (firstBrace !== -1 && lastBrace !== -1) 
+        ? cleanContent.substring(firstBrace, lastBrace + 1)
+        : cleanContent;
       analysis = JSON.parse(jsonStr);
     } catch (parseError) {
-      context.error('Failed to parse AI response:', content);
+      context.error('Failed to parse agent response:', response.content);
       throw new Error('Failed to parse AI analysis');
     }
 
@@ -245,6 +173,7 @@ Be concise and accurate. Extract only what's clearly visible.`
       jsonBody: {
         slideId,
         imageUrl: blobUrl,
+        conversationId: response.conversationId,
         analysis: {
           topic: analysis.topic || 'Unknown',
           title: analysis.title || '',
@@ -259,7 +188,12 @@ Be concise and accurate. Extract only what's clearly visible.`
     };
 
   } catch (error: any) {
-    context.error('Error analyzing slide:', error);
+    context.error('Error analyzing slide:', {
+      message: error?.message,
+      code: error?.code,
+      status: error?.status,
+      stack: error?.stack
+    });
     
     return {
       status: 500,

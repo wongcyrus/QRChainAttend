@@ -1,7 +1,7 @@
 /**
  * Chain Trace Viewer Component
  * Visualizes chain transfer progression for a snapshot
- * Shows which student passed to which, with sequence numbers
+ * Shows which attendee passed to which, with sequence numbers
  */
 
 import React, { useState } from 'react';

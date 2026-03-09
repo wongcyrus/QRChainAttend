@@ -3,13 +3,13 @@
  * This function deploys successfully but returns a placeholder response
  */
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { parseUserPrincipal, hasRole, getUserId } from '../utils/auth';
+import { parseAuthFromRequest, hasRole, getUserId } from '../utils/auth';
 
 export async function reseedEntry(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   context.log('reseedEntry called - not yet implemented');
 
-  const principalHeader = request.headers.get('x-ms-client-principal') || request.headers.get('x-client-principal');
-  if (!principalHeader) {
+  const principal = parseAuthFromRequest(request);
+  if (!principal) {
     return {
       status: 401,
       jsonBody: {
@@ -21,16 +21,13 @@ export async function reseedEntry(request: HttpRequest, context: InvocationConte
         }
       }
     };
-  }
-
-  const principal = parseUserPrincipal(principalHeader);
-  if (!hasRole(principal, 'teacher')) {
+  }  if (!hasRole(principal, 'organizer')) {
     return {
       status: 403,
       jsonBody: {
         error: {
           code: 'FORBIDDEN',
-          message: 'Teacher role required',
+          message: 'Organizer role required',
           function: 'reseedEntry',
           timestamp: Date.now()
         }
@@ -53,7 +50,7 @@ export async function reseedEntry(request: HttpRequest, context: InvocationConte
 
 app.http('reseedEntry', {
   methods: ['GET', 'POST'],
-  route: 'reseedEntry',
+  route: 'sessions/{sessionId}/reseed-entry',
   authLevel: 'anonymous',
   handler: reseedEntry
 });

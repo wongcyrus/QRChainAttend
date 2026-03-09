@@ -67,7 +67,7 @@ describe('QRScanner Component', () => {
       const sessionData: SessionQRData = {
         type: 'SESSION',
         sessionId: 'session-123',
-        classId: 'class-456',
+        eventId: 'class-456',
       };
 
       const callback = (global as any).mockQrReaderCallback;
@@ -101,8 +101,8 @@ describe('QRScanner Component', () => {
       const onScanSuccess = jest.fn();
       const mockResponse: ChainScanResponse = {
         success: true,
-        holderMarked: 'student-1',
-        newHolder: 'student-2',
+        holderMarked: 'attendee-1',
+        newHolder: 'attendee-2',
         newToken: 'token-456',
         newTokenEtag: 'etag-456',
       };
@@ -119,7 +119,7 @@ describe('QRScanner Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20, // 20 seconds in future
       };
 
@@ -149,7 +149,7 @@ describe('QRScanner Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) - 10, // 10 seconds in past
       };
 
@@ -184,7 +184,7 @@ describe('QRScanner Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -202,7 +202,7 @@ describe('QRScanner Component', () => {
       const onScanSuccess = jest.fn();
       const mockResponse: ChainScanResponse = {
         success: true,
-        holderMarked: 'student-1',
+        holderMarked: 'attendee-1',
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -217,7 +217,7 @@ describe('QRScanner Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -369,7 +369,7 @@ describe('QRScanner Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -403,7 +403,7 @@ describe('QRScanner Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -447,7 +447,7 @@ describe('QRScanner Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 
@@ -482,7 +482,7 @@ describe('QRScanner Component', () => {
         sessionId: 'session-123',
         tokenId: 'token-123',
         etag: 'etag-123',
-        holderId: 'student-1',
+        holderId: 'attendee-1',
         exp: Math.floor(Date.now() / 1000) + 20,
       };
 

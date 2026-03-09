@@ -62,9 +62,9 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
 
   // Anti-Cheat Errors
   RATE_LIMITED: 'Too many attempts. Please wait before trying again.',
-  LOCATION_VIOLATION: 'Location verification failed. Please ensure you are in the classroom.',
-  GEOFENCE_VIOLATION: 'You must be physically present in the classroom to scan.',
-  WIFI_VIOLATION: 'Please connect to the classroom Wi-Fi network.',
+  LOCATION_VIOLATION: 'Location verification failed. Please ensure you are in the venue.',
+  GEOFENCE_VIOLATION: 'You must be physically present in the venue to scan.',
+  WIFI_VIOLATION: 'Please connect to the venue Wi-Fi network.',
 
   // Resource Errors
   NOT_FOUND: 'The requested resource was not found.',
@@ -82,9 +82,9 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
  * Requirements: 9.3
  */
 export const LOCATION_GUIDANCE: Record<string, string> = {
-  GEOFENCE_VIOLATION: 'Please ensure you are physically present in the classroom. Your GPS location indicates you are outside the allowed area.',
-  WIFI_VIOLATION: 'Please connect to the classroom Wi-Fi network. Your current network is not authorized for attendance.',
-  LOCATION_VIOLATION: 'Please ensure you are in the classroom and connected to the correct Wi-Fi network. Enable location services if prompted.',
+  GEOFENCE_VIOLATION: 'Please ensure you are physically present in the venue. Your GPS location indicates you are outside the allowed area.',
+  WIFI_VIOLATION: 'Please connect to the venue Wi-Fi network. Your current network is not authorized for attendance.',
+  LOCATION_VIOLATION: 'Please ensure you are in the venue and connected to the correct Wi-Fi network. Enable location services if prompted.',
 };
 
 /**
