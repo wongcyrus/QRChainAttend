@@ -1,5 +1,9 @@
 # ProvePresent
 
+<p align="center">
+  <img src="images/logo.png" alt="ProvePresent Logo" width="200"/>
+</p>
+
 **Peer-Verified Event Attendance**
 
 Attendees prove they're actually present by passing verification tokens to each other. No more proxy attendance or remote check-ins.

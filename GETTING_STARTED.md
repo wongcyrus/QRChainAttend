@@ -1,5 +1,9 @@
 # Getting Started
 
+<p align="center">
+  <img src="images/logo.png" alt="ProvePresent Logo" width="150"/>
+</p>
+
 Quick guide to get the ProvePresent running locally.
 
 ## Prerequisites

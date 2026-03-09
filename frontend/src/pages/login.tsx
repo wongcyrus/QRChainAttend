@@ -209,7 +209,16 @@ export default function Login() {
             color: 'white',
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: '5rem', marginBottom: '1rem' }}>🔗✓</div>
+            <img 
+              src="/logo.png" 
+              alt="ProvePresent Logo" 
+              style={{ 
+                width: '150px', 
+                height: '150px', 
+                marginBottom: '1rem',
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
+              }} 
+            />
             <h1 style={{ 
               fontSize: '3rem', 
               fontWeight: 'bold', 
