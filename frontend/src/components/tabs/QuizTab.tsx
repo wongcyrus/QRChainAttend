@@ -283,6 +283,7 @@ export const QuizTab: React.FC<QuizTabProps> = ({
       {/* Quiz Management - Questions & Responses */}
       <div style={{ marginTop: '2rem' }}>
         <QuizManagement
+          key={quizActive ? 'active' : 'stopped'}
           sessionId={sessionId}
           onError={onError}
         />

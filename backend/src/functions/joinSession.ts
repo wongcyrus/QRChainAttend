@@ -213,7 +213,9 @@ export async function joinSession(
           rowKey: attendeeId,
           exitVerified: false,
           joinedAt: joinTimestamp,
+          entryAt: joinTimestamp,  // Set entry time when joining
           entryStatus: 'PRESENT_ENTRY', // Set entry status for quiz system
+          entryMethod: 'DIRECT_QR',  // Joined via QR code
           isOnline: true,
           lastSeen: joinTimestamp
         };

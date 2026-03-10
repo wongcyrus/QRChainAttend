@@ -101,6 +101,11 @@ export function QuizManagement({ sessionId, onError }: QuizManagementProps) {
   };
 
   const downloadQuizReport = () => {
+    if (questions.length === 0) {
+      alert('No quiz questions to export');
+      return;
+    }
+
     // Generate CSV report
     const lines: string[] = [];
     
@@ -114,9 +119,9 @@ export function QuizManagement({ sessionId, onError }: QuizManagementProps) {
       const accuracy = qResponses.length > 0 ? ((correctCount / qResponses.length) * 100).toFixed(1) : '0';
       
       lines.push([
-        `"${q.questionText.replace(/"/g, '""')}"`,
-        q.options[q.correctAnswer],
-        q.difficulty,
+        `"${(q.questionText || 'Unknown question').replace(/"/g, '""')}"`,
+        q.options?.[q.correctAnswer] || 'N/A',
+        q.difficulty || 'N/A',
         qResponses.length,
         correctCount,
         `${accuracy}%`
@@ -131,10 +136,12 @@ export function QuizManagement({ sessionId, onError }: QuizManagementProps) {
     responses.forEach(r => {
       const question = questions.find(q => q.questionId === r.questionId);
       if (question) {
+        const questionText = (question.questionText || 'Unknown').substring(0, 50);
+        const selectedAnswer = question.options?.[r.selectedAnswer] || 'N/A';
         lines.push([
           r.attendeeId,
-          `"${question.questionText.substring(0, 50).replace(/"/g, '""')}..."`,
-          question.options[r.selectedAnswer] || 'N/A',
+          `"${questionText.replace(/"/g, '""')}..."`,
+          selectedAnswer,
           r.isCorrect ? 'Yes' : 'No',
           new Date(r.answeredAt * 1000).toLocaleString()
         ].join(','));
@@ -168,13 +175,19 @@ export function QuizManagement({ sessionId, onError }: QuizManagementProps) {
   if (questions.length === 0) {
     return (
       <div style={{
-        padding: '2rem',
+        padding: '3rem 2rem',
         backgroundColor: '#f7fafc',
         borderRadius: '12px',
         textAlign: 'center',
-        color: '#718096'
+        color: '#4a5568'
       }}>
-        No quiz questions yet for this session.
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📝</div>
+        <div style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+          No Quiz Questions Yet
+        </div>
+        <div style={{ fontSize: '0.9rem', color: '#718096' }}>
+          Questions will appear here after you stop screen sharing during Live Quiz.
+        </div>
       </div>
     );
   }
@@ -374,12 +387,17 @@ export function QuizManagement({ sessionId, onError }: QuizManagementProps) {
                               flexWrap: 'wrap'
                             }}
                           >
-                            <span style={{ color: '#2d3748', fontWeight: '500' }}>
-                              {response.attendeeId}
-                            </span>
-                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            <div style={{ flex: 1, minWidth: '200px' }}>
+                              <div style={{ color: '#2d3748', fontWeight: '500', marginBottom: '0.25rem' }}>
+                                {response.attendeeId}
+                              </div>
+                              <div style={{ color: '#718096', fontSize: '0.85rem' }}>
+                                Q: {question.questionText}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
                               <span style={{ color: '#718096', fontSize: '0.875rem' }}>
-                                Answer: {String.fromCharCode(65 + response.selectedAnswer)}
+                                Selected: <strong>{String.fromCharCode(65 + response.selectedAnswer)}</strong> - {question.options[response.selectedAnswer]}
                               </span>
                               <span style={{
                                 padding: '0.25rem 0.75rem',

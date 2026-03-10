@@ -339,6 +339,27 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
                     fontWeight: '600',
                     color: '#4a5568',
                     borderBottom: '2px solid #e2e8f0'
+                  }}>Exit Verified</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'left',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Exit Time</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Exit Method</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
                   }}>Actions</th>
                 </tr>
               </thead>
@@ -423,10 +444,10 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
                       )}
                     </td>
                     <td style={{ padding: '1rem', color: '#718096' }}>
-                      {formatTimestamp(record.entryAt)}
+                      {formatTimestamp(record.entryAt || record.joinedAt)}
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      {record.entryMethod ? (
+                      {record.entryMethod || (record.entryAt || record.joinedAt) ? (
                         <span style={{
                           padding: '0.25rem 0.5rem',
                           backgroundColor: record.entryMethod === 'CHAIN' ? '#e0f2fe' : '#fef3c7',
@@ -436,6 +457,37 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
                           fontWeight: '600'
                         }}>
                           {record.entryMethod === 'CHAIN' ? '🔗 Chain' : '📱 QR'}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#a0aec0' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <span style={{
+                        padding: '0.375rem 0.75rem',
+                        backgroundColor: record.exitVerified ? '#c6f6d5' : '#e2e8f0',
+                        color: record.exitVerified ? '#22543d' : '#718096',
+                        borderRadius: '12px',
+                        fontSize: '0.875rem',
+                        fontWeight: '600'
+                      }}>
+                        {record.exitVerified ? '✓ Yes' : '✗ No'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem', color: '#718096' }}>
+                      {record.exitedAt ? formatTimestamp(record.exitedAt) : '—'}
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      {record.exitMethod ? (
+                        <span style={{
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: record.exitMethod === 'CHAIN' ? '#e0f2fe' : '#fef3c7',
+                          color: record.exitMethod === 'CHAIN' ? '#075985' : '#92400e',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600'
+                        }}>
+                          {record.exitMethod === 'CHAIN' ? '🔗 Chain' : '📱 QR'}
                         </span>
                       ) : (
                         <span style={{ color: '#a0aec0' }}>—</span>
