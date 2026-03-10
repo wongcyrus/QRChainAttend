@@ -20,7 +20,11 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
+.env.development
 frontend/.env.local
+frontend/.env.production
+frontend/.env.development
 backend/local.settings.json
 local.settings.json
 
@@ -85,6 +89,8 @@ github-token.txt
 azure-cicd-credentials.json
 backend-deploy.zip
 backend-deploy-*.zip
+*-app.zip
+frontend/*.zip
 
 # Deployment tokens (sensitive - contain secrets)
 *token*.txt

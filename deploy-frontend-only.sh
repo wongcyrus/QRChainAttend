@@ -121,8 +121,14 @@ cd frontend
 echo "Installing dependencies..."
 npm install
 
-# Create environment file
-cat > .env.production << EOF
+# Create environment file based on environment
+if [ "$ENVIRONMENT" = "prod" ]; then
+    ENV_FILE=".env.production"
+else
+    ENV_FILE=".env.development"
+fi
+
+cat > $ENV_FILE << EOF
 NEXT_PUBLIC_API_URL=$FRONTEND_API_URL
 NEXT_PUBLIC_ENVIRONMENT=$ENVIRONMENT
 NEXT_PUBLIC_BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")

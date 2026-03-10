@@ -1212,7 +1212,7 @@ else
 fi
 
 # Create environment file for build
-cat > .env.production << EOF
+cat > frontend/.env.production << EOF
 NEXT_PUBLIC_API_URL=$FRONTEND_API_URL
 NEXT_PUBLIC_ENVIRONMENT=production
 NEXT_PUBLIC_BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
@@ -1221,6 +1221,7 @@ EOF
 
 # Build for production (static export)
 echo "Building frontend for static deployment..."
+cd frontend
 npm run build
 
 # Copy staticwebapp.config.json to output directory for SWA routing fallback
