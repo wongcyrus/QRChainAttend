@@ -158,7 +158,8 @@ export function RotatingQRDisplay({
       setIsStarting(true);
       setError(null);
 
-      const response = await fetch(`/api/sessions/${sessionId}/start-early-leave`, { credentials: 'include',
+      const response = await fetch(`/api/sessions/${sessionId}/start-early-leave`, { 
+        credentials: 'include',
         method: 'POST',
       });
 
@@ -200,7 +201,8 @@ export function RotatingQRDisplay({
       setIsStopping(true);
       setError(null);
 
-      const response = await fetch(`/api/sessions/${sessionId}/stop-early-leave`, { credentials: 'include',
+      const response = await fetch(`/api/sessions/${sessionId}/stop-early-leave`, { 
+        credentials: 'include',
         method: 'POST',
       });
 

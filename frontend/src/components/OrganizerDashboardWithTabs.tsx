@@ -874,6 +874,8 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           attendance={attendance}
           stats={stats}
           onlineStudentCount={onlineStudentCount}
+          sessionId={sessionId}
+          onRefresh={fetchSessionData}
         />
       )}
 
@@ -911,6 +913,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
 
       {activeTab === 'quiz' && (
         <QuizTab
+          sessionId={sessionId}
           sessionStatus={session.status}
           quizActive={quizActive}
           captureInterval={captureInterval}
@@ -919,6 +922,12 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           onStartScreenShare={startScreenShare}
           onStopScreenShare={stopScreenShare}
           onCaptureIntervalChange={setCaptureInterval}
+          onError={(error) => {
+            setError(error);
+            if (onError) {
+              onError(error);
+            }
+          }}
         />
       )}
 

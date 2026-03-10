@@ -116,6 +116,43 @@ export function CaptureHistory({ sessionId, onError }: CaptureHistoryProps) {
     }
   };
 
+  const handleDeleteCapture = async (captureRequestId: string) => {
+    if (!confirm('Delete this capture request and all images?\n\nThis action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const headers = await getAuthHeaders();
+
+      const response = await fetch(`/api/sessions/${sessionId}/capture/${captureRequestId}/delete`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error?.message || 'Failed to delete capture');
+      }
+
+      // Update local state
+      setCaptureHistory(prev => prev.filter(c => c.captureRequestId !== captureRequestId));
+      
+      // Clear selected if it was deleted
+      if (selectedCapture === captureRequestId) {
+        setSelectedCapture(null);
+        setCaptureResults(null);
+      }
+
+    } catch (err: any) {
+      const errorMsg = err.message || 'Failed to delete capture';
+      setError(errorMsg);
+      if (onError) {
+        onError(errorMsg);
+      }
+    }
+  };
+
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleString('en-US', {
@@ -286,6 +323,34 @@ export function CaptureHistory({ sessionId, onError }: CaptureHistoryProps) {
                     🔍 Analyze
                   </button>
                 )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteCapture(capture.captureRequestId);
+                  }}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    backgroundColor: '#fee',
+                    color: '#c53030',
+                    border: '1px solid #fc8181',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#c53030';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = '#fee';
+                    e.currentTarget.style.color = '#c53030';
+                  }}
+                  title="Delete capture and images"
+                >
+                  🗑️
+                </button>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',

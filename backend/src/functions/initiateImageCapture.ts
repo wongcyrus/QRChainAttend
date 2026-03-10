@@ -213,7 +213,7 @@ export async function initiateImageCapture(
     
     // Create CaptureRequest entity with status 'ACTIVE'
     const captureRequestEntity: CaptureRequest = {
-      partitionKey: 'CAPTURE_REQUEST',
+      partitionKey: sessionId,
       rowKey: captureRequestId,
       sessionId,
       organizerId,

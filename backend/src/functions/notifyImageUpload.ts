@@ -162,7 +162,7 @@ export async function notifyImageUpload(
     // ========================================================================
     
     // Check if capture request exists and is still active
-    const captureRequest = await getCaptureRequest(captureRequestId);
+    const captureRequest = await getCaptureRequest(sessionId, captureRequestId);
     
     if (!captureRequest) {
       context.log(`Capture request not found: ${captureRequestId}`);
@@ -252,7 +252,7 @@ export async function notifyImageUpload(
     context.log(`Created CaptureUpload record for attendee: ${attendeeId}`);
 
     // Increment uploadedCount in CaptureRequest
-    const updatedRequest = await updateCaptureRequest(captureRequestId, {
+    const updatedRequest = await updateCaptureRequest(sessionId, captureRequestId, {
       uploadedCount: captureRequest.uploadedCount + 1
     });
     

@@ -122,7 +122,7 @@ export async function analyzeCaptureImages(
     // Step 2: Verify capture request exists and belongs to organizer's session
     // ========================================================================
     
-    const captureRequest = await getCaptureRequest(captureRequestId);
+    const captureRequest = await getCaptureRequest(sessionId, captureRequestId);
     
     if (!captureRequest) {
       return {

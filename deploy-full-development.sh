@@ -1215,6 +1215,8 @@ fi
 cat > .env.production << EOF
 NEXT_PUBLIC_API_URL=$FRONTEND_API_URL
 NEXT_PUBLIC_ENVIRONMENT=dev
+NEXT_PUBLIC_BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+NEXT_PUBLIC_BUILD_ENV=development
 EOF
 
 # Build for development (static export)
@@ -1265,8 +1267,8 @@ if [ -z "$DEPLOYMENT_TOKEN" ] || [ "$DEPLOYMENT_TOKEN" = "null" ]; then
 fi
 
 # Deploy to Static Web App
-echo "Deploying frontend files..."
-swa deploy ./out --deployment-token="$DEPLOYMENT_TOKEN" --env production || {
+echo "Deploying frontend files to default environment..."
+swa deploy ./out --deployment-token="$DEPLOYMENT_TOKEN" --env default || {
     echo -e "${YELLOW}⚠ SWA deployment failed, but continuing...${NC}"
 }
 

@@ -34,6 +34,7 @@ import {
   getCaptureUploads,
   createCaptureResult
 } from '../utils/captureStorage';
+import { getTableClient, TableNames } from '../utils/database';
 import { broadcastToHub } from '../utils/signalrBroadcast';
 import { estimateSeatingPositions } from '../utils/gptPositionEstimation';
 import { logError, logInfo, logWarning } from '../utils/errorLogging';
@@ -77,18 +78,32 @@ export async function processCaptureTimeoutActivity(
     // Step 1: Get capture request (Requirement 2.1)
     // ========================================================================
     
-    const captureRequest = await getCaptureRequest(captureRequestId);
+    // First, we need to find the capture request to get sessionId
+    // Query the table to find it
+    const captureRequestsTable = getTableClient(TableNames.CAPTURE_REQUESTS);
+    let captureRequest: any = null;
+    let sessionId: string = '';
+    
+    // Query all partitions to find the capture request
+    const entities = captureRequestsTable.listEntities({
+      queryOptions: { filter: `RowKey eq '${captureRequestId}'` }
+    });
+    
+    for await (const entity of entities) {
+      captureRequest = entity;
+      sessionId = entity.partitionKey as string;
+      break;
+    }
+    
     if (!captureRequest) {
       throw new Error(`Capture request not found: ${captureRequestId}`);
     }
-    
-    const sessionId = captureRequest.sessionId;
     
     // ========================================================================
     // Step 2: Update status to ANALYZING (Requirement 2.2)
     // ========================================================================
     
-    await updateCaptureRequest(captureRequestId, {
+    await updateCaptureRequest(sessionId, captureRequestId, {
       status: 'ANALYZING',
       analysisStartedAt: new Date().toISOString()
     });
@@ -142,7 +157,7 @@ export async function processCaptureTimeoutActivity(
     if (uploadedCount === 0) {
       context.log(`No uploads for request ${captureRequestId}, marking as COMPLETED`);
       
-      await updateCaptureRequest(captureRequestId, {
+      await updateCaptureRequest(sessionId, captureRequestId, {
         status: 'COMPLETED',
         analysisCompletedAt: new Date().toISOString()
       });
@@ -209,7 +224,7 @@ export async function processCaptureTimeoutActivity(
       context.log(`Stored capture results for request: ${captureRequestId}`);
       
       // Update status to COMPLETED
-      await updateCaptureRequest(captureRequestId, {
+      await updateCaptureRequest(sessionId, captureRequestId, {
         status: 'COMPLETED',
         analysisCompletedAt: new Date().toISOString()
       });
@@ -261,7 +276,7 @@ export async function processCaptureTimeoutActivity(
       );
       
       // Update status to FAILED
-      await updateCaptureRequest(captureRequestId, {
+      await updateCaptureRequest(sessionId, captureRequestId, {
         status: 'FAILED',
         analysisCompletedAt: new Date().toISOString(),
         errorMessage: `Position estimation failed: ${error.message}`
@@ -306,24 +321,37 @@ export async function processCaptureTimeoutActivity(
     );
     
     // Try to update status to FAILED if we have the capture request
+    // Need to query to find sessionId again since it might be out of scope
     try {
-      const captureRequest = await getCaptureRequest(captureRequestId);
-      if (captureRequest) {
-        await updateCaptureRequest(captureRequestId, {
+      const captureRequestsTable = getTableClient(TableNames.CAPTURE_REQUESTS);
+      const entities = captureRequestsTable.listEntities({
+        queryOptions: { filter: `RowKey eq '${captureRequestId}'` }
+      });
+      
+      let foundSessionId: string | null = null;
+      for await (const entity of entities) {
+        foundSessionId = entity.partitionKey as string;
+        break;
+      }
+      
+      if (foundSessionId) {
+        await updateCaptureRequest(foundSessionId, captureRequestId, {
           status: 'FAILED',
           analysisCompletedAt: new Date().toISOString(),
           errorMessage: `Processing failed: ${error.message}`
         });
+      }
         
-        // Try to broadcast error
-        const errorEvent: CaptureResultsEvent = {
-          captureRequestId,
-          status: 'FAILED',
-          errorMessage: `An unexpected error occurred during processing: ${error.message}`
-        };
-        
+      // Try to broadcast error
+      const errorEvent: CaptureResultsEvent = {
+        captureRequestId,
+        status: 'FAILED',
+        errorMessage: `An unexpected error occurred during processing: ${error.message}`
+      };
+      
+      if (foundSessionId) {
         await broadcastToHub(
-          captureRequest.sessionId,
+          foundSessionId,
           'captureResults',
           errorEvent,
           context

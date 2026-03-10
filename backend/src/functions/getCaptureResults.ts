@@ -151,7 +151,7 @@ export async function getCaptureResults(
     // Step 3: Retrieve capture request
     // ========================================================================
     
-    const captureRequest = await getCaptureRequest(captureRequestId);
+    const captureRequest = await getCaptureRequest(sessionId, captureRequestId);
     
     if (!captureRequest) {
       context.log(`Capture request not found: ${captureRequestId}`);

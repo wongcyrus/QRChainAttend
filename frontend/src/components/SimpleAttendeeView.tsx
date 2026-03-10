@@ -588,23 +588,67 @@ export function SimpleAttendeeView({ sessionId, attendeeId, onLeaveSession }: Si
     );
   }
 
-  if (error || !session) {
+  if (error) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <p style={{ color: '#d13438' }}>{error || 'Session not found'}</p>
-        {onLeaveSession && (
-          <button onClick={onLeaveSession} style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#666',
+      <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
+        <p style={{ color: '#d13438', marginBottom: '1rem' }}>{error}</p>
+        <button
+          onClick={() => {
+            setError(null);
+            setLoading(true);
+            fetchData();
+          }}
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: '#2b6cb0',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '6px',
             cursor: 'pointer',
-            marginTop: '1rem'
-          }}>
-            Back
+            marginRight: onLeaveSession ? '0.5rem' : '0'
+          }}
+        >
+          Retry
+        </button>
+        {onLeaveSession && (
+          <button
+            onClick={onLeaveSession}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: 'white',
+              color: '#d13438',
+              border: '1px solid #d13438',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            Leave Session
           </button>
         )}
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
+        <p style={{ marginBottom: '1rem' }}>Session data is unavailable.</p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            fetchData();
+          }}
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: '#2b6cb0',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer'
+          }}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -656,7 +700,7 @@ export function SimpleAttendeeView({ sessionId, attendeeId, onLeaveSession }: Si
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ margin: '0 0 0.5rem 0' }}>Class Session</h1>
+            <h1 style={{ margin: '0 0 0.5rem 0' }}>Session</h1>
             <p style={{ margin: 0, color: '#666', fontSize: '1.1rem' }}>{session.eventId}</p>
           </div>
           <div style={{ textAlign: 'right', fontSize: '0.875rem' }}>

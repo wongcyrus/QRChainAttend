@@ -19,7 +19,7 @@ import {
 /**
  * Container name for attendee capture images
  */
-export const STUDENT_CAPTURES_CONTAINER = 'attendee-captures';
+export const STUDENT_CAPTURES_CONTAINER = 'student-captures';
 
 /**
  * Parse Azure Storage connection string to extract account name and key

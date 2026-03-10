@@ -139,6 +139,7 @@ export async function createCaptureRequest(
 /**
  * Get a capture request by ID
  * 
+ * @param sessionId - UUID of the session
  * @param captureRequestId - UUID of the capture request
  * @returns CaptureRequest entity or null if not found
  * @throws Error if retrieval fails after retries
@@ -146,6 +147,7 @@ export async function createCaptureRequest(
  * Validates: Requirements 8.3, 8.4
  */
 export async function getCaptureRequest(
+  sessionId: string,
   captureRequestId: string
 ): Promise<CaptureRequest | null> {
   const table = getTableClient(CaptureTableNames.CAPTURE_REQUESTS);
@@ -153,7 +155,7 @@ export async function getCaptureRequest(
   return withRetry(async () => {
     try {
       const entity = await table.getEntity<CaptureRequest>(
-        'CAPTURE_REQUEST',
+        sessionId,
         captureRequestId
       );
       return entity as CaptureRequest;
@@ -169,6 +171,7 @@ export async function getCaptureRequest(
 /**
  * Update an existing capture request
  * 
+ * @param sessionId - UUID of the session
  * @param captureRequestId - UUID of the capture request
  * @param updates - Partial updates to apply
  * @returns Updated entity
@@ -177,6 +180,7 @@ export async function getCaptureRequest(
  * Validates: Requirements 8.3
  */
 export async function updateCaptureRequest(
+  sessionId: string,
   captureRequestId: string,
   updates: Partial<Omit<CaptureRequest, 'partitionKey' | 'rowKey'>>
 ): Promise<CaptureRequest> {
@@ -184,7 +188,7 @@ export async function updateCaptureRequest(
   
   return withRetry(async () => {
     // Get existing entity first
-    const existing = await getCaptureRequest(captureRequestId);
+    const existing = await getCaptureRequest(sessionId, captureRequestId);
     if (!existing) {
       throw new Error(`CaptureRequest ${captureRequestId} not found`);
     }

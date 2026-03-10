@@ -122,9 +122,11 @@ echo "Installing dependencies..."
 npm install
 
 # Create environment file
-cat > .env.local << EOF
+cat > .env.production << EOF
 NEXT_PUBLIC_API_URL=$FRONTEND_API_URL
 NEXT_PUBLIC_ENVIRONMENT=$ENVIRONMENT
+NEXT_PUBLIC_BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+NEXT_PUBLIC_BUILD_ENV=$ENVIRONMENT
 EOF
 
 # Build
@@ -149,8 +151,11 @@ if [ -z "$DEPLOYMENT_TOKEN" ] || [ "$DEPLOYMENT_TOKEN" = "null" ]; then
     exit 1
 fi
 
-# Deploy
-swa deploy ./out --deployment-token="$DEPLOYMENT_TOKEN" --env production
+# Deploy to default environment (production slot)
+echo "Deploying to default environment..."
+swa deploy ./out \
+  --deployment-token="$DEPLOYMENT_TOKEN" \
+  --env default
 
 cd ..
 

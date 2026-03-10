@@ -30,13 +30,13 @@ export type ConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW';
  * CaptureRequest entity stored in Table Storage
  * Tracks the overall capture request initiated by a organizer
  * 
- * Partition Key: 'CAPTURE_REQUEST'
+ * Partition Key: sessionId
  * Row Key: captureRequestId (UUID)
  * 
  * Validates: Requirements 1.1, 1.2, 1.3, 8.2
  */
 export interface CaptureRequest {
-  partitionKey: 'CAPTURE_REQUEST';
+  partitionKey: string; // sessionId
   rowKey: string; // captureRequestId (UUID)
   sessionId: string;
   organizerId: string;

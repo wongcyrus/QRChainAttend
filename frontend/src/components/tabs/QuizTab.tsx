@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import { QuizManagement } from '../QuizManagement';
 
 interface QuizStats {
   capturesCount: number;
@@ -11,6 +12,7 @@ interface QuizStats {
 }
 
 interface QuizTabProps {
+  sessionId: string;
   sessionStatus: string;
   quizActive: boolean;
   captureInterval: number;
@@ -19,9 +21,11 @@ interface QuizTabProps {
   onStartScreenShare: () => void;
   onStopScreenShare: () => void;
   onCaptureIntervalChange: (interval: number) => void;
+  onError?: (error: string) => void;
 }
 
 export const QuizTab: React.FC<QuizTabProps> = ({
+  sessionId,
   sessionStatus,
   quizActive,
   captureInterval,
@@ -30,6 +34,7 @@ export const QuizTab: React.FC<QuizTabProps> = ({
   onStartScreenShare,
   onStopScreenShare,
   onCaptureIntervalChange,
+  onError,
 }) => {
   // Calculate next capture countdown
   const [countdown, setCountdown] = React.useState(0);
@@ -274,6 +279,14 @@ export const QuizTab: React.FC<QuizTabProps> = ({
           </button>
         </div>
       )}
+
+      {/* Quiz Management - Questions & Responses */}
+      <div style={{ marginTop: '2rem' }}>
+        <QuizManagement
+          sessionId={sessionId}
+          onError={onError}
+        />
+      </div>
     </div>
   );
 };

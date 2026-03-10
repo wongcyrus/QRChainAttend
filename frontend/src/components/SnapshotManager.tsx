@@ -94,6 +94,36 @@ export function SnapshotManager({
     }
   };
 
+  const handleDeleteSnapshot = async (snapshotId: string) => {
+    if (!confirm('Delete this snapshot?\n\nThis action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const authHeaders = await getAuthHeaders();
+
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/snapshots/${snapshotId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: authHeaders
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error?.message || 'Failed to delete snapshot');
+      }
+
+      // Update local state
+      setSnapshots(prev => prev.filter(s => s.snapshotId !== snapshotId));
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete snapshot';
+      console.error('Delete snapshot error:', error);
+      onError?.(message);
+    }
+  };
+
   return (
     <div style={{
       backgroundColor: 'white',
@@ -264,6 +294,31 @@ export function SnapshotManager({
                 }}>
                   {snapshot.status === 'COMPLETED' ? '✓ Complete' : '⏳ Active'}
                 </div>
+                <button
+                  onClick={() => handleDeleteSnapshot(snapshot.snapshotId)}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    backgroundColor: '#fee',
+                    color: '#c53030',
+                    border: '1px solid #fc8181',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#c53030';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = '#fee';
+                    e.currentTarget.style.color = '#c53030';
+                  }}
+                  title="Delete snapshot"
+                >
+                  🗑️
+                </button>
               </div>
             ))}
           </div>

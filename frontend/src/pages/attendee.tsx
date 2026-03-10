@@ -90,12 +90,22 @@ export default function AttendeePage() {
   const [scannerError, setScannerError] = useState<string | null>(null);
   const [lastScannedText, setLastScannedText] = useState<string | null>(null);
   
-  // Get query params safely (only after mounting)
-  const sessionId = mounted ? router.query.sessionId : undefined;
-  const type = mounted ? router.query.type : undefined;
-  const token = mounted ? router.query.token : undefined;
-  const chainId = mounted ? router.query.chainId : undefined;
-  const tokenId = mounted ? router.query.tokenId : undefined;
+  // Get query params safely (only after mounting and router is ready)
+  // Fallback to localStorage if query param is missing
+  const sessionIdFromQuery = (mounted && router.isReady) ? router.query.sessionId : undefined;
+  const sessionIdFromStorage = (typeof window !== 'undefined') ? localStorage.getItem('activeSessionId') : null;
+  const sessionId = sessionIdFromQuery || sessionIdFromStorage || undefined;
+  
+  console.log('[AttendeePage] SessionId sources:', {
+    fromQuery: sessionIdFromQuery,
+    fromStorage: sessionIdFromStorage,
+    final: sessionId
+  });
+  
+  const type = (mounted && router.isReady) ? router.query.type : undefined;
+  const token = (mounted && router.isReady) ? router.query.token : undefined;
+  const chainId = (mounted && router.isReady) ? router.query.chainId : undefined;
+  const tokenId = (mounted && router.isReady) ? router.query.tokenId : undefined;
 
   // Handle mounting to prevent SSR issues
   useEffect(() => {
@@ -191,7 +201,7 @@ export default function AttendeePage() {
       const qrToken = typeof token === 'string' ? token : undefined;
       handleJoinSession(sessionId, qrType, qrToken);
     }
-  }, [user, sessionId, type, token, chainId, tokenId, hasAutoJoined, joining, mounted]);
+  }, [user, sessionId, type, token, chainId, tokenId, hasAutoJoined, joining, mounted, router.isReady]);
 
   const handleJoinSession = async (sessionIdToJoin: string, qrType?: string, qrToken?: string) => {
     if (!user) return;
@@ -240,10 +250,12 @@ export default function AttendeePage() {
         // Store session in localStorage for persistence across refreshes
         if (typeof window !== 'undefined') {
           localStorage.setItem('activeSessionId', sessionIdToJoin);
+          console.log('[AttendeePage] Saved to localStorage:', localStorage.getItem('activeSessionId'));
         }
         
-        // Successfully joined - navigate to session view (without token in URL)
-        router.push(`/attendee?sessionId=${sessionIdToJoin}`);
+        // Don't navigate - just let the component re-render with the new state
+        console.log('[AttendeePage] Join complete, component will re-render');
+        // The sessionId from localStorage will be picked up on next render
         
       } else if (qrType === 'EXIT') {
         // Mark exit with token validation
@@ -378,8 +390,10 @@ export default function AttendeePage() {
 
   // If sessionId in query and already joined, show session view
   // BUT: Don't show if there's an error (failed to join)
-  // ALSO: Pass through chain scan URLs (has chainId/tokenId) to SimpleAttendeeView
-  if (sessionId && typeof sessionId === 'string' && !error && (!type || chainId)) {
+  // ALSO: Don't show if we're about to auto-join (has type parameter but hasn't joined yet)
+  const needsAutoJoin = type !== undefined && !hasAutoJoined;
+  
+  if (sessionId && typeof sessionId === 'string' && !error && !needsAutoJoin) {
     return (
       <SimpleAttendeeView 
         sessionId={sessionId}

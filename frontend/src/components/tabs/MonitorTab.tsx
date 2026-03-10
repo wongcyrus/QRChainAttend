@@ -34,14 +34,66 @@ interface MonitorTabProps {
   attendance: AttendanceRecord[];
   stats: SessionStats;
   onlineStudentCount: number;
+  sessionId: string;
+  onRefresh?: () => void;
 }
 
 export const MonitorTab: React.FC<MonitorTabProps> = ({
   attendance,
   stats,
   onlineStudentCount,
+  sessionId,
+  onRefresh,
 }) => {
   const [showGpsMissingOnly, setShowGpsMissingOnly] = React.useState(false);
+
+  const handleDeleteAttendance = async (attendeeId: string) => {
+    if (!confirm(`Delete attendance record for ${formatAttendeeId(attendeeId)}?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance/${attendeeId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.error?.message || 'Failed to delete attendance');
+      }
+
+      alert('Attendance record deleted successfully');
+      onRefresh?.();
+    } catch (error: any) {
+      alert('Error: ' + error.message);
+    }
+  };
+
+  const handleBulkDeleteAttendance = async () => {
+    if (!confirm(`Delete ALL ${attendance.length} attendance records?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/sessions/${sessionId}/attendance?all=true`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.error?.message || 'Failed to delete attendance records');
+      }
+
+      alert('All attendance records deleted successfully');
+      onRefresh?.();
+    } catch (error: any) {
+      alert('Error: ' + error.message);
+    }
+  };
 
   const formatTimestamp = (timestamp?: number): string => {
     if (!timestamp) return 'N/A';
@@ -160,6 +212,26 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
             👥 Attendee Attendance ({filteredAttendance.length}{showGpsMissingOnly ? ` / ${attendance.length}` : ''})
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {attendance.length > 0 && (
+              <button
+                type="button"
+                onClick={handleBulkDeleteAttendance}
+                style={{
+                  padding: '0.4rem 0.75rem',
+                  backgroundColor: '#fed7d7',
+                  color: '#742a2a',
+                  border: '1px solid #fc8181',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: '600'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fc8181'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#fed7d7'}
+              >
+                🗑️ Delete All
+              </button>
+            )}
             {gpsMissingCount > 0 && (
               <span style={{
                 padding: '0.35rem 0.75rem',
@@ -261,6 +333,13 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
                     color: '#4a5568',
                     borderBottom: '2px solid #e2e8f0'
                   }}>Entry Method</th>
+                  <th style={{ 
+                    padding: '1rem',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -361,6 +440,25 @@ export const MonitorTab: React.FC<MonitorTabProps> = ({
                       ) : (
                         <span style={{ color: '#a0aec0' }}>—</span>
                       )}
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <button
+                        onClick={() => handleDeleteAttendance(record.attendeeId)}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          backgroundColor: '#fed7d7',
+                          color: '#742a2a',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: '600'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fc8181'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#fed7d7'}
+                      >
+                        🗑️ Delete
+                      </button>
                     </td>
                   </tr>
                 ))}

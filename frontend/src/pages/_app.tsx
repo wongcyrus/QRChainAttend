@@ -8,6 +8,7 @@ import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import { useEffect } from 'react';
 import OfflineIndicator from '../components/OfflineIndicator';
+import BuildInfo from '../components/BuildInfo';
 import { useOnlineStatusCallback } from '../hooks/useOnlineStatus';
 import { globalOfflineQueue } from '../utils/offlineQueue';
 
@@ -68,6 +69,9 @@ export default function App({ Component, pageProps }: AppProps) {
       
       {/* Offline indicator - Requirement 20.5 */}
       <OfflineIndicator position="top" />
+      
+      {/* Build info for deployment verification */}
+      <BuildInfo />
       
       <Component {...pageProps} />
     </>
