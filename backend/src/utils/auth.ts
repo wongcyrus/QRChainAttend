@@ -320,5 +320,18 @@ export async function getRolesFromEmailAsync(email: string): Promise<string[]> {
  * @returns True if email belongs to an organizer
  */
 export async function isValidOrganizerEmail(email: string): Promise<boolean> {
-  return await isExternalOrganizer(email.toLowerCase());
+  const emailLower = email.toLowerCase();
+  
+  // Check domain-based organizer
+  const organizerDomain = process.env.ORGANIZER_DOMAIN?.toLowerCase().trim();
+  const attendeeDomain = process.env.ATTENDEE_DOMAIN?.toLowerCase().trim();
+  
+  if (organizerDomain && emailLower.endsWith(`@${organizerDomain}`)) {
+    if (!attendeeDomain || !emailLower.endsWith(`@${attendeeDomain}`)) {
+      return true;
+    }
+  }
+  
+  // Check external organizers table
+  return await isExternalOrganizer(emailLower);
 }

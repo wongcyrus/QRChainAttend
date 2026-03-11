@@ -13,25 +13,10 @@ import { QrReader } from 'react-qr-reader';
 import type {
   SessionQRData,
   ChainQRData,
-  ChainScanResponse,
-  ScanMetadata,
-  ErrorResponse,
 } from '../types/shared';
 
 // Additional types needed for QRScanner
 type QRData = SessionQRData | ChainQRData;
-
-interface ChainScanRequest {
-  chainId: string;
-  tokenId: string;
-  etag: string;
-  metadata?: ScanMetadata;
-  location?: {
-    latitude: number;
-    longitude: number;
-    accuracy?: number;
-  };
-}
 
 
 export interface QRScannerProps {
@@ -41,19 +26,9 @@ export interface QRScannerProps {
   onSessionScanned?: (data: SessionQRData) => void;
 
   /**
-   * Callback when a scan is successful
-   */
-  onScanSuccess?: (result: ChainScanResponse) => void;
-
-  /**
    * Callback when a scan fails
    */
   onScanError?: (error: string) => void;
-
-  /**
-   * Optional session ID for context (used for chain/late/early scans)
-   */
-  sessionId?: string;
 
   /**
    * Whether the scanner is active
@@ -64,87 +39,6 @@ export interface QRScannerProps {
    * Custom styling
    */
   className?: string;
-}
-
-/**
- * Generate a device fingerprint for rate limiting
- */
-function generateDeviceFingerprint(): string {
-  // Use a combination of browser properties to create a fingerprint
-  const nav = navigator;
-  const screen = window.screen;
-  
-  const fingerprint = [
-    nav.userAgent,
-    nav.language,
-    screen.colorDepth,
-    screen.width,
-    screen.height,
-    new Date().getTimezoneOffset(),
-  ].join('|');
-
-  // Simple hash function
-  let hash = 0;
-  for (let i = 0; i < fingerprint.length; i++) {
-    const char = fingerprint.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-
-  return `fp_${Math.abs(hash).toString(36)}`;
-}
-
-/**
- * Get current GPS coordinates
- */
-async function getGPSCoordinates(): Promise<{ latitude: number; longitude: number } | undefined> {
-  if (!navigator.geolocation) {
-    return undefined;
-  }
-
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      () => {
-        // If GPS fails, return undefined (optional constraint)
-        resolve(undefined);
-      },
-      { timeout: 5000, enableHighAccuracy: true }
-    );
-  });
-}
-
-/**
- * Get Wi-Fi BSSID (not directly available in browsers, placeholder)
- * Note: Browsers don't expose BSSID for privacy reasons
- * This would need to be implemented via a native app wrapper or server-side detection
- */
-function getBSSID(): string | undefined {
-  // Placeholder - in a real implementation, this would come from:
-  // 1. A native mobile app wrapper (React Native, Capacitor, etc.)
-  // 2. Server-side detection based on IP/network
-  // 3. Manual user input in some cases
-  return undefined;
-}
-
-/**
- * Create scan metadata for API requests
- */
-async function createScanMetadata(): Promise<ScanMetadata> {
-  const gps = await getGPSCoordinates();
-  const bssid = getBSSID();
-
-  return {
-    deviceFingerprint: generateDeviceFingerprint(),
-    gps,
-    bssid,
-    userAgent: navigator.userAgent,
-  };
 }
 
 /**
@@ -182,101 +76,14 @@ function parseQRData(data: string): QRData | null {
 }
 
 /**
- * Call the appropriate scan API endpoint
- */
-async function callScanAPI(
-  qrData: QRData,
-  metadata: ScanMetadata
-): Promise<ChainScanResponse> {
-  let endpoint: string | undefined;
-  let body: ChainScanRequest | undefined;
-
-  switch (qrData.type) {
-    case 'CHAIN_ENTRY':
-    case 'CHAIN':
-      endpoint = '/api/scan/chain';
-      body = {
-        chainId: qrData.chainId,
-        tokenId: qrData.tokenId,
-        etag: qrData.etag,
-        metadata,
-        location: metadata.gps,
-      };
-      break;
-
-    case 'SESSION':
-      // Session scans don't go through scan API
-      throw new Error('Session QR should be handled separately');
-  }
-
-  if (!endpoint || !body) {
-    throw new Error('Unsupported QR code type');
-  }
-
-  const response = await fetch(endpoint, { credentials: 'include',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorData: ErrorResponse = await response.json();
-    throw new Error(errorData.error.code || errorData.error.message || 'Scan failed');
-  }
-
-  return await response.json();
-}
-
-/**
- * Get user-friendly error message
- */
-function getErrorMessage(error: string, errorCode?: string): string {
-  // Check error code first (more reliable)
-  if (errorCode === 'EXPIRED_TOKEN' || error.includes('EXPIRED_TOKEN') || error.includes('expired')) {
-    return 'This QR code has expired. Please scan a new one.';
-  }
-  if (errorCode === 'TOKEN_ALREADY_USED' || error.includes('TOKEN_ALREADY_USED') || error.includes('already been used')) {
-    return 'This QR code has already been scanned.';
-  }
-  if (errorCode === 'RATE_LIMITED' || error.includes('RATE_LIMITED') || error.includes('Rate limit')) {
-    return 'Too many scan attempts. Please wait a moment and try again.';
-  }
-  if (errorCode === 'LOCATION_VIOLATION' || error.includes('LOCATION_VIOLATION')) {
-    return 'Location verification failed. Please ensure you are in the venue and connected to the correct Wi-Fi network.';
-  }
-  if (errorCode === 'GEOFENCE_VIOLATION' || error.includes('GEOFENCE_VIOLATION')) {
-    return 'You must be physically present in the venue to scan.';
-  }
-  if (errorCode === 'WIFI_VIOLATION' || error.includes('WIFI_VIOLATION')) {
-    return 'Please connect to the venue Wi-Fi network.';
-  }
-  if (errorCode === 'UNAUTHORIZED' || error.includes('UNAUTHORIZED')) {
-    return 'You are not authorized to perform this action. Please sign in.';
-  }
-  if (errorCode === 'INVALID_STATE' || error.includes('INVALID_STATE')) {
-    return 'This scan is not available at this time.';
-  }
-  if (errorCode === 'INELIGIBLE_STUDENT' || error.includes('INELIGIBLE_STUDENT')) {
-    return 'You are not eligible for this scan.';
-  }
-  
-  return error || 'An error occurred while scanning. Please try again.';
-}
-
-/**
  * QR Scanner Component
  */
 export function QRScanner({
   onSessionScanned,
-  onScanSuccess,
   onScanError,
-  sessionId,
   isActive = true,
   className = '',
 }: QRScannerProps) {
-  const [isScanning, setIsScanning] = useState(false);
   const [lastScannedData, setLastScannedData] = useState<string | null>(null);
   const [scanCooldown, setScanCooldown] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -293,7 +100,7 @@ export function QRScanner({
   }, [scanCooldown]);
 
   /**
-   * Handle QR code scan
+   * Handle QR code scan - opens the scanned URL
    */
   const handleScan = useCallback(
     async (result: any, error: any) => {
@@ -309,28 +116,18 @@ export function QRScanner({
         return;
       }
 
-      // Clear camera error if scan is successful
       if (cameraError) {
         setCameraError(null);
       }
 
-      // No result yet
-      if (!result) {
+      if (!result?.text) {
         return;
       }
 
-      const data = result?.text;
-      if (!data) {
-        return;
-      }
+      const data = result.text;
 
-      // Prevent duplicate scans - check if already processing or in cooldown
-      if (isScanningRef.current || scanCooldown) {
-        return;
-      }
-
-      // Prevent scanning the same QR code twice in a row
-      if (data === lastScannedDataRef.current) {
+      // Prevent duplicate scans
+      if (isScanningRef.current || scanCooldown || data === lastScannedDataRef.current) {
         return;
       }
 
@@ -338,49 +135,40 @@ export function QRScanner({
       lastScannedDataRef.current = data;
       setLastScannedData(data);
       setScanCooldown(true);
-      setIsScanning(true);
 
       try {
-        // Parse QR data
-        const qrData = parseQRData(data);
-        if (!qrData) {
-          onScanError?.('Invalid QR code format');
+        // QR codes should contain URLs - just open them
+        if (data.startsWith('http://') || data.startsWith('https://') || data.startsWith('/')) {
+          window.location.href = data;
           return;
         }
 
-        // Handle session QR separately
-        if (qrData.type === 'SESSION') {
-          onSessionScanned?.(qrData);
-          return;
+        // Legacy support: try to parse as JSON (shouldn't happen with new QR codes)
+        try {
+          const qrData = parseQRData(data);
+          if (qrData) {
+            if (qrData.type === 'SESSION') {
+              onSessionScanned?.(qrData);
+              return;
+            }
+            if (qrData.type === 'CHAIN' || qrData.type === 'CHAIN_ENTRY') {
+              const url = `/student/sessions/${qrData.sessionId}/scan?chainId=${qrData.chainId}&tokenId=${qrData.tokenId}&etag=${qrData.etag}`;
+              window.location.href = url;
+              return;
+            }
+          }
+        } catch {
+          // Not JSON, that's fine
         }
 
-        // Check if token is expired
-        const now = Date.now();
-        if ('expiresAt' in qrData && typeof qrData.expiresAt === 'number' && qrData.expiresAt < now) {
-          onScanError?.('This QR code has expired');
-          return;
-        }
-
-        // Create scan metadata
-        const metadata = await createScanMetadata();
-
-        // Call appropriate scan API
-        const response = await callScanAPI(qrData, metadata);
-
-        if (response.success) {
-          onScanSuccess?.(response);
-        } else {
-          onScanError?.(response.message || 'Scan failed');
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        onScanError?.(errorMessage);
+        onScanError?.('Invalid QR code');
+      } catch (err) {
+        onScanError?.('Invalid QR code');
       } finally {
         isScanningRef.current = false;
-        setIsScanning(false);
       }
     },
-    [scanCooldown, cameraError, onSessionScanned, onScanSuccess, onScanError]
+    [scanCooldown, cameraError, onSessionScanned, onScanError]
   );
 
   if (!isActive) {
@@ -419,12 +207,6 @@ export function QRScanner({
                 height: 'auto',
               }}
             />
-            {isScanning && (
-              <div className="scanning-overlay">
-                <div className="spinner"></div>
-                <p>Processing scan...</p>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -470,40 +252,6 @@ export function QRScanner({
 
         .retry-button:hover {
           background: #005a9e;
-        }
-
-        .scanning-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.7);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: white;
-        }
-
-        .spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid rgba(255, 255, 255, 0.3);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        .scanning-overlay p {
-          margin-top: 1rem;
-          font-size: 1rem;
         }
       `}</style>
     </div>

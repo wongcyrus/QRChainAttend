@@ -391,7 +391,10 @@ export default function AttendeePage() {
   // If sessionId in query and already joined, show session view
   // BUT: Don't show if there's an error (failed to join)
   // ALSO: Don't show if we're about to auto-join (has type parameter but hasn't joined yet)
-  const needsAutoJoin = type !== undefined && !hasAutoJoined;
+  // Chain scan URLs have both chainId + tokenId — they must NOT trigger auto-join;
+  // instead SimpleAttendeeView handles them via its URL-params useEffect.
+  const isChainScanUrl = !!(chainId && tokenId);
+  const needsAutoJoin = type !== undefined && !hasAutoJoined && !isChainScanUrl;
   
   if (sessionId && typeof sessionId === 'string' && !error && !needsAutoJoin) {
     return (

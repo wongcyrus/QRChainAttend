@@ -4,7 +4,7 @@
  * This view only shows status and their own QR code when they're a holder
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getAuthHeaders } from '../utils/authHeaders';
 import { formatAttendeeId } from '../utils/formatAttendeeId';
 import QRCode from 'qrcode';
@@ -67,6 +67,8 @@ export function SimpleAttendeeView({ sessionId, attendeeId, onLeaveSession }: Si
   const [cachedLocation, setCachedLocation] = useState<{ latitude: number; longitude: number; accuracy?: number } | undefined>(undefined);
   const [cachedLocationAt, setCachedLocationAt] = useState<number>(0);
   const [captureRequest, setCaptureRequest] = useState<CaptureRequest | null>(null);
+  const [hasAutoScanned, setHasAutoScanned] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
 
   const refreshLocationCache = async () => {
     try {
@@ -84,82 +86,8 @@ export function SimpleAttendeeView({ sessionId, attendeeId, onLeaveSession }: Si
     refreshLocationCache();
   }, []);
 
-  // Check URL parameters for scan simulation (when clicking QR URL in dev mode)
-  /* eslint-disable react-hooks/exhaustive-deps */
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const chainId = urlParams.get('chainId');
-    const tokenId = urlParams.get('tokenId');
-    const type = urlParams.get('type');
-
-    if (chainId && tokenId && type === 'entry') {
-      // Simulate scanning by calling the scan API
-      handleScan(chainId, tokenId);
-      
-      // Clean up URL parameters
-      window.history.replaceState({}, '', `/attendee?sessionId=${sessionId}`);
-    }
-  }, [sessionId]);
-
-  const handleScan = async (chainId: string, tokenId: string) => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
-      const headers = await getAuthHeaders();
-
-      // Direct scan without challenge code
-      setScanMessage('Processing scan...');
-      const nowMs = Date.now();
-      const hasFreshCachedLocation = !!cachedLocation && (nowMs - cachedLocationAt) < 60_000;
-      const location = hasFreshCachedLocation ? cachedLocation : undefined;
-
-      if (!hasFreshCachedLocation) {
-        void refreshLocationCache();
-      }
-      
-      const scanResponse = await fetch(
-        `${apiUrl}/sessions/${sessionId}/chains/${chainId}/scan`,
-        { credentials: 'include',
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            tokenId,
-            location
-          })
-        }
-      );
-
-      if (!scanResponse.ok) {
-        const errorData = await scanResponse.json();
-        setScanMessage(`✗ ${errorData.error?.message || 'Failed to scan'}`);
-        setTimeout(() => setScanMessage(null), 5000);
-        return;
-      }
-
-      const data = await scanResponse.json();
-      setScanMessage(
-        `✓ Scan successful!\n` +
-        `${data.previousHolder} marked present.\n` +
-        `${data.newHolder} is now the holder.`
-      );
-      
-      // Refresh data immediately
-      fetchData();
-      
-      // Clear message after 3 seconds
-      setTimeout(() => {
-        setScanMessage(null);
-        fetchData(); // Refresh again to ensure we have latest data
-      }, 3000);
-
-    } catch (err) {
-      setScanMessage(`✗ Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      setTimeout(() => setScanMessage(null), 5000);
-    }
-  };
-
   // Fetch session and attendee status
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
@@ -231,7 +159,108 @@ export function SimpleAttendeeView({ sessionId, attendeeId, onLeaveSession }: Si
       setError('Failed to load session');
       setLoading(false);
     }
-  };
+  }, [sessionId, attendeeId]);
+
+  const handleScan = useCallback(async (chainId: string, tokenId: string) => {
+    if (isScanning) {
+      console.log('[SimpleAttendeeView] Scan already in progress, skipping');
+      return;
+    }
+
+    console.log('[SimpleAttendeeView] Starting scan:', { chainId, tokenId, sessionId });
+
+    try {
+      setIsScanning(true);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const headers = await getAuthHeaders();
+
+      // Direct scan without challenge code
+      setScanMessage('Processing scan...');
+      const nowMs = Date.now();
+      const hasFreshCachedLocation = !!cachedLocation && (nowMs - cachedLocationAt) < 60_000;
+      const location = hasFreshCachedLocation ? cachedLocation : undefined;
+
+      if (!hasFreshCachedLocation) {
+        void refreshLocationCache();
+      }
+      
+      const endpoint = `${apiUrl}/sessions/${sessionId}/chains/${chainId}/scan`;
+      console.log('[SimpleAttendeeView] Calling endpoint:', endpoint);
+      
+      const scanResponse = await fetch(
+        endpoint,
+        { credentials: 'include',
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            tokenId,
+            location
+          })
+        }
+      );
+
+      console.log('[SimpleAttendeeView] Response status:', scanResponse.status);
+
+      if (!scanResponse.ok) {
+        const errorData = await scanResponse.json();
+        console.error('[SimpleAttendeeView] Scan failed:', errorData);
+        setScanMessage(`✗ ${errorData.error?.message || 'Failed to scan'}`);
+        setTimeout(() => setScanMessage(null), 5000);
+        return;
+      }
+
+      const data = await scanResponse.json();
+      console.log('[SimpleAttendeeView] Scan success:', data);
+      setScanMessage(
+        `✓ Scan successful!\n` +
+        `${data.previousHolder} marked present.\n` +
+        `${data.newHolder} is now the holder.`
+      );
+      
+      // Refresh data immediately
+      fetchData();
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setScanMessage(null);
+        fetchData(); // Refresh again to ensure we have latest data
+      }, 3000);
+
+    } catch (err) {
+      console.error('[SimpleAttendeeView] Scan error:', err);
+      setScanMessage(`✗ Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setTimeout(() => setScanMessage(null), 5000);
+    } finally {
+      setIsScanning(false);
+    }
+  }, [sessionId, cachedLocation, cachedLocationAt, isScanning, fetchData]);
+
+  // Check URL parameters for scan simulation (when clicking QR URL in dev mode)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const chainId = urlParams.get('chainId');
+    const tokenId = urlParams.get('tokenId');
+    const type = urlParams.get('type');
+
+    console.log('[SimpleAttendeeView] URL params check:', { 
+      chainId, 
+      tokenId, 
+      type, 
+      hasAutoScanned, 
+      isScanning,
+      sessionId 
+    });
+
+    if (chainId && tokenId && type === 'entry' && !hasAutoScanned && !isScanning) {
+      console.log('[SimpleAttendeeView] Triggering auto-scan for chain:', chainId);
+      setHasAutoScanned(true);
+      handleScan(chainId, tokenId);
+      
+      // Clean up URL parameters
+      window.history.replaceState({}, '', `/attendee?sessionId=${sessionId}`);
+    }
+  }, [sessionId, handleScan, hasAutoScanned, isScanning]);
 
   // Check for pending quiz questions
   const checkForQuestions = async () => {

@@ -244,20 +244,23 @@ export async function getCaptureResults(
         const uploadsTable = getTableClient(TableNames.CAPTURE_UPLOADS);
         
         try {
-          const uploads = uploadsTable.listEntities({
+          // Use byPage() to ensure all pages are fetched
+          const pages = uploadsTable.listEntities({
             queryOptions: {
               filter: `PartitionKey eq '${captureRequestId}'`
             }
-          });
+          }).byPage();
           
-          for await (const upload of uploads) {
-            const attendeeId = upload.rowKey as string;
-            const blobUrl = upload.blobUrl as string;
-            if (attendeeId && blobUrl) {
-              // Generate fresh read SAS URL with 1-year expiry for long-term viewing
-              const { generateReadSasUrl } = await import('../utils/blobStorage');
-              const sasUrl = generateReadSasUrl(blobUrl);
-              imageUrls[attendeeId] = sasUrl;
+          for await (const page of pages) {
+            for (const upload of page) {
+              const attendeeId = upload.rowKey as string;
+              const blobUrl = upload.blobUrl as string;
+              if (attendeeId && blobUrl) {
+                // Generate fresh read SAS URL with 1-year expiry for long-term viewing
+                const { generateReadSasUrl } = await import('../utils/blobStorage');
+                const sasUrl = generateReadSasUrl(blobUrl);
+                imageUrls[attendeeId] = sasUrl;
+              }
             }
           }
           

@@ -17,9 +17,9 @@ import type { ChainQRData, RotatingQRData } from '../types/shared';
 
 export interface QRDisplayProps {
   /**
-   * QR code data to display (chain or rotating token)
+   * QR code data to display - can be a URL string or a data object
    */
-  qrData: ChainQRData | RotatingQRData | null;
+  qrData: ChainQRData | RotatingQRData | string | null;
 
   /**
    * Callback when token expires
@@ -96,7 +96,7 @@ export function QRDisplay({
 
     // Check if already expired
     const now = Date.now();
-    const expiresAt = 'expiresAt' in qrData ? qrData.expiresAt : undefined;
+    const expiresAt = typeof qrData === 'object' && 'expiresAt' in qrData ? qrData.expiresAt : undefined;
     if (expiresAt && expiresAt <= now) {
       setIsExpired(true);
       setQrCodeDataURL(null);
@@ -108,7 +108,26 @@ export function QRDisplay({
     }
 
     // Generate QR code
-    const qrDataString = JSON.stringify(qrData);
+    // If qrData is a string (URL), use it directly
+    // Otherwise, construct a URL from the data object
+    let qrDataString: string;
+    
+    if (typeof qrData === 'string') {
+      qrDataString = qrData;
+    } else {
+      // Construct URL from QR data object
+      const baseUrl = window.location.origin;
+      
+      if (qrData.type === 'CHAIN' || qrData.type === 'CHAIN_ENTRY' || qrData.type === 'CHAIN_EXIT') {
+        qrDataString = `${baseUrl}/attendee?sessionId=${qrData.sessionId}&chainId=${qrData.chainId}&tokenId=${qrData.tokenId}&etag=${qrData.etag}`;
+      } else if (qrData.type === 'LATE_ENTRY' || qrData.type === 'EARLY_LEAVE') {
+        qrDataString = `${baseUrl}/attendee?sessionId=${qrData.sessionId}&type=${qrData.type}&token=${qrData.tokenId}`;
+      } else {
+        console.error('Unknown QR data type:', qrData);
+        return;
+      }
+    }
+    
     QRCode.toDataURL(qrDataString, {
       width: size,
       margin: 2,
@@ -139,7 +158,7 @@ export function QRDisplay({
     // Calculate initial time remaining
     const updateTimeRemaining = () => {
       const now = Date.now();
-      const expiresAt = 'expiresAt' in qrData ? qrData.expiresAt : undefined;
+      const expiresAt = typeof qrData === 'object' && 'expiresAt' in qrData ? qrData.expiresAt : undefined;
       
       if (!expiresAt) {
         setTimeRemaining(0);
@@ -185,7 +204,8 @@ export function QRDisplay({
   }
 
   // Calculate progress percentage for visual indicator
-  const totalTTL = qrData.type === 'CHAIN_ENTRY' || qrData.type === 'CHAIN_EXIT' ? 20 : 60;
+  const qrDataObj = typeof qrData === 'string' ? null : qrData;
+  const totalTTL = qrDataObj && (qrDataObj.type === 'CHAIN_ENTRY' || qrDataObj.type === 'CHAIN_EXIT') ? 20 : 60;
   const progressPercentage = (timeRemaining / totalTTL) * 100;
 
   // Determine urgency level for styling
@@ -196,12 +216,14 @@ export function QRDisplay({
     <div className={`qr-display ${className}`}>
       <div className="qr-display-container">
         {/* Token Type Label */}
-        <div className="token-type-label">
-          <h3>{getTokenTypeLabel(qrData.type)}</h3>
-        </div>
+        {qrDataObj && (
+          <div className="token-type-label">
+            <h3>{getTokenTypeLabel(qrDataObj.type)}</h3>
+          </div>
+        )}
 
         {/* Holder Info (for chain tokens) */}
-        {showHolderInfo && 'holderId' in qrData && (
+        {showHolderInfo && qrDataObj && 'holderId' in qrDataObj && (
           <div className="holder-info">
             <p className="holder-label">You are the current holder</p>
             <p className="holder-instruction">Show this QR code to another attendee to scan</p>

@@ -210,8 +210,27 @@ export async function scanChain(
     
     // Mark previous holder's attendance if not already marked
     try {
-      const prevAttendance = await attendanceTable.getEntity(sessionId, previousHolder);
-      
+      let prevAttendance: any;
+      try {
+        prevAttendance = await attendanceTable.getEntity(sessionId, previousHolder);
+      } catch (notFound: any) {
+        if (notFound.statusCode === 404) {
+          // Previous holder scanned their way in without explicitly joining the session.
+          // Auto-create their attendance record so they can be marked present.
+          context.warn(`[scanChain] previousHolder ${previousHolder} not in attendance table — auto-creating record`);
+          await attendanceTable.createEntity({
+            partitionKey: sessionId,
+            rowKey: previousHolder,
+            attendeeId: previousHolder,
+            sessionId,
+            joinedAt: now,
+          });
+          prevAttendance = { entryStatus: null };
+        } else {
+          throw notFound;
+        }
+      }
+
       if (!prevAttendance.entryStatus) {
         // Determine if late or present based on session start time
         const sessionStartTime = session.startTime as number;
@@ -272,6 +291,24 @@ export async function scanChain(
       } catch (error: any) {
         context.log(`Warning: Could not update attendance for scanner: ${error.message}`);
       }
+    }
+
+    // Ensure the scanner has an attendance record before they become holder.
+    // They may have arrived via a chain QR link without going through joinSession.
+    try {
+      await attendanceTable.getEntity(sessionId, scannerId);
+    } catch (notFound: any) {
+      if (notFound.statusCode === 404) {
+        context.warn(`[scanChain] scanner ${scannerId} not in attendance table — auto-creating record`);
+        await attendanceTable.createEntity({
+          partitionKey: sessionId,
+          rowKey: scannerId,
+          attendeeId: scannerId,
+          sessionId,
+          joinedAt: now,
+        });
+      }
+      // Any other error is non-fatal; log and continue
     }
 
     // Delete the old token
