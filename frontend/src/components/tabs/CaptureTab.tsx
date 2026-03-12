@@ -26,6 +26,8 @@ export const CaptureTab: React.FC<CaptureTabProps> = ({
   captureExpiredHandlerRef,
   captureResultsHandlerRef,
 }) => {
+  const [historyRefresh, setHistoryRefresh] = React.useState(0);
+
   return (
     <div>
       {/* Organizer Capture Control */}
@@ -39,7 +41,12 @@ export const CaptureTab: React.FC<CaptureTabProps> = ({
             if (instance) {
               uploadCompleteHandlerRef.current = instance.handleUploadComplete;
               captureExpiredHandlerRef.current = instance.handleCaptureExpired;
-              captureResultsHandlerRef.current = instance.handleCaptureResults;
+              
+              const originalHandler = instance.handleCaptureResults;
+              captureResultsHandlerRef.current = (event) => {
+                originalHandler(event);
+                setHistoryRefresh(prev => prev + 1);
+              };
             }
           }}
         />
@@ -58,6 +65,7 @@ export const CaptureTab: React.FC<CaptureTabProps> = ({
         <CaptureHistory
           sessionId={sessionId}
           onError={onError}
+          refreshTrigger={historyRefresh}
         />
       </div>
     </div>

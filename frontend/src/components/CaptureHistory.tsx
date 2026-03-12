@@ -25,6 +25,7 @@ import type {
 interface CaptureHistoryProps {
   sessionId: string;
   onError?: (error: string) => void;
+  refreshTrigger?: number; // Add trigger to force refresh
 }
 
 interface CaptureHistoryItem {
@@ -35,7 +36,7 @@ interface CaptureHistoryItem {
   totalCount: number;
 }
 
-export function CaptureHistory({ sessionId, onError }: CaptureHistoryProps) {
+export function CaptureHistory({ sessionId, onError, refreshTrigger }: CaptureHistoryProps) {
   const [captureHistory, setCaptureHistory] = useState<CaptureHistoryItem[]>([]);
   const [selectedCapture, setSelectedCapture] = useState<string | null>(null);
   const [captureResults, setCaptureResults] = useState<GetCaptureResultsResponse | null>(null);
@@ -49,7 +50,7 @@ export function CaptureHistory({ sessionId, onError }: CaptureHistoryProps) {
   useEffect(() => {
     fetchCaptureHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, refreshTrigger]);
 
   const fetchCaptureHistory = async () => {
     setLoading(true);

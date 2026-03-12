@@ -252,7 +252,7 @@ describe('End-to-End Capture Flow Integration Test', () => {
     console.log('\n=== STEP 3: Simulate timeout ===');
     
     // Get the capture request and modify its expiration
-    const captureRequest = await getCaptureRequest(captureRequestId);
+    const captureRequest = await getCaptureRequest(sessionId, captureRequestId);
     expect(captureRequest).toBeDefined();
     
     // Update to expired status (in real scenario, orchestrator would trigger this)

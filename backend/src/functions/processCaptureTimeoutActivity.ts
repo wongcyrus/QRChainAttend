@@ -274,6 +274,30 @@ export async function processCaptureTimeoutActivity(
           errorType: error.name
         }
       );
+
+      // Create fallback positions sorted by attendeeId in 10 columns
+      const fallbackPositions = uploads
+        .sort((a, b) => a.rowKey.localeCompare(b.rowKey))
+        .map((upload, index) => ({
+          attendeeId: upload.rowKey,
+          estimatedRow: Math.floor(index / 10) + 1,
+          estimatedColumn: (index % 10) + 1,
+          confidence: 'LOW' as const,
+          reasoning: 'Auto-arranged alphabetically (AI analysis failed)'
+        }));
+
+      const captureResult: CaptureResult = {
+        partitionKey: captureRequestId,
+        rowKey: 'RESULT',
+        sessionId,
+        positions: JSON.stringify(fallbackPositions),
+        analysisNotes: `⚠️ FALLBACK LAYOUT: AI analysis failed. Students arranged alphabetically in 10 columns. Error: ${error.message}`,
+        analyzedAt: new Date().toISOString(),
+        gptModel: 'fallback',
+        gptTokensUsed: 0
+      };
+
+      await createCaptureResult(captureResult);
       
       // Update status to FAILED
       await updateCaptureRequest(sessionId, captureRequestId, {
@@ -282,11 +306,13 @@ export async function processCaptureTimeoutActivity(
         errorMessage: `Position estimation failed: ${error.message}`
       });
       
-      // Broadcast error to organizer
+      // Broadcast error to organizer with fallback positions
       const errorEvent: CaptureResultsEvent = {
         captureRequestId,
         status: 'FAILED',
-        errorMessage: `Position analysis failed. Images have been saved for manual review. Error: ${error.message}`
+        positions: fallbackPositions,
+        analysisNotes: `⚠️ FALLBACK LAYOUT: AI analysis failed. Students arranged alphabetically in 10 columns for reference only.`,
+        errorMessage: `AI position analysis failed. Showing alphabetical fallback layout. Images saved for manual review.`
       };
       
       await broadcastToHub(
@@ -302,10 +328,16 @@ export async function processCaptureTimeoutActivity(
       trackActivitySuccess(context, captureRequestId, uploadedCount, false);
       
       // Re-throw to trigger orchestrator retry (Requirement 7.1)
-      throw error;
+      const handledError = error instanceof Error ? error : new Error(String(error));
+      (handledError as any).alreadyHandled = true;
+      throw handledError;
     }
     
   } catch (error: any) {
+    if (error?.alreadyHandled) {
+      throw error;
+    }
+
     // ========================================================================
     // Step 10: Handle unexpected errors (Requirement 7.1, 7.2, 7.3)
     // ========================================================================

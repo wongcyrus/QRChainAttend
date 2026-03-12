@@ -647,9 +647,135 @@ export const TeacherCaptureControl = forwardRef<TeacherCaptureControlHandle, Tea
             marginBottom: '1rem',
             color: '#c53030'
           }}>
-            <strong>✗ Capture Failed</strong>
+            <strong>✗ AI Analysis Failed</strong>
             {error && <div style={{ marginTop: '0.5rem' }}>{error}</div>}
           </div>
+
+          {/* Show fallback grid if we have results */}
+          {results && results.length > 0 && (
+            <div>
+              <div style={{
+                padding: '1rem',
+                backgroundColor: '#fffbeb',
+                border: '2px solid #f59e0b',
+                borderRadius: '8px',
+                marginBottom: '1rem'
+              }}>
+                <div style={{
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  color: '#92400e',
+                  marginBottom: '0.5rem'
+                }}>
+                  ⚠️ FALLBACK LAYOUT
+                </div>
+                <div style={{
+                  fontSize: '0.9rem',
+                  color: '#78350f'
+                }}>
+                  Students arranged alphabetically in 10 columns for reference only. This is NOT based on actual seating positions.
+                </div>
+              </div>
+
+              {/* View Toggle */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem'
+              }}>
+                <h4 style={{
+                  margin: 0,
+                  fontSize: '1rem',
+                  color: '#333'
+                }}>
+                  Fallback Grid (Alphabetical):
+                </h4>
+                <div style={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  backgroundColor: '#e2e8f0',
+                  padding: '0.25rem',
+                  borderRadius: '6px'
+                }}>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      backgroundColor: viewMode === 'grid' ? '#4299e1' : 'transparent',
+                      color: viewMode === 'grid' ? 'white' : '#4a5568',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '0.85rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    🔲 Grid
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      backgroundColor: viewMode === 'list' ? '#4299e1' : 'transparent',
+                      color: viewMode === 'list' ? 'white' : '#4a5568',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '0.85rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    📋 List
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid View */}
+              {viewMode === 'grid' && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <SeatingGridVisualization positions={results} imageUrls={imageUrls} />
+                </div>
+              )}
+
+              {/* List View */}
+              {viewMode === 'list' && (
+                <div style={{
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '8px',
+                  padding: '0.75rem'
+                }}>
+                  {results.map((position, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        padding: '0.75rem',
+                        backgroundColor: '#f7fafc',
+                        borderRadius: '6px',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      <div style={{
+                        fontWeight: 'bold',
+                        color: '#333',
+                        marginBottom: '0.25rem'
+                      }}>
+                        {position.attendeeId.replace('@stu.vtc.edu.hk', '')}
+                      </div>
+                      <div style={{ color: '#666' }}>
+                        Row {position.estimatedRow}, Column {position.estimatedColumn}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={resetCapture}
@@ -661,7 +787,8 @@ export const TeacherCaptureControl = forwardRef<TeacherCaptureControlHandle, Tea
               borderRadius: '8px',
               fontSize: '0.95rem',
               fontWeight: 'bold',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              marginTop: '1rem'
             }}
           >
             Try Again

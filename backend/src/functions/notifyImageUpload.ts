@@ -29,6 +29,37 @@ import { verifyBlobExists, STUDENT_CAPTURES_CONTAINER } from '../utils/blobStora
 import { broadcastToHub } from '../utils/signalrBroadcast';
 import { logError, logInfo, logWarning } from '../utils/errorLogging';
 
+interface ParsedCaptureBlobName {
+  sessionId: string;
+  captureRequestId: string;
+  attendeeId: string;
+}
+
+function parseCaptureBlobName(blobName: string): ParsedCaptureBlobName | null {
+  const trimmedBlobName = blobName.trim();
+  const parts = trimmedBlobName.split('/');
+
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const [sessionId, captureRequestId, fileName] = parts;
+  if (!sessionId || !captureRequestId || !fileName.toLowerCase().endsWith('.jpg')) {
+    return null;
+  }
+
+  const attendeeId = fileName.slice(0, -4);
+  if (!attendeeId) {
+    return null;
+  }
+
+  return {
+    sessionId,
+    captureRequestId,
+    attendeeId
+  };
+}
+
 /**
  * Handle attendee upload completion notification
  * 
@@ -85,8 +116,9 @@ export async function notifyImageUpload(
       };
     }
 
-    attendeeId = getUserId(principal);
-    context.log(`Attendee authenticated: ${attendeeId}`);
+    const authenticatedAttendeeId = getUserId(principal);
+    attendeeId = authenticatedAttendeeId;
+    context.log(`Attendee authenticated: ${authenticatedAttendeeId}`);
 
     // ========================================================================
     // Step 2: Extract sessionId, captureRequestId, blobName from request
@@ -156,6 +188,48 @@ export async function notifyImageUpload(
 
     context.log(`Upload notification - Session: ${sessionId}, Capture: ${captureRequestId}, Blob: ${blobName}`);
     context.log(`Blob name details - Length: ${blobName.length}, Contains @: ${blobName.includes('@')}, Contains %40: ${blobName.includes('%40')}`);
+
+    const parsedBlobName = parseCaptureBlobName(blobName);
+    if (!parsedBlobName) {
+      return {
+        status: 400,
+        jsonBody: {
+          error: {
+            code: CaptureErrorCode.INVALID_REQUEST,
+            message: 'Invalid blobName format',
+            timestamp: Date.now()
+          }
+        }
+      };
+    }
+
+    if (parsedBlobName.sessionId !== sessionId || parsedBlobName.captureRequestId !== captureRequestId) {
+      return {
+        status: 400,
+        jsonBody: {
+          error: {
+            code: CaptureErrorCode.INVALID_REQUEST,
+            message: 'blobName does not match request route',
+            timestamp: Date.now()
+          }
+        }
+      };
+    }
+
+    if (authenticatedAttendeeId.toLowerCase() !== parsedBlobName.attendeeId.toLowerCase()) {
+      return {
+        status: 403,
+        jsonBody: {
+          error: {
+            code: CaptureErrorCode.FORBIDDEN,
+            message: 'Upload blob does not belong to the authenticated attendee',
+            timestamp: Date.now()
+          }
+        }
+      };
+    }
+
+    attendeeId = parsedBlobName.attendeeId;
 
     // ========================================================================
     // Task 5.2: Validate timing and blob existence

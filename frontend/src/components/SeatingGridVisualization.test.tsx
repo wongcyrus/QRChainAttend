@@ -68,7 +68,7 @@ describe('SeatingGridVisualization', () => {
 
     it('should display attendee count in header', () => {
       render(<SeatingGridVisualization positions={mockPositions} />);
-      expect(screen.getByText(/3 students/)).toBeInTheDocument();
+      expect(screen.getByText(/3 attendees/)).toBeInTheDocument();
     });
 
     it('should display front of venue indicator', () => {
@@ -90,6 +90,34 @@ describe('SeatingGridVisualization', () => {
       
       // Position (2,2) should be empty
       expect(screen.getByText('R2C2')).toBeInTheDocument();
+    });
+
+    it('should render attendee photo when image URL key matches attendee ID', () => {
+      const imageUrls = new Map<string, string>([
+        ['student1@stu.vtc.edu.hk', 'https://example.com/student1.jpg']
+      ]);
+
+      render(<SeatingGridVisualization positions={mockPositions} imageUrls={imageUrls} />);
+
+      const attendeeImage = screen.getByAltText('student1');
+      expect(attendeeImage).toBeInTheDocument();
+      expect(attendeeImage).toHaveAttribute('src', 'https://example.com/student1.jpg');
+    });
+
+    it('should not crash when attendee ID is missing', () => {
+      const invalidPositions: SeatingPosition[] = [
+        {
+          attendeeId: undefined as unknown as string,
+          estimatedRow: 1,
+          estimatedColumn: 1,
+          confidence: 'LOW',
+          reasoning: 'Missing attendee ID from backend data'
+        }
+      ];
+
+      render(<SeatingGridVisualization positions={invalidPositions} imageUrls={new Map()} />);
+
+      expect(screen.getByText('Unknown')).toBeInTheDocument();
     });
   });
 
@@ -279,7 +307,7 @@ describe('SeatingGridVisualization', () => {
       }
 
       render(<SeatingGridVisualization positions={largeGridPositions} />);
-      expect(screen.getByText(/25 students • 5 rows × 5 columns/)).toBeInTheDocument();
+      expect(screen.getByText(/25 attendees • 5 rows × 5 columns/)).toBeInTheDocument();
     });
   });
 

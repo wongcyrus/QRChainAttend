@@ -39,6 +39,9 @@ export async function joinSession(
 ): Promise<HttpResponseInit> {
   context.log('Processing POST /api/sessions/{sessionId}/join request');
 
+  const sessionId = request.params.sessionId;
+  let attendeeId = 'unknown';
+
   try {
     // Parse authentication
     const principal = parseAuthFromRequest(request);
@@ -52,7 +55,7 @@ export async function joinSession(
     
     // Require Attendee role
     if (!hasRole(principal, 'Attendee') && !hasRole(principal, 'attendee')) {
-      context.log('Access denied: User does not have Attendee role');
+      context.error(`Access denied: FORBIDDEN - user does not have Attendee role, userId=${getUserId(principal)}`);
       return {
         status: 403,
         jsonBody: { error: { code: 'FORBIDDEN', message: 'Attendee role required', timestamp: Date.now() } }
@@ -61,8 +64,7 @@ export async function joinSession(
     
     context.log('Attendee role verified for user:', getUserId(principal));
 
-    const attendeeId = getUserId(principal);
-    const sessionId = request.params.sessionId;
+    attendeeId = getUserId(principal);
     
     if (!sessionId) {
       return {
@@ -89,6 +91,7 @@ export async function joinSession(
         
         // Verify token type
         if (tokenData.type !== 'ENTRY') {
+          context.error(`Token validation failed: INVALID_TOKEN_TYPE - attendee=${attendeeId}, session=${sessionId}`);
           return {
             status: 403,
             jsonBody: { error: { code: 'INVALID_TOKEN_TYPE', message: 'Token is not an entry token', timestamp: Date.now() } }
@@ -97,6 +100,7 @@ export async function joinSession(
         
         // Verify session ID matches
         if (tokenData.sessionId !== sessionId) {
+          context.error(`Token validation failed: SESSION_MISMATCH - attendee=${attendeeId}, session=${sessionId}, tokenSession=${tokenData.sessionId}`);
           return {
             status: 403,
             jsonBody: { error: { code: 'SESSION_MISMATCH', message: 'Token session does not match', timestamp: Date.now() } }
@@ -106,12 +110,16 @@ export async function joinSession(
         // Check if token is expired (20 seconds validity)
         const now = Math.floor(Date.now() / 1000);
         if (tokenData.expiresAt < now) {
+          context.error(`Token validation failed: TOKEN_EXPIRED - attendee=${attendeeId}, session=${sessionId}, expired=${tokenData.expiresAt}, now=${now}`);
           return {
             status: 403,
             jsonBody: { error: { code: 'TOKEN_EXPIRED', message: 'Entry token has expired', timestamp: Date.now() } }
           };
         }
+        
+        context.log(`Token validated successfully - attendee=${attendeeId}, session=${sessionId}`);
       } catch (error: any) {
+        context.error(`Token decryption failed: ${error.message} - attendee=${attendeeId}, session=${sessionId}`);
         return {
           status: 403,
           jsonBody: { error: { code: 'INVALID_TOKEN', message: 'Invalid or corrupted entry token', timestamp: Date.now() } }
@@ -165,6 +173,7 @@ export async function joinSession(
 
     // Block entry if geofence is enforced and attendee is out of bounds
     if (geoCheck.shouldBlock) {
+      context.error(`Geofence violation: attendee=${attendeeId}, session=${sessionId}, distance=${geoCheck.distance}m, radius=${geofenceRadius}m, enforced=${enforceGeofence}`);
       return {
         status: 403,
         jsonBody: {
@@ -184,6 +193,8 @@ export async function joinSession(
     try {
       // Check if already enrolled
       await attendanceTable.getEntity(sessionId, attendeeId);
+      
+      context.log(`Already enrolled: attendee=${attendeeId}, session=${sessionId}`);
       
       if (locationWarning) {
         await attendanceTable.updateEntity({
@@ -233,6 +244,8 @@ export async function joinSession(
         
         await attendanceTable.createEntity(entity);
         
+        context.log(`Successfully enrolled: attendee=${attendeeId}, session=${sessionId}, method=DIRECT_QR, locationWarning=${locationWarning || 'none'}`);
+        
         return {
           status: 201,
           jsonBody: {
@@ -248,7 +261,7 @@ export async function joinSession(
     }
 
   } catch (error: any) {
-    context.error('Error joining session:', error);
+    context.error(`Error joining session: attendee=${attendeeId}, session=${sessionId}, error=${error.message || error}`);
     
     return {
       status: 500,

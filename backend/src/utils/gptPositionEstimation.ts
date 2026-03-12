@@ -57,7 +57,8 @@ const SYSTEM_PROMPT_REFERENCE = `Position estimation agent analyzes venue photos
  * Generate user prompt for GPT analysis
  */
 function generateUserPrompt(imageCount: number, images: Array<{ attendeeId: string; url: string }>, batchInfo?: { current: number; total: number }): string {
-  const imageList = images.map((img, i) => `Attendee ${i + 1} (ID: ${img.attendeeId}): [Image URL]`).join('\n');
+  const imageList = images.map((img, i) => `${i + 1}. ${img.attendeeId}`).join('\n');
+  const validAttendeeIds = images.map(img => img.attendeeId);
   
   let batchContext = '';
   if (batchInfo) {
@@ -75,9 +76,23 @@ function generateUserPrompt(imageCount: number, images: Array<{ attendeeId: stri
     }
   }
   
-  return `Analyze these ${imageCount} attendee photos and estimate their seating positions:
+  return `Analyze these ${imageCount} attendee photos and estimate their seating positions.
+
+Each image in this request is provided immediately after a text label in this exact format:
+ATTENDEE_IMAGE_N: attendeeId=<ID>
+Use that label-to-image pairing as the source of truth for attendee identity.
 
 ${imageList}${batchContext}
+
+CRITICAL ID RULES (MUST FOLLOW EXACTLY):
+- Use attendeeId values ONLY from this allowed list:
+${validAttendeeIds.map(id => `  - ${id}`).join('\n')}
+- attendeeId must match character-for-character (case-sensitive).
+- Do NOT invent, shorten, normalize, or omit attendeeId values.
+- Return each allowed attendeeId exactly once in positions.
+- The positions array length MUST be exactly ${imageCount}.
+- NEVER output "undefined", "null", or any placeholder as an attendeeId value.
+- Every attendeeId in positions MUST exactly match one of the IDs in the allowed list above.
 
 Respond in JSON format:
 {
@@ -127,6 +142,58 @@ function parseAgentResponse(content: string): GPTAnalysisResponse {
   }
 }
 
+function validatePositionsWithExpectedAttendees(
+  positions: SeatingPosition[],
+  expectedAttendeeIds: string[],
+  batchLabel: string
+): SeatingPosition[] {
+  if (positions.length !== expectedAttendeeIds.length) {
+    throw new Error(`${batchLabel}: Expected ${expectedAttendeeIds.length} positions but received ${positions.length}`);
+  }
+
+  const expectedSet = new Set(expectedAttendeeIds);
+  const seen = new Set<string>();
+  const invalidIds: string[] = [];
+  const duplicateIds: string[] = [];
+
+  for (const position of positions) {
+    const attendeeId = position?.attendeeId;
+    if (typeof attendeeId !== 'string' || attendeeId.length === 0) {
+      invalidIds.push('(missing attendeeId)');
+      continue;
+    }
+
+    if (!expectedSet.has(attendeeId)) {
+      invalidIds.push(attendeeId === 'undefined' || attendeeId === 'null'
+        ? '(missing attendeeId)'
+        : `"${attendeeId}" (not in allowed list)`);
+      continue;
+    }
+
+    if (seen.has(attendeeId)) {
+      duplicateIds.push(attendeeId);
+      continue;
+    }
+
+    seen.add(attendeeId);
+  }
+
+  if (invalidIds.length > 0) {
+    throw new Error(`${batchLabel}: Received unexpected attendee IDs: ${invalidIds.join(', ')}`);
+  }
+
+  if (duplicateIds.length > 0) {
+    throw new Error(`${batchLabel}: Received duplicate attendee IDs: ${duplicateIds.join(', ')}`);
+  }
+
+  const missingIds = expectedAttendeeIds.filter(id => !seen.has(id));
+  if (missingIds.length > 0) {
+    throw new Error(`${batchLabel}: Missing attendee IDs: ${missingIds.join(', ')}`);
+  }
+
+  return positions;
+}
+
 /**
  * Call Azure AI Foundry Agent Service for position estimation
  * Uses managed identity authentication (no API keys)
@@ -147,16 +214,41 @@ async function callPositionEstimationAgent(
   context.log(`Using position estimation agent reference: ${positionAgentName}:${positionAgentVersion}`);
   context.log(`Analyzing ${imageUrls.length} images`);
 
-  const response = await agentClient.runSingleVisionInteraction({
-    userPrompt: userPrompt,
-    imageUrls: imageUrls.map((img) => img.url),
-    agentName: positionAgentName,
-    agentVersion: positionAgentVersion,
-    model: process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-5.4'
-  });
+  const maxRetries = 2;
+  let lastError: any;
 
-  context.log('Position estimation agent-reference run completed');
-  return response.content;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await agentClient.runSingleVisionInteraction({
+        userPrompt: userPrompt,
+        imageUrls: imageUrls.map((img) => img.url),
+        imageInputs: imageUrls.map((img) => ({
+          attendeeId: img.attendeeId,
+          imageUrl: img.url
+        })),
+        agentName: positionAgentName,
+        agentVersion: positionAgentVersion,
+        model: process.env.AZURE_OPENAI_VISION_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-5.4'
+      });
+
+      context.log('Position estimation agent-reference run completed');
+      return response.content;
+    } catch (error: any) {
+      lastError = error;
+      const shouldRetry = (error.status === 429 || error.status >= 500) && attempt < maxRetries;
+      
+      if (shouldRetry) {
+        const delay = Math.pow(2, attempt) * 1000;
+        context.warn(`Attempt ${attempt + 1} failed (status=${error.status}, code=${error.code}). Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        context.error(`Azure OpenAI error: status=${error.status}, code=${error.code}, type=${error.type}, message=${error.message}`);
+        break;
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 /**
@@ -242,10 +334,16 @@ async function processSingleBatch(
     throw new Error('Agent response missing positions array');
   }
   
-  context.log(`Successfully parsed ${analysis.positions.length} position estimates`);
+  const validatedPositions = validatePositionsWithExpectedAttendees(
+    analysis.positions,
+    imageUrls.map(img => img.attendeeId),
+    'Single batch'
+  );
+
+  context.log(`Successfully parsed and validated ${validatedPositions.length} position estimates`);
   
   return {
-    positions: analysis.positions,
+    positions: validatedPositions,
     analysisNotes: analysis.analysisNotes || 'Position analysis completed'
   };
 }
@@ -303,13 +401,19 @@ async function processBatchedAnalysis(
     if (!analysis.positions || !Array.isArray(analysis.positions)) {
       throw new Error(`Batch ${batchNum} response missing positions array`);
     }
+
+    const validatedPositions = validatePositionsWithExpectedAttendees(
+      analysis.positions,
+      batch.map(img => img.attendeeId),
+      `Batch ${batchNum}`
+    );
     
     batchResults.push({
-      positions: analysis.positions,
+      positions: validatedPositions,
       notes: analysis.analysisNotes || `Batch ${batchNum} analysis`
     });
     
-    context.log(`Batch ${batchNum} parsed ${analysis.positions.length} positions`);
+    context.log(`Batch ${batchNum} parsed and validated ${validatedPositions.length} positions`);
     
     // Add delay between batches to avoid rate limiting (except for last batch)
     if (i < batches.length - 1) {

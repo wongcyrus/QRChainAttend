@@ -383,6 +383,7 @@ export class AgentServiceClient {
   async runSingleVisionInteraction(config: {
     userPrompt: string;
     imageUrls: string[];
+    imageInputs?: Array<{ attendeeId: string; imageUrl: string }>;
     agentName: string;
     agentVersion?: string;
     conversationId?: string;
@@ -405,11 +406,24 @@ export class AgentServiceClient {
       }
     ];
 
-    for (const imageUrl of config.imageUrls) {
-      inputContent.push({
-        type: 'input_image',
-        image_url: imageUrl
-      });
+    if (Array.isArray(config.imageInputs) && config.imageInputs.length > 0) {
+      for (const [index, imageInput] of config.imageInputs.entries()) {
+        inputContent.push({
+          type: 'input_text',
+          text: `ATTENDEE_IMAGE_${index + 1}: attendeeId=${imageInput.attendeeId}`
+        });
+        inputContent.push({
+          type: 'input_image',
+          image_url: imageInput.imageUrl
+        });
+      }
+    } else {
+      for (const imageUrl of config.imageUrls) {
+        inputContent.push({
+          type: 'input_image',
+          image_url: imageUrl
+        });
+      }
     }
 
     let response: any;

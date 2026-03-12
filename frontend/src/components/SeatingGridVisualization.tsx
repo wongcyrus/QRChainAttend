@@ -34,6 +34,14 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
   const [showFullScreenGrid, setShowFullScreenGrid] = useState(false);
 
+  const getImageUrlForAttendee = (attendeeId: unknown): string | undefined => {
+    if (typeof attendeeId !== 'string' || attendeeId.length === 0) {
+      return undefined;
+    }
+
+    return imageUrls?.get(attendeeId);
+  };
+
   // Handle empty positions array
   if (!positions || positions.length === 0) {
     return (
@@ -97,7 +105,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
   // Handle cell click
   const handleCellClick = (position: SeatingPosition | null, row: number, col: number, event: React.MouseEvent) => {
     if (position) {
-      const imageUrl = imageUrls?.get(position.attendeeId);
+      const imageUrl = getImageUrlForAttendee(position.attendeeId);
       setSelectedPosition({
         position,
         x: event.clientX,
@@ -280,6 +288,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                 const col = colIndex + 1;
                 const key = `${row}-${col}`;
                 const position = positionMap.get(key);
+                const attendeeImageUrl = position ? getImageUrlForAttendee(position.attendeeId) : undefined;
 
                 return (
                   <div
@@ -318,7 +327,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                     {position ? (
                       <>
                         {/* Attendee Photo Thumbnail or Icon */}
-                        {imageUrls?.get(position.attendeeId) ? (
+                        {attendeeImageUrl ? (
                           <div style={{
                             width: '50px',
                             height: '50px',
@@ -329,7 +338,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                           }}>
                             <img
-                              src={imageUrls.get(position.attendeeId)}
+                              src={attendeeImageUrl}
                               alt={formatAttendeeId(position.attendeeId)}
                               style={{
                                 width: '100%',
@@ -535,6 +544,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                     const col = colIndex + 1;
                     const key = `${row}-${col}`;
                     const position = positionMap.get(key);
+                    const attendeeImageUrl = position ? getImageUrlForAttendee(position.attendeeId) : undefined;
 
                     return (
                       <div
@@ -576,7 +586,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                         {position ? (
                           <>
                             {/* Attendee Photo */}
-                            {imageUrls?.get(position.attendeeId) ? (
+                            {attendeeImageUrl ? (
                               <div style={{
                                 width: '60px',
                                 height: '60px',
@@ -587,7 +597,7 @@ export const SeatingGridVisualization: React.FC<SeatingGridVisualizationProps> =
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
                               }}>
                                 <img
-                                  src={imageUrls.get(position.attendeeId)}
+                                  src={attendeeImageUrl}
                                   alt={formatAttendeeId(position.attendeeId)}
                                   style={{
                                     width: '100%',

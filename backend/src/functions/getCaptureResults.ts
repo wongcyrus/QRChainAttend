@@ -236,7 +236,7 @@ export async function getCaptureResults(
         }
 
         // Parse positions from JSON string
-        const positions: SeatingPosition[] = JSON.parse(captureResult.positions);
+        const parsedPositions: SeatingPosition[] = JSON.parse(captureResult.positions);
         
         // Retrieve image URLs for all students with fresh SAS tokens
         // Note: SAS URLs are regenerated on each request to ensure they're always valid
@@ -269,6 +269,8 @@ export async function getCaptureResults(
           context.warn('Failed to retrieve image URLs:', error);
           // Continue without images - not critical
         }
+
+        const positions = parsedPositions;
         
         const completedResponse: GetCaptureResultsResponse = {
           ...baseResponse,
