@@ -5,76 +5,13 @@
 import { useEffect, useState } from 'react';
 import { getAuthHeaders, getAuthEndpoint } from '../utils/authHeaders';
 import { useRouter } from 'next/router';
-import dynamic from 'next/dynamic';
 import { SimpleAttendeeView } from '../components/SimpleAttendeeView';
 import { getCurrentLocationWithError } from '../utils/geolocation';
-
-const QrReader = dynamic(
-  () => import('react-qr-reader').then((mod) => mod.QrReader),
-  { ssr: false }
-);
 
 interface UserInfo {
   userId: string;
   userDetails: string;
   userRoles: string[];
-}
-
-function parseAttendeeQRPayload(rawText: string): { sessionId: string; type?: string; token?: string } | null {
-  const value = rawText.trim();
-  if (!value) return null;
-
-  try {
-    const parsedUrl = new URL(
-      value,
-      typeof window !== 'undefined' ? window.location.origin : 'https://localhost'
-    );
-    const sessionId = parsedUrl.searchParams.get('sessionId');
-    if (!sessionId) {
-      return null;
-    }
-
-    return {
-      sessionId,
-      type: parsedUrl.searchParams.get('type') || undefined,
-      token: parsedUrl.searchParams.get('token') || undefined,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function extractScannedText(result: unknown): string {
-  if (!result) return '';
-
-  if (typeof result === 'string') {
-    return result;
-  }
-
-  if (typeof result === 'object') {
-    const candidate = result as {
-      text?: string;
-      rawValue?: string;
-      getText?: () => string;
-    };
-
-    if (typeof candidate.text === 'string' && candidate.text) {
-      return candidate.text;
-    }
-
-    if (typeof candidate.rawValue === 'string' && candidate.rawValue) {
-      return candidate.rawValue;
-    }
-
-    if (typeof candidate.getText === 'function') {
-      const value = candidate.getText();
-      if (typeof value === 'string') {
-        return value;
-      }
-    }
-  }
-
-  return '';
 }
 
 export default function AttendeePage() {
@@ -86,9 +23,7 @@ export default function AttendeePage() {
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [hasAutoJoined, setHasAutoJoined] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [scannerEnabled, setScannerEnabled] = useState(false);
-  const [scannerError, setScannerError] = useState<string | null>(null);
-  const [lastScannedText, setLastScannedText] = useState<string | null>(null);
+  
   
   // Get query params safely (only after mounting and router is ready)
   // Fallback to localStorage if query param is missing
@@ -314,43 +249,6 @@ export default function AttendeePage() {
     } finally {
       setJoining(false);
     }
-  };
-
-  const handleInAppScan = (result: any, scanError: any) => {
-    if (scanError?.name === 'NotAllowedError') {
-      setScannerError('Camera access denied. Please allow camera permission and try again.');
-      return;
-    }
-
-    const scannedText = extractScannedText(result);
-    if (!scannedText) {
-      return;
-    }
-
-    if (scannedText === lastScannedText) {
-      return;
-    }
-
-    setLastScannedText(scannedText);
-
-    const payload = parseAttendeeQRPayload(scannedText);
-    if (!payload) {
-      setScannerError('Invalid QR code. Please scan the attendee session QR code from your organizer.');
-      return;
-    }
-
-    setScannerError(null);
-    setScannerEnabled(false);
-
-    const params = new URLSearchParams({ sessionId: payload.sessionId });
-    if (payload.type) {
-      params.set('type', payload.type);
-    }
-    if (payload.token) {
-      params.set('token', payload.token);
-    }
-
-    router.push(`/attendee?${params.toString()}`);
   };
 
   if (loading) {
@@ -619,62 +517,30 @@ export default function AttendeePage() {
             Scan QR Code to Join
           </h3>
           <p style={{ color: '#666', lineHeight: '1.6', maxWidth: '400px', margin: '0 auto' }}>
-            Use your phone camera to scan the session QR code displayed by your organizer.
+            Open your phone's camera app and point it at the session QR code displayed by your organizer.
           </p>
           <p style={{ color: '#666', lineHeight: '1.6', maxWidth: '400px', margin: '1rem auto 0' }}>
-            The QR code will automatically redirect you to the session.
+            Your camera will automatically detect the QR code and open the session link.
           </p>
 
-          <button
-            onClick={() => {
-              setScannerError(null);
-              setScannerEnabled((prev) => !prev);
-            }}
-            style={{
-              marginTop: '1.5rem',
-              padding: '0.75rem 1.25rem',
-              backgroundColor: scannerEnabled ? '#718096' : '#2b6cb0',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '0.95rem',
-              fontWeight: 600
-            }}
-          >
-            {scannerEnabled ? 'Stop In-App Scanner' : 'Scan QR in This Page (iOS Recommended)'}
-          </button>
-
-          {scannerEnabled && (
-            <div style={{ marginTop: '1.5rem' }}>
-              <div style={{
-                width: '100%',
-                maxWidth: '420px',
-                margin: '0 auto',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                backgroundColor: '#000'
-              }}>
-                <QrReader
-                  onResult={handleInAppScan}
-                  constraints={{ facingMode: 'environment' }}
-                  scanDelay={400}
-                  containerStyle={{ width: '100%' }}
-                  videoStyle={{ width: '100%', height: 'auto' }}
-                />
-              </div>
-              {scannerError && (
-                <p style={{
-                  marginTop: '0.75rem',
-                  color: '#c53030',
-                  textAlign: 'center',
-                  fontSize: '0.9rem'
-                }}>
-                  {scannerError}
-                </p>
-              )}
-            </div>
-          )}
+          <div style={{
+            marginTop: '2rem',
+            padding: '1.25rem',
+            backgroundColor: '#e8f4fd',
+            border: '1px solid #b3d7f2',
+            borderRadius: '8px',
+            maxWidth: '400px',
+            margin: '2rem auto 0'
+          }}>
+            <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600, color: '#0078d4', fontSize: '0.95rem' }}>
+              📷 How to scan
+            </p>
+            <ol style={{ margin: 0, paddingLeft: '1.25rem', color: '#555', fontSize: '0.9rem', lineHeight: '1.8', textAlign: 'left' }}>
+              <li>Open your phone's Camera app</li>
+              <li>Point it at the QR code on screen</li>
+              <li>Tap the link that appears to join</li>
+            </ol>
+          </div>
         </div>
       </div>
     </div>

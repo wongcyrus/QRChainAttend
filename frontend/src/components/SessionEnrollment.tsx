@@ -179,8 +179,6 @@ export function SessionEnrollment({
                 </div>
                 <QRScanner
                   isActive={isScanning}
-                  onSessionScanned={handleSessionScanned}
-                  onScanError={handleScanError}
                 />
                 <p className="scanner-hint">
                   Point your camera at the QR code displayed by your organizer

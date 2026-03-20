@@ -139,6 +139,26 @@ export async function closeChain(
       context.log(`Warning: Could not update attendance for final holder: ${error.message}`);
     }
 
+    // Record chain history for the final holder being marked present
+    try {
+      const chainHistoryTable = getTableClient(TableNames.CHAIN_HISTORY);
+      const finalSeq = ((chain.lastSeq as number) || 0) + 1;
+      await chainHistoryTable.createEntity({
+        partitionKey: chainId,
+        rowKey: `${finalSeq.toString().padStart(10, '0')}_${now}`,
+        sessionId,
+        chainId,
+        sequence: finalSeq,
+        fromHolder: lastHolder,
+        toHolder: 'CLOSED',
+        scannedAt: now,
+        phase: chain.phase
+      });
+      context.log(`Recorded chain close history: ${lastHolder} -> CLOSED (seq ${finalSeq})`);
+    } catch (historyError: any) {
+      context.log(`Warning: Failed to record chain close history: ${historyError.message}`);
+    }
+
     // Mark chain as completed
     await chainsTable.updateEntity({
       partitionKey: sessionId,

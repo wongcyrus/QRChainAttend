@@ -2,261 +2,48 @@
  * QR Scanner Component
  * Feature: prove-present
  * Requirements: 13.1, 13.5
- * 
- * Implements camera access and QR code scanning for students to:
- * - Scan session QR codes to join sessions
- * - Scan peer chain QR codes for entry verification
+ *
+ * Guides students to use their phone's native camera to scan QR codes.
+ * iOS and Android cameras natively detect QR codes and open the encoded URL.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { QrReader } from 'react-qr-reader';
-import type {
-  SessionQRData,
-  ChainQRData,
-} from '../types/shared';
-
-// Additional types needed for QRScanner
-type QRData = SessionQRData | ChainQRData;
-
-
 export interface QRScannerProps {
-  /**
-   * Callback when a session QR is scanned
-   */
-  onSessionScanned?: (data: SessionQRData) => void;
-
-  /**
-   * Callback when a scan fails
-   */
-  onScanError?: (error: string) => void;
-
-  /**
-   * Whether the scanner is active
-   */
+  /** Whether the scanner prompt is visible */
   isActive?: boolean;
-
-  /**
-   * Custom styling
-   */
+  /** Custom styling */
   className?: string;
 }
 
 /**
- * Parse QR code data
- */
-function parseQRData(data: string): QRData | null {
-  try {
-    const parsed = JSON.parse(data);
-    
-    // Validate type field exists
-    if (!parsed.type) {
-      return null;
-    }
-
-    // Validate based on type
-    switch (parsed.type) {
-      case 'SESSION':
-        if (parsed.sessionId && parsed.eventId) {
-          return parsed as SessionQRData;
-        }
-        break;
-      
-      case 'CHAIN':
-      case 'CHAIN_ENTRY':
-        if (parsed.sessionId && parsed.tokenId && parsed.etag && parsed.holderId && parsed.exp) {
-          return parsed as ChainQRData;
-        }
-        break;
-    }
-
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
-
-/**
  * QR Scanner Component
+ *
+ * Instead of an in-app camera scanner, this prompts the user to open
+ * their phone's native camera which handles QR scanning natively on
+ * both iOS and Android.
  */
-export function QRScanner({
-  onSessionScanned,
-  onScanError,
-  isActive = true,
-  className = '',
-}: QRScannerProps) {
-  const [lastScannedData, setLastScannedData] = useState<string | null>(null);
-  const [scanCooldown, setScanCooldown] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const isScanningRef = useRef(false);
-  const lastScannedDataRef = useRef<string | null>(null);
-  // Reset cooldown after 2 seconds
-  useEffect(() => {
-    if (scanCooldown) {
-      const timer = setTimeout(() => {
-        setScanCooldown(false);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [scanCooldown]);
-
-  /**
-   * Handle QR code scan - opens the scanned URL
-   */
-  const handleScan = useCallback(
-    async (result: any, error: any) => {
-      // Handle camera errors
-      if (error) {
-        if (error.name === 'NotAllowedError') {
-          setCameraError('Camera access denied. Please allow camera access to scan QR codes.');
-        } else if (error.name === 'NotFoundError') {
-          setCameraError('No camera found. Please ensure your device has a camera.');
-        } else {
-          setCameraError('Camera error. Please try again.');
-        }
-        return;
-      }
-
-      if (cameraError) {
-        setCameraError(null);
-      }
-
-      if (!result?.text) {
-        return;
-      }
-
-      const data = result.text;
-
-      // Prevent duplicate scans
-      if (isScanningRef.current || scanCooldown || data === lastScannedDataRef.current) {
-        return;
-      }
-
-      isScanningRef.current = true;
-      lastScannedDataRef.current = data;
-      setLastScannedData(data);
-      setScanCooldown(true);
-
-      try {
-        // QR codes should contain URLs - just open them
-        if (data.startsWith('http://') || data.startsWith('https://') || data.startsWith('/')) {
-          window.location.href = data;
-          return;
-        }
-
-        // Legacy support: try to parse as JSON (shouldn't happen with new QR codes)
-        try {
-          const qrData = parseQRData(data);
-          if (qrData) {
-            if (qrData.type === 'SESSION') {
-              onSessionScanned?.(qrData);
-              return;
-            }
-            if (qrData.type === 'CHAIN' || qrData.type === 'CHAIN_ENTRY') {
-              const url = `/student/sessions/${qrData.sessionId}/scan?chainId=${qrData.chainId}&tokenId=${qrData.tokenId}&etag=${qrData.etag}`;
-              window.location.href = url;
-              return;
-            }
-          }
-        } catch {
-          // Not JSON, that's fine
-        }
-
-        onScanError?.('Invalid QR code');
-      } catch (err) {
-        onScanError?.('Invalid QR code');
-      } finally {
-        isScanningRef.current = false;
-      }
-    },
-    [scanCooldown, cameraError, onSessionScanned, onScanError]
-  );
-
-  if (!isActive) {
-    return null;
-  }
+export function QRScanner({ isActive = true, className = '' }: QRScannerProps) {
+  if (!isActive) return null;
 
   return (
     <div className={`qr-scanner ${className}`}>
-      <div className="qr-scanner-container">
-        {cameraError ? (
-          <div className="qr-scanner-error">
-            <p>{cameraError}</p>
-            <button
-              onClick={() => {
-                setCameraError(null);
-                window.location.reload();
-              }}
-              className="retry-button"
-            >
-              Retry
-            </button>
-          </div>
-        ) : (
-          <>
-            <QrReader
-              onResult={handleScan}
-              constraints={{
-                facingMode: 'environment', // Use back camera on mobile
-              }}
-              containerStyle={{
-                width: '100%',
-                maxWidth: '500px',
-              }}
-              videoStyle={{
-                width: '100%',
-                height: 'auto',
-              }}
-            />
-          </>
-        )}
+      <div style={{
+        padding: '2rem',
+        textAlign: 'center',
+        background: '#f0f8ff',
+        borderRadius: '12px',
+        border: '1px solid #b3d7f2',
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📷</div>
+        <p style={{ margin: '0 0 0.5rem', fontWeight: 600, color: '#333' }}>
+          Use your phone's camera
+        </p>
+        <p style={{ margin: 0, color: '#666', fontSize: '0.95rem', lineHeight: 1.6 }}>
+          Open your Camera app and point it at the QR code.
+          Tap the link that appears to join the session.
+        </p>
       </div>
-
-      <style jsx>{`
-        .qr-scanner {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-
-        .qr-scanner-container {
-          width: 100%;
-          max-width: 500px;
-          position: relative;
-          border-radius: 8px;
-          overflow: hidden;
-          background: #000;
-        }
-
-        .qr-scanner-error {
-          padding: 2rem;
-          text-align: center;
-          background: #fff;
-          color: #333;
-        }
-
-        .qr-scanner-error p {
-          margin-bottom: 1rem;
-          color: #d32f2f;
-        }
-
-        .retry-button {
-          padding: 0.5rem 1rem;
-          background: #0078d4;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 1rem;
-        }
-
-        .retry-button:hover {
-          background: #005a9e;
-        }
-      `}</style>
     </div>
   );
 }
 
 export default QRScanner;
-

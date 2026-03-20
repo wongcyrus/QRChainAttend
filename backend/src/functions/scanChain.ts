@@ -215,23 +215,13 @@ export async function scanChain(
         prevAttendance = await attendanceTable.getEntity(sessionId, previousHolder);
       } catch (notFound: any) {
         if (notFound.statusCode === 404) {
-          // Previous holder scanned their way in without explicitly joining the session.
-          // Auto-create their attendance record so they can be marked present.
-          context.warn(`[scanChain] previousHolder ${previousHolder} not in attendance table — auto-creating record`);
-          await attendanceTable.createEntity({
-            partitionKey: sessionId,
-            rowKey: previousHolder,
-            attendeeId: previousHolder,
-            sessionId,
-            joinedAt: now,
-          });
-          prevAttendance = { entryStatus: null };
+          context.warn(`[scanChain] previousHolder ${previousHolder} not in attendance table — skipping attendance mark`);
         } else {
           throw notFound;
         }
       }
 
-      if (!prevAttendance.entryStatus) {
+      if (prevAttendance && !prevAttendance.entryStatus) {
         // Determine if late or present based on session start time
         const sessionStartTime = session.startTime as number;
         const lateCutoffMinutes = 15; // Default
@@ -293,22 +283,23 @@ export async function scanChain(
       }
     }
 
-    // Ensure the scanner has an attendance record before they become holder.
-    // They may have arrived via a chain QR link without going through joinSession.
+    // Verify the scanner has joined the session before they become holder.
     try {
       await attendanceTable.getEntity(sessionId, scannerId);
     } catch (notFound: any) {
       if (notFound.statusCode === 404) {
-        context.warn(`[scanChain] scanner ${scannerId} not in attendance table — auto-creating record`);
-        await attendanceTable.createEntity({
-          partitionKey: sessionId,
-          rowKey: scannerId,
-          attendeeId: scannerId,
-          sessionId,
-          joinedAt: now,
-        });
+        context.warn(`[scanChain] scanner ${scannerId} has not joined session ${sessionId}`);
+        return {
+          status: 403,
+          jsonBody: {
+            error: {
+              code: 'NOT_JOINED',
+              message: 'You must join the session before scanning a chain QR code',
+              timestamp: now
+            }
+          }
+        };
       }
-      // Any other error is non-fatal; log and continue
     }
 
     // Delete the old token

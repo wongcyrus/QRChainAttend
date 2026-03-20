@@ -181,14 +181,14 @@ export const ChainVisualization: React.FC<ChainVisualizationProps> = ({
                   fontFamily: 'monospace',
                   fontSize: '0.875rem'
                 }}>
-                  {item.fromHolder === 'ORGANIZER' ? '🎯 Initial Seed' : item.fromHolder}
+                  {item.fromHolder === 'ORGANIZER' ? '🎯 Initial Seed' : item.toHolder === 'CLOSED' ? `✅ ${item.fromHolder}` : item.fromHolder}
                 </div>
                 <div style={{ 
                   color: '#718096',
                   fontSize: '0.75rem',
                   marginTop: '0.125rem'
                 }}>
-                  → {item.toHolder}
+                  {item.toHolder === 'CLOSED' ? '🔒 Chain closed — marked present' : `→ ${item.toHolder}`}
                 </div>
               </div>
               
