@@ -21,6 +21,8 @@ interface Session {
   endTime?: number; // Legacy field
   timestamp?: Date;
   etag?: string;
+  hasAttendeeList?: boolean | string;
+  attendeeListId?: string;
 }
 
 interface AttendanceRecord {
@@ -185,7 +187,9 @@ export async function getSession(
         ownerTransfer: false,
         lateEntryActive: false,
         earlyLeaveActive: false,
-        createdAt: session.startAt || toISOString(session.startTime) || new Date().toISOString()
+        createdAt: session.startAt || toISOString(session.startTime) || new Date().toISOString(),
+        hasAttendeeList: session.hasAttendeeList === true || session.hasAttendeeList === 'true',
+        attendeeListId: session.attendeeListId || null
       },
       attendance: attendance.map(a => ({
         sessionId,

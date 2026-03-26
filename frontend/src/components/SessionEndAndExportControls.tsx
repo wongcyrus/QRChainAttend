@@ -1,11 +1,11 @@
 /**
  * Session End and Export Controls Component
- * Feature: prove-present
- * Requirements: 2.3, 14.1, 14.2, 14.3
+ * Feature: prove-present, attendee-list-management
+ * Requirements: 2.3, 7.1, 7.2, 14.1, 14.2, 14.3
  * 
  * Provides controls for teachers to:
  * - End a session and compute final attendance
- * - Display final attendance summary
+ * - Display final attendance summary (including absentees from attendee list)
  * - Export attendance data as JSON
  */
 
@@ -48,12 +48,21 @@ interface AttendanceRecord {
   locationDistance?: number;
 }
 
+interface ListSummary {
+  totalListed: number;
+  presentCount: number;
+  absentCount: number;
+}
+
 interface EndSessionResponse {
-  finalAttendance: AttendanceRecord[];
+  attendance?: AttendanceRecord[];
+  finalAttendance?: AttendanceRecord[];
+  listSummary?: ListSummary;
 }
 
 interface AttendanceResponse {
   attendance: AttendanceRecord[];
+  listSummary?: ListSummary;
 }
 
 interface SessionEndAndExportControlsProps {
@@ -73,6 +82,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
   const [isEnding, setIsEnding] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [finalAttendance, setFinalAttendance] = useState<AttendanceRecord[] | null>(null);
+  const [listSummary, setListSummary] = useState<ListSummary | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   /**
@@ -102,14 +112,18 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
 
       const data: EndSessionResponse = await response.json();
       
-      setFinalAttendance(data.finalAttendance);
+      // Backend returns 'attendance' field; fall back to 'finalAttendance' for backward compatibility
+      const attendanceRecords = data.attendance || data.finalAttendance || [];
+      
+      setFinalAttendance(attendanceRecords);
+      setListSummary(data.listSummary || null);
       setSuccessMessage(
-        `Session ended successfully. Final attendance computed for ${data.finalAttendance.length} attendee(s).`
+        `Session ended successfully. Final attendance computed for ${attendanceRecords.length} attendee(s).`
       );
 
       // Notify parent component
       if (onSessionEnded) {
-        onSessionEnded(data.finalAttendance);
+        onSessionEnded(attendanceRecords);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to end session';
@@ -392,6 +406,13 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
           
           {/* Summary statistics */}
           <div className="summary-stats">
+            {listSummary && (
+              <div className="stat-card total-listed">
+                <div className="stat-value">{listSummary.totalListed}</div>
+                <div className="stat-label">Total Listed</div>
+              </div>
+            )}
+
             <div className="stat-card total">
               <div className="stat-value">{summary.total}</div>
               <div className="stat-label">Total Students</div>
@@ -418,7 +439,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
             </div>
             
             <div className="stat-card absent">
-              <div className="stat-value">{summary.absent}</div>
+              <div className="stat-value">{listSummary ? listSummary.absentCount : summary.absent}</div>
               <div className="stat-label">Absent</div>
             </div>
           </div>
@@ -441,7 +462,7 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
               </thead>
               <tbody>
                 {finalAttendance.map(record => (
-                  <tr key={record.attendeeId}>
+                  <tr key={record.attendeeId} className={record.finalStatus === FinalStatus.ABSENT ? 'absent-row' : ''}>
                     <td className="attendee-id">{record.attendeeId.replace('@stu.vtc.edu.hk', '')}</td>
                     <td>{formatTimestamp(record.joinedAt)}</td>
                     <td>
@@ -658,6 +679,11 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
           border-color: #757575;
         }
 
+        .stat-card.total-listed {
+          background: #e3f2fd;
+          border-color: #1976d2;
+        }
+
         .stat-value {
           font-size: 2rem;
           font-weight: 700;
@@ -697,6 +723,15 @@ export const SessionEndAndExportControls: React.FC<SessionEndAndExportControlsPr
 
         .attendance-table tbody tr:hover {
           background: #f9f9f9;
+        }
+
+        .attendance-table tbody tr.absent-row {
+          background: #f5f5f5;
+          color: #757575;
+        }
+
+        .attendance-table tbody tr.absent-row:hover {
+          background: #eeeeee;
         }
 
         .attendee-id {

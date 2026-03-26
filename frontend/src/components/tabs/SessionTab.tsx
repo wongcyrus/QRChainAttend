@@ -5,6 +5,7 @@
 import React from 'react';
 import { SessionEndAndExportControls } from '../SessionEndAndExportControls';
 import { CoOrganizerManagement } from '../CoOrganizerManagement';
+import { SessionAttendeeListEditor } from '../SessionAttendeeListEditor';
 
 interface Session {
   sessionId: string;
@@ -28,6 +29,7 @@ interface Session {
   currentLateTokenId?: string;
   earlyLeaveActive: boolean;
   currentEarlyTokenId?: string;
+  hasAttendeeList?: boolean;
   createdAt: string;
   endedAt?: string;
 }
@@ -264,6 +266,27 @@ export const SessionTab: React.FC<SessionTabProps> = ({
           onError={onError}
         />
       </div>
+
+      {/* Session Attendee List */}
+      {session.hasAttendeeList ? (
+        <div style={{ marginBottom: '2rem' }}>
+          <SessionAttendeeListEditor sessionId={sessionId} />
+        </div>
+      ) : (
+        <div style={{
+          backgroundColor: 'white',
+          padding: '2rem',
+          borderRadius: '16px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+          marginBottom: '2rem',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📋</div>
+          <p style={{ color: '#718096', fontSize: '0.95rem', margin: 0 }}>
+            No attendee list linked to this session.
+          </p>
+        </div>
+      )}
 
       {/* Co-Organizer Management */}
       <CoOrganizerManagement

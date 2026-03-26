@@ -52,5 +52,7 @@ export const TableNames = {
   CAPTURE_UPLOADS: 'CaptureUploads',
   CAPTURE_RESULTS: 'CaptureResults',
   EXTERNAL_TEACHERS: 'ExternalOrganizers',
-  OTP_CODES: 'OtpCodes'
+  OTP_CODES: 'OtpCodes',
+  ATTENDEE_LIST_ENTRIES: 'AttendeeListEntries',
+  SESSION_ATTENDEE_ENTRIES: 'SessionAttendeeEntries'
 } as const;

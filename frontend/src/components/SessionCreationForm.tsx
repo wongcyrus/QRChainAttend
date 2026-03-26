@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { getAuthHeaders } from '../utils/authHeaders';
 import QRCode from 'qrcode';
+import { AttendeeListSelector } from './AttendeeListSelector';
 
 interface SessionConstraints {
   geofence?: {
@@ -99,6 +100,9 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
   // Wi-Fi constraints
   const [useWifi, setUseWifi] = useState(false);
   const [wifiSSIDs, setWifiSSIDs] = useState<string>('');
+  
+  // Attendee list (optional)
+  const [attendeeListId, setAttendeeListId] = useState<string | null>(null);
   
   // State management
   const [loading, setLoading] = useState(false);
@@ -232,6 +236,23 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
           throw new Error(errorData.error?.message || 'Failed to update session');
         }
 
+        // Link attendee list if selected during edit
+        if (attendeeListId) {
+          const linkResponse = await fetch(`${apiUrl}/sessions/${sessionToEdit.sessionId}/attendee-list`, {
+            credentials: 'include',
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ listId: attendeeListId }),
+          });
+          if (!linkResponse.ok) {
+            const linkError = await linkResponse.json().catch(() => ({}));
+            // Don't fail the whole edit if link fails (e.g. already linked)
+            if (linkError.error?.code !== 'LIST_ALREADY_LINKED') {
+              throw new Error(linkError.error?.message || 'Failed to link attendee list');
+            }
+          }
+        }
+
         if (onSessionCreated) {
           onSessionCreated(sessionToEdit.sessionId);
         }
@@ -268,6 +289,11 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
       }
       if (constraints && constraints.wifiAllowlist) {
         request.constraints = constraints;
+      }
+
+      // Include attendee list if selected
+      if (attendeeListId) {
+        (request as any).attendeeListId = attendeeListId;
       }
       
       const response = await fetch(`${apiUrl}/sessions`, { credentials: 'include',
@@ -319,6 +345,7 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
     setEstimatedSessionCount(1);
     setUseWifi(false);
     setWifiSSIDs('');
+    setAttendeeListId(null);
     setError(null);
   };
 
@@ -1059,6 +1086,23 @@ export const SessionCreationForm: React.FC<SessionCreationFormProps> = ({
             )}
           </div>
         </div>
+
+        {/* Attendee List (optional) */}
+        <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{
+              color: '#2d3748',
+              fontSize: '1.25rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <span>📋</span> Attendee List
+            </h3>
+            <AttendeeListSelector
+              onSelect={(listId) => setAttendeeListId(listId)}
+            />
+          </div>
         
         {/* Submit Button */}
         <div style={{ textAlign: 'center', paddingTop: '1rem' }}>

@@ -23,6 +23,7 @@ import { ChainsTab } from './tabs/ChainsTab';
 import { CaptureTab } from './tabs/CaptureTab';
 import { QuizTab } from './tabs/QuizTab';
 import { SessionTab } from './tabs/SessionTab';
+import { SessionAttendeeListEditor } from './SessionAttendeeListEditor';
 import { type UploadCompleteEvent, type CaptureExpiredEvent, type CaptureResultsEvent } from './OrganizerCaptureControl';
 
 // Type definitions
@@ -81,6 +82,7 @@ interface Session {
   currentEarlyTokenId?: string;
   createdAt: string;
   endedAt?: string;
+  hasAttendeeList?: boolean;
 }
 
 interface AttendanceRecord {
@@ -689,6 +691,7 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
       badgeColor: '#ff4d4f'
     },
     { id: 'capture', label: 'Capture', icon: '📸' },
+    ...(session?.hasAttendeeList === true || session?.hasAttendeeList === ('true' as any) ? [{ id: 'attendees', label: 'Attendees', icon: '📋' }] : []),
     { 
       id: 'quiz', 
       label: 'Quiz', 
@@ -908,6 +911,13 @@ const TeacherDashboardComponent: React.FC<TeacherDashboardProps> = ({
           uploadCompleteHandlerRef={uploadCompleteHandlerRef}
           captureExpiredHandlerRef={captureExpiredHandlerRef}
           captureResultsHandlerRef={captureResultsHandlerRef}
+        />
+      )}
+
+      {activeTab === 'attendees' && (
+        <SessionAttendeeListEditor
+          sessionId={sessionId}
+          checkedInEmails={attendance.map(r => r.attendeeId.toLowerCase())}
         />
       )}
 

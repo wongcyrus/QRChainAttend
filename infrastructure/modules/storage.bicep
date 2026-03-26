@@ -158,6 +158,18 @@ resource otpCodesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2
   name: 'OtpCodes'
 }
 
+// Attendee list entries table (master attendee list email entries)
+resource attendeeListEntriesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'AttendeeListEntries'
+}
+
+// Session attendee entries table (per-session snapshot of attendee emails)
+resource sessionAttendeeEntriesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
+  parent: tableService
+  name: 'SessionAttendeeEntries'
+}
+
 // ============================================================================
 // BLOB SERVICE
 // ============================================================================

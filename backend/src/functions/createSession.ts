@@ -26,6 +26,8 @@ interface CreateSessionRequest {
   };
   geofenceRadius?: number;
   enforceGeofence?: boolean;
+  // Attendee list
+  attendeeListId?: string;
 }
 
 interface CreateSessionResponse {
@@ -156,7 +158,7 @@ export async function createSession(
         parentSessionId = sessionId;
       }
 
-      const entity = {
+      const entity: Record<string, any> & { partitionKey: string; rowKey: string } = {
         partitionKey: 'SESSION',
         rowKey: sessionId,
         eventId: body.eventId,
@@ -181,8 +183,62 @@ export async function createSession(
         enforceGeofence: body.enforceGeofence ?? false
       };
 
+      // Include attendee list fields if provided
+      if (body.attendeeListId) {
+        entity.attendeeListId = body.attendeeListId;
+        entity.hasAttendeeList = true;
+      }
+
       await sessionsTable.createEntity(entity);
       createdSessionIds.push(sessionId);
+    }
+
+    // If attendeeListId provided, perform snapshot copy for each created session
+    if (body.attendeeListId) {
+      const attendeeListTable = getTableClient(TableNames.ATTENDEE_LIST_ENTRIES);
+      const emails: string[] = [];
+      let listOrganizerId: string | null = null;
+
+      for await (const entry of attendeeListTable.listEntities({
+        queryOptions: { filter: `PartitionKey eq '${body.attendeeListId}'` }
+      })) {
+        if (listOrganizerId === null) {
+          listOrganizerId = entry.organizerId as string;
+        }
+        emails.push(entry.rowKey as string);
+      }
+
+      // Verify list exists
+      if (emails.length === 0) {
+        return {
+          status: 404,
+          jsonBody: { error: { code: 'NOT_FOUND', message: 'Attendee list not found', timestamp: Date.now() } }
+        };
+      }
+
+      // Verify the organizer owns the list
+      if (listOrganizerId !== organizerId) {
+        return {
+          status: 403,
+          jsonBody: { error: { code: 'FORBIDDEN', message: 'You do not own this attendee list', timestamp: Date.now() } }
+        };
+      }
+
+      // Copy entries to SessionAttendeeEntries for each created session
+      const sessionAttendeeTable = getTableClient(TableNames.SESSION_ATTENDEE_ENTRIES);
+      const snapshotTime = new Date().toISOString();
+
+      for (const sessionId of createdSessionIds) {
+        for (const email of emails) {
+          await sessionAttendeeTable.createEntity({
+            partitionKey: sessionId,
+            rowKey: email,
+            sourceListId: body.attendeeListId,
+            addedBy: 'SNAPSHOT',
+            addedAt: snapshotTime
+          });
+        }
+      }
     }
 
     // Generate Session QR for first session

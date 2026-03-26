@@ -103,6 +103,57 @@ export async function endSession(
       });
     }
 
+    // If session has an attendee list, compute absentees and add listSummary
+    if (session.hasAttendeeList === true || session.hasAttendeeList === 'true') {
+      const sessionAttendeeTable = getTableClient(TableNames.SESSION_ATTENDEE_ENTRIES);
+      const listedEmails: string[] = [];
+
+      for await (const entity of sessionAttendeeTable.listEntities({
+        queryOptions: { filter: `PartitionKey eq '${sessionId}'` }
+      })) {
+        listedEmails.push(entity.rowKey as string);
+      }
+
+      // Build set of emails that have attendance records (normalize to lowercase)
+      const presentEmails = new Set(
+        attendance.map(record => (record.attendeeId as string).toLowerCase())
+      );
+
+      // Compute absentees: listed emails not in attendance
+      const absentees = listedEmails.filter(email => !presentEmails.has(email.toLowerCase()));
+
+      // Append absentee records
+      for (const email of absentees) {
+        attendance.push({
+          attendeeId: email,
+          finalStatus: 'ABSENT',
+          entryStatus: undefined,
+          entryAt: undefined,
+          exitVerified: undefined,
+          exitVerifiedAt: undefined,
+          earlyLeaveAt: undefined
+        });
+      }
+
+      const totalListed = listedEmails.length;
+      const absentCount = absentees.length;
+      const presentCount = totalListed - absentCount;
+
+      return {
+        status: 200,
+        jsonBody: {
+          success: true,
+          sessionId,
+          attendance,
+          listSummary: {
+            totalListed,
+            presentCount,
+            absentCount
+          }
+        }
+      };
+    }
+
     return {
       status: 200,
       jsonBody: {

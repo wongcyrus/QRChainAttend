@@ -142,6 +142,30 @@ export async function joinSession(
       throw error;
     }
 
+    // Enforce attendee list if session has one
+    if (session.hasAttendeeList === true || session.hasAttendeeList === 'true') {
+      const normalizedEmail = attendeeId.toLowerCase();
+      const sessionAttendeeTable = getTableClient(TableNames.SESSION_ATTENDEE_ENTRIES);
+      try {
+        await sessionAttendeeTable.getEntity(sessionId, normalizedEmail);
+      } catch (error: any) {
+        if (error.statusCode === 404) {
+          context.warn(`Attendee list enforcement: rejected attendee=${attendeeId}, session=${sessionId}`);
+          return {
+            status: 403,
+            jsonBody: {
+              error: {
+                code: 'NOT_ON_ATTENDEE_LIST',
+                message: 'You are not on the attendee list for this session',
+                timestamp: Date.now()
+              }
+            }
+          };
+        }
+        throw error;
+      }
+    }
+
     // Parse geolocation settings
     let sessionLocation: { latitude: number; longitude: number } | undefined;
     if (session.location) {

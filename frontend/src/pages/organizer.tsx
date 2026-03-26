@@ -11,6 +11,7 @@ import { TeacherHeader } from '../components/OrganizerHeader';
 import { SessionsList } from '../components/SessionsList';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { QRCodeModal } from '../components/QRCodeModal';
+import { AttendeeListManager } from '../components/AttendeeListManager';
 import QRCode from 'qrcode';
 
 interface UserInfo {
@@ -52,6 +53,7 @@ export default function TeacherPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showAttendeeListManager, setShowAttendeeListManager] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<{ sessionId: string; eventId: string; type: 'ENTRY' | 'EXIT'; qrDataUrl: string; studentUrl?: string; refreshIntervalMs?: number; expiresAt?: number } | null>(null);
@@ -687,6 +689,7 @@ export default function TeacherPage() {
         onResetView={() => {
           setShowCreateForm(false);
           setShowEditForm(false);
+          setShowAttendeeListManager(false);
           setSelectedSessionForEdit(null);
         }}
       />
@@ -718,36 +721,94 @@ export default function TeacherPage() {
 
         {/* Create/Edit Session Section */}
         <div style={{ marginBottom: '2rem' }}>
-          {!showCreateForm && !showEditForm ? (
-            <button
-              onClick={() => setShowCreateForm(true)}
-              style={{
-                padding: '1rem 2rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                fontSize: '1.1rem',
-                fontWeight: '700',
-                boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
-                transition: 'all 0.3s',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.5)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>➕</span>
-              Create New Session
-            </button>
+          {!showCreateForm && !showEditForm && !showAttendeeListManager ? (
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                style={{
+                  padding: '1rem 2rem',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  fontWeight: '700',
+                  boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+                  transition: 'all 0.3s',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.5)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>➕</span>
+                Create New Session
+              </button>
+              <button
+                onClick={() => setShowAttendeeListManager(true)}
+                style={{
+                  padding: '1rem 2rem',
+                  background: 'linear-gradient(135deg, #38b2ac 0%, #319795 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  fontWeight: '700',
+                  boxShadow: '0 8px 24px rgba(56, 178, 172, 0.4)',
+                  transition: 'all 0.3s',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(56, 178, 172, 0.5)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(56, 178, 172, 0.4)';
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>📋</span>
+                Manage Attendee Lists
+              </button>
+            </div>
+          ) : showAttendeeListManager ? (
+            <div style={{
+              padding: '2rem',
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              border: '2px solid #e2e8f0',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
+            }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <button
+                  onClick={() => setShowAttendeeListManager(false)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#edf2f7',
+                    color: '#4a5568',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    fontWeight: '600'
+                  }}
+                >
+                  ← Back to Sessions
+                </button>
+              </div>
+              <AttendeeListManager />
+            </div>
           ) : (
             <div style={{
               padding: '2rem',
@@ -768,8 +829,8 @@ export default function TeacherPage() {
           )}
         </div>
 
-        {/* Active Sessions List - Hidden when creating/editing */}
-        {!showCreateForm && !showEditForm && (
+        {/* Active Sessions List - Hidden when creating/editing/managing attendee lists */}
+        {!showCreateForm && !showEditForm && !showAttendeeListManager && (
         <SessionsList
           sessions={sessions}
           onDashboard={(session) => {
